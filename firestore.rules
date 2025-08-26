@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // membership check: member doc id == user uid
+    function isMember(hid) {
+      return exists(/databases/$(database)/documents/households/$(hid)/members/$(uid()));
+    }
+
+    function isAdmin(hid) {
+      return isMember(hid) &&
+        get(/databases/$(database)/documents/households/$(hid)/members/$(uid())).data.role == "admin";
+    }
+
+    // ---------------- users ----------------
+    match /users/{userId} {
+      allow read, write: if signedIn() && userId == uid();
+    }
+
+    // --------------- households ------------
+    match /households/{hid} {
+
+      // anyone signed-in can create a household
+      allow create: if signedIn();
+
+      // read household only if you're a member
+      allow read: if signedIn() && isMember(hid);
+
+      // update/delete household only by admin
+      allow update, delete: if signedIn() && isAdmin(hid);
+
+      // -------- members subcollection --------
+      match /members/{memberUid} {
+        // members can read the roster
+        allow read: if signedIn() && isMember(hid);
+
+        // only admins can add/remove/update roles
+        allow create, update, delete: if signedIn() && isAdmin(hid);
+      }
+
+      // -------- invites (admin-managed) ------
+      match /invites/{inviteId} {
+        allow read, create, update, delete: if signedIn() && isAdmin(hid);
+      }
+
+      // -------- children ---------------------
+      match /children/{childId} {
+        allow read, write: if signedIn() && isMember(hid);
+      }
+
+      // -------- tasks ------------------------
+      match /tasks/{taskId} {
+        allow read: if signedIn() && isMember(hid);
+
+        allow create: if signedIn() && isMember(hid)
+          && request.resource.data.householdId == hid
+          && request.resource.data.createdBy == uid()
+          && request.resource.data.title is string
+          && request.resource.data.type in ["chore","event","deadline","checklist"];
+
+        // prevent privilege escalation & path drift
+        allow update: if signedIn() && isMember(hid)
+          && request.resource.data.householdId == resource.data.householdId
+          && request.resource.data.createdBy == resource.data.createdBy;
+
+        allow delete: if signedIn() && isMember(hid);
+
+        // checklist items
+        match /checklist/{itemId} {
+          allow read, write: if signedIn() && isMember(hid);
+        }
+      }
+
+      // -------- measurements -----------------
+      match /measurements/{measurementId} {
+        allow read, write: if signedIn() && isMember(hid);
+      }
+
+      // -------- inventory --------------------
+      match /inventory/{inventoryId} {
+        allow read, write: if signedIn() && isMember(hid);
+      }
+
+      // -------- activity (append-only) -------
+      match /activity/{activityId} {
+        allow create: if signedIn() && isMember(hid);
+        allow read:   if signedIn() && isMember(hid);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

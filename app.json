@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "HomeControl",
+    "slug": "home-control",
+    "scheme": "homecontrol",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+  "ios": { "supportsTablet": false },
+  "android": {},
+    "plugins": ["expo-notifications"],
+    "extra": {
+      "eas": { "projectId": "REPLACE_WITH_EAS_PROJECT_ID" }
+    }
+  }
+}

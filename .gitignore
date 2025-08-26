@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Node/Expo
+node_modules/
+.npm-cache/
+npm-debug.log*
+yarn.lock
+yarn-error.log
+.pnpm-store/
+.expo/
+.expo-shared/
+dist/
+build/
+coverage/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# Android/iOS (managed or prebuild)
+android/
+ios/
+
+# Firebase emulators
+.firebase/
+firestore-debug.log
+storage-debug.log
+firebase-debug.log
+
+# Functions build and deps
+functions/lib/
+functions/node_modules/
