@@ -71,11 +71,21 @@ export default function SettingsScreen() {
         if (typeof s.notificationsEnabled === "boolean")
           setNotifEnabled(s.notificationsEnabled);
       } catch {}
-      // Prefill household settings (read-only via provider; fetch doc lazily for timezone/hour)
+      // Prefill household settings from Firestore
       try {
         if (householdId) {
-          // Placeholder for fetching household settings if needed
-          await fetch(`data:text/plain,`);
+          const snap = await (await import("firebase/firestore")).getDoc(
+            (await import("firebase/firestore")).doc(
+              (await import("../firebase")).db,
+              `households/${householdId}`,
+            ),
+          );
+          const data = snap.data() as any;
+          if (data?.timezone) setHhTz(String(data.timezone));
+          if (typeof data?.digestHour === "number")
+            setHhHour(String(data.digestHour));
+          if (typeof data?.escalationEnabled === "boolean")
+            setEscalation(Boolean(data.escalationEnabled));
         }
       } catch {}
     })();

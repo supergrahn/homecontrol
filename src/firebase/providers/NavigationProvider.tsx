@@ -11,6 +11,7 @@ import TaskDetailScreen from "../../screens/TaskDetailScreen";
 import TemplatesScreen from "../../screens/TemplatesScreen";
 import SignInScreen from "../../screens/SignInScreen";
 import SettingsScreen from "../../screens/SettingsScreen";
+import ActivityScreen from "../../screens/ActivityScreen";
 
 export type RootStackParamList = {
   SignIn: undefined;
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   TaskDetail: { id: string };
   Templates: undefined;
   Settings: undefined;
+  Activity: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -58,6 +60,11 @@ export default function NavigationProvider() {
           name="Settings"
           component={SettingsScreen}
           options={{ title: "Settings" }}
+        />
+        <Stack.Screen
+          name="Activity"
+          component={ActivityScreen}
+          options={{ title: "Activity" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

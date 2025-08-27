@@ -117,6 +117,12 @@ export default function HomeScreen({ navigation }: any) {
             title={t("add")}
             onPress={() => navigation.navigate("AddTask")}
           />
+          <TouchableOpacity onPress={() => navigation.navigate("Activity")}
+            accessibilityLabel={t("recentActivity")}
+            accessibilityRole="button"
+          >
+            <Ionicons name="time-outline" size={22} color="#333" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
             <Ionicons name="settings-outline" size={22} color="#333" />
           </TouchableOpacity>

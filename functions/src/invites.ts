@@ -45,7 +45,8 @@ export const createInvite = functions.https.onCall(async (data, context) => {
     const from = process.env.SMTP_FROM || "no-reply@homecontrol";
     const appLink = dynamicLink || deepLink;
     if (host && user && pass) {
-      const nodemailer = require("nodemailer") as typeof import("nodemailer");
+  // Require nodemailer dynamically to avoid type resolution issues if types are absent in some environments
+  const nodemailer = require("nodemailer");
       const transporter = nodemailer.createTransport({
         host,
         port,
@@ -152,3 +153,44 @@ function buildDynamicLink(deepLink: string): string | null {
   if (isi) params.set("isi", isi);
   return `https://${domain}/?${params.toString()}`;
 }
+
+// Firestore trigger: log invite activity on create/update (revoke/expire)
+export const onInviteWrite = functions.firestore
+  .document("households/{hid}/invites/{inviteId}")
+  .onWrite(async (change, ctx) => {
+    const hid = ctx.params.hid as string;
+    const inviteId = ctx.params.inviteId as string;
+
+    // Created
+    if (!change.before.exists && change.after.exists) {
+      const inv = change.after.data() as any;
+      await db.collection(`households/${hid}/activity`).add({
+        actorId: inv.createdBy ?? null,
+        action: "invite.create",
+        taskId: null,
+        payload: { inviteId, email: inv.email, role: inv.role ?? "adult" },
+        at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // Updated
+    if (change.before.exists && change.after.exists) {
+      const before = change.before.data() as any;
+      const after = change.after.data() as any;
+      if (before.status !== after.status) {
+        const newStatus = String(after.status);
+        // accept is already logged in acceptInvite; avoid duplicate
+        if (newStatus === "revoked" || newStatus === "expired") {
+          const action = newStatus === "revoked" ? "invite.revoke" : "invite.expire";
+          await db.collection(`households/${hid}/activity`).add({
+            actorId: after.updatedBy ?? after.createdBy ?? null,
+            action,
+            taskId: null,
+            payload: { inviteId },
+            at: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    }
+  });

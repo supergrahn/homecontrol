@@ -4,11 +4,12 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 
 ## Next steps
 
-- [] Add app icons: run npx expo customize to generate assets/icon.png and assets/adaptive-icon.png, then re-add those fields in app.json.
-- [] Install ESLint deps to enable linting: npm install (already in devDependencies)
-- [] EAS build: add eas.json if you plan to ship to stores.
-- [] Strengthen Functions: add proper RRULE computation and email sending for invites.
-- [] Add icons, create an eas.json and wire a basic invite flow in the app UI, I can do that next.
+- [x] Add app icons: run npx expo customize to generate assets/icon.png and assets/adaptive-icon.png, then re-add those fields in app.json.
+- [ ] Install ESLint deps to enable linting: npm install (already in devDependencies)
+- [x] EAS build: add eas.json if you plan to ship to stores.
+- [ ] Strengthen Functions: expand RRULE edge cases (EXDATE/COUNT/UNTIL, DST), and finalize invite email (SMTP/Dynamic Links) with quiet-hours queueing.
+- [x] Add icons, create an eas.json and wire a basic invite flow in the app UI.
+- [ ] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
 
 ---
 

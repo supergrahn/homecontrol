@@ -6,6 +6,7 @@ import * as households from "./households";
 
 export const createInvite = invites.createInvite;
 export const acceptInvite = invites.acceptInvite;
+export const onInviteWrite = invites.onInviteWrite;
 
 export const onHouseholdCreate = tasks.onHouseholdCreate;
 export const onTaskWrite = tasks.onTaskWrite;
