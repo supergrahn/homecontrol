@@ -71,7 +71,7 @@ export default function HomeScreen({ navigation }: any) {
         setTab("overdue");
       }
     }
-  }, [digest.data]);
+  }, [digest.data, tab]);
 
   const list = tab === "today" ? today : tab === "overdue" ? overdue : upcoming;
   const activity = useQuery({

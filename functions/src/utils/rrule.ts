@@ -32,13 +32,21 @@ export async function computeNextOccurrence(
   if (input.rrule) {
     try {
   const base = startAt ?? dueAt ?? now;
-  // Prefer constructing a concrete RRule to ensure dtstart is honored
-  const opts = RRule.parseString(input.rrule);
-  // Only set dtstart if not already specified in the string
-  if (!opts.dtstart) opts.dtstart = base;
-  const rule = new RRule(opts);
-  const occ = rule.after(now, true);
-  occurrence = occ ? occ : null;
+      const hasSetSyntax = /(^|\n)EXDATE:|(^|\n)RDATE:|(^|\n)RRULE:/i.test(
+        input.rrule,
+      );
+      if (hasSetSyntax) {
+        const set = rrulestr(input.rrule, { dtstart: base, forceset: true });
+        const occ = (set as any).after?.(now, true);
+        occurrence = occ ? new Date(occ) : null;
+      } else {
+        // Construct a concrete RRule to ensure dtstart is honored
+        const opts = RRule.parseString(input.rrule);
+        if (!opts.dtstart) opts.dtstart = base;
+        const rule = new RRule(opts);
+        const occ = rule.after(now, true);
+        occurrence = occ ? occ : null;
+      }
     } catch {
       occurrence = dueAt ?? startAt ?? null;
     }
