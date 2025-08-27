@@ -5,6 +5,7 @@ import {
   getDownloadURL,
   listAll,
   ref,
+  deleteObject,
 } from "firebase/storage";
 
 export type UploadedPhoto = {
@@ -51,4 +52,14 @@ export async function listTaskPhotos(
     // If directory doesn't exist yet
     return [];
   }
+}
+
+export async function deleteTaskPhoto(
+  hid: string,
+  taskId: string,
+  name: string,
+): Promise<void> {
+  const path = `households/${hid}/tasks/${taskId}/${name}`;
+  const r = storageRef(storage, path);
+  await deleteObject(r);
 }

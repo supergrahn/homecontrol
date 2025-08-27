@@ -8,7 +8,7 @@ import {
   removeChecklistItem,
 } from "../services/checklist";
 import * as ImagePicker from "expo-image-picker";
-import { listTaskPhotos, uploadTaskPhoto } from "../services/storage";
+import { listTaskPhotos, uploadTaskPhoto, deleteTaskPhoto } from "../services/storage";
 import { acceptTask, releaseTask, getTask } from "../services/tasks";
 import { auth } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
@@ -176,11 +176,35 @@ export default function TaskDetailScreen({ route }: any) {
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {photos.map((p) => (
-          <Image
-            key={p.name}
-            source={{ uri: p.url }}
-            style={{ width: 96, height: 96, borderRadius: 8 }}
-          />
+          <View key={p.name} style={{ position: "relative" }}>
+            <Image
+              source={{ uri: p.url }}
+              style={{ width: 96, height: 96, borderRadius: 8 }}
+            />
+            <TouchableOpacity
+              onPress={async () => {
+                if (!householdId) return;
+                try {
+                  await deleteTaskPhoto(householdId, taskId, p.name);
+                  const next = await listTaskPhotos(householdId, taskId);
+                  setPhotos(next);
+                } catch {}
+              }}
+              style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                backgroundColor: "#0008",
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderRadius: 6,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={(t("delete") as string) || "Delete"}
+            >
+              <Text style={{ color: "#fff", fontSize: 12 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
         ))}
       </View>
       <View style={{ marginTop: 8 }}>
