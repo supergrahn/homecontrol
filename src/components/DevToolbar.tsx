@@ -32,6 +32,16 @@ export default function DevToolbar() {
     }
   };
 
+  const runHealthCheck = async () => {
+    try {
+      const fn = httpsCallable(getFunctions(firebaseApp), "healthCheck");
+      const res = await fn({});
+      Alert.alert("Health", JSON.stringify(res.data));
+    } catch (e) {
+      Alert.alert("Health Error", String(e));
+    }
+  };
+
   return (
     <View
       style={{
@@ -75,6 +85,15 @@ export default function DevToolbar() {
         }}
       >
         <Button title="Run digest" onPress={runDigestNow} color="#fff" />
+      </View>
+      <View
+        style={{
+          backgroundColor: "#0009",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <Button title="Health" onPress={runHealthCheck} color="#fff" />
       </View>
     </View>
   );
