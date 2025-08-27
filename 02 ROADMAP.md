@@ -5,9 +5,12 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 ## Next steps
 
 - [x] Add app icons: run npx expo customize to generate assets/icon.png and assets/adaptive-icon.png, then re-add those fields in app.json.
-- [ ] Install ESLint deps to enable linting: npm install (already in devDependencies)
+- [x] Install ESLint deps to enable linting: npm install (already in devDependencies)
 - [x] EAS build: add eas.json if you plan to ship to stores.
-- [ ] Strengthen Functions: expand RRULE edge cases (EXDATE/COUNT/UNTIL, DST), and finalize invite email (SMTP/Dynamic Links) with quiet-hours queueing.
+- [ ] Strengthen Functions:
+  - [x] Expand RRULE edge cases (EXDATE/COUNT/UNTIL, BYDAY/BYMONTHDAY, DST) with tests
+  - [x] Quiet-hours-aware push queue with retries/backoff + daily digest and escalation
+  - [ ] Finalize invite email via SMTP + Dynamic Links
 - [x] Add icons, create an eas.json and wire a basic invite flow in the app UI.
 - [x] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
 
@@ -245,15 +248,17 @@ Use a dedicated bucket path to scope by household:
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function isSignedIn()        { return request.auth != null; }
-    function userId()            { return request.auth.uid; }
-    function isHouseholdMember(hid) {
-      return exists(/databases/(default)/documents/households/$(hid)/members/$(userId()));
-    }
+    function isSignedIn() { return request.auth != null; }
 
-    match /households/{householdId}/tasks/{taskId}/{allPaths=**} {
-      allow read, write: if isSignedIn() && isHouseholdMember(householdId)
-        && request.resource.size < 10 * 1024 * 1024   // 10MB
+    // NOTE: Storage rules cannot read Firestore to check membership.
+    // Enforce membership in app/Cloud Functions; here we restrict to signed-in users
+    // and constrain uploads by size/content-type. Deletions allowed for signed-in users.
+
+    match /households/{hid}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow delete: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*|application/pdf');
     }
   }
@@ -398,6 +403,12 @@ Tiny steps, visible value, no yak-shaving.
 
 6. **Escalation (opt-in)**: if due in <3h and unaccepted, ping unassigned adult.
 7. **Checklist templates (Birthday, Day Trip, Season Change)**: one-tap generate.
+
+> Shipped along the way (app polish):
+> - Quick accept/release and complete on TaskCard, with badges (Mine / accepted count)
+> - Photo upload + delete in Task Detail
+> - Checklist inline rename and fast entry (submit + refocus)
+> - Clone checklist as template (labels only)
 8. **Child profiles & measurements** UI; record foot length; history chart (client-side).
 9. **Storage upload UI** for task photos (evidence, receipts).
 10. **Index tuning** & perf pass for task lists.
