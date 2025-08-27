@@ -101,5 +101,7 @@
   "photos": "Bilder",
   "addPhoto": "Legg til bilde",
   "acceptTask": "Jeg tar den",
-  "releaseTask": "Frigi"
+  "releaseTask": "Frigi",
+  "prepAt": "Forbered kl {{when}}",
+  "occursAt": "Skjer kl {{when}}"
 }

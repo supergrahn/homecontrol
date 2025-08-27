@@ -221,3 +221,117 @@ export const runDailyDigests = functions.pubsub
     }
     return null;
   });
+
+// Dev/admin callable to run a digest now for a specific household
+export const runDigestNow = functions.https.onCall(async (data, context) => {
+  const { householdId } = data as { householdId: string };
+  const uid = context.auth?.uid;
+  if (!uid) throw new functions.https.HttpsError("unauthenticated", "Sign in");
+  const member = await db.doc(`households/${householdId}/members/${uid}`).get();
+  if (!member.exists || (member.data() as any)?.role !== "admin") {
+    throw new functions.https.HttpsError("permission-denied", "Admin only");
+  }
+
+  const h = await db.doc(`households/${householdId}`).get();
+  const tz = (h.data() as any)?.timezone || "UTC";
+  const nowTz = dayjs().tz(tz);
+  const start = nowTz.startOf("day").toDate();
+  const end = nowTz.endOf("day").toDate();
+  const now = nowTz.toDate();
+  const tasksRef = db.collection(`households/${householdId}/tasks`);
+  const statusIn = ["open", "in_progress", "blocked"];
+  const todayNextSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("nextOccurrenceAt", ">=", start)
+    .where("nextOccurrenceAt", "<=", end)
+    .orderBy("nextOccurrenceAt", "asc")
+    .get();
+  const todayDueSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("dueAt", ">=", start)
+    .where("dueAt", "<=", end)
+    .orderBy("dueAt", "asc")
+    .get();
+  const overdueSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("dueAt", "<", now)
+    .orderBy("dueAt", "asc")
+    .get();
+  const dedup: Record<string, FirebaseFirestore.DocumentSnapshot> = {};
+  todayNextSnap.docs.forEach((d) => (dedup[d.id] = d));
+  todayDueSnap.docs.forEach((d) => (dedup[d.id] = d));
+  const todayTasks = Object.values(dedup);
+  const overdueTasks = overdueSnap.docs.filter((d) => !todayTasks.find((t) => t.id === d.id));
+  const topTitles = (
+    docs: FirebaseFirestore.DocumentSnapshot[],
+    n: number,
+  ) => docs.slice(0, n).map((d) => String((d.data() as any)?.title || d.id));
+  const summary = {
+    date: nowTz.format("YYYY-MM-DD"),
+    tz,
+    counts: { today: todayTasks.length, overdue: overdueTasks.length },
+    samples: {
+      todayTitles: topTitles(todayTasks, 2),
+      overdueTitles: topTitles(overdueTasks, 2),
+    },
+  };
+  // Dedupe: use deterministic id like scheduled job (digest_YYYY-MM-DD)
+  const digestId = `digest_${summary.date}`;
+  const digestRef = db.doc(`households/${householdId}/activity/${digestId}`);
+  const existed = await digestRef.get();
+  if (!existed.exists) {
+    await digestRef.set(
+      {
+        actorId: uid, // manual trigger
+        action: "digest.daily",
+        taskId: null,
+        payload: summary,
+        at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    // Push notifications mirroring scheduled job, respecting quiet hours
+    try {
+      const membersSnap = await db
+        .collection(`households/${householdId}/members`)
+        .get();
+      const memberIds = membersSnap.docs.map((d) => d.id);
+      if (memberIds.length) {
+        const usersSnap = await db.getAll(
+          ...memberIds.map((m) => db.doc(`users/${m}`)),
+        );
+        const messages: { to: string[]; title: string; body: string; data?: any }[] = [];
+        for (const doc of usersSnap) {
+          const u = doc.data() as any;
+          if (u?.notificationsEnabled === false) continue;
+          const token: string | undefined = u?.pushToken;
+          if (!token) continue;
+          const quiet = u?.quietHours as { start: string; end: string; tz?: string } | undefined;
+          if (isWithinQuietHours(now, quiet, tz)) {
+            const scheduledAt = nextAllowedTime(now, quiet, tz);
+            await enqueueExpoPush({
+              hid: householdId,
+              to: [token],
+              title: "Daily summary",
+              body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
+              data: { type: "digest.daily", hid: householdId, counts: summary.counts, date: summary.date },
+              scheduledAt,
+            });
+          } else {
+            messages.push({
+              to: [token],
+              title: "Daily summary",
+              body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
+              data: { type: "digest.daily", hid: householdId, counts: summary.counts, date: summary.date },
+            });
+          }
+        }
+        if (messages.length) await sendExpoPush(messages);
+      }
+    } catch (e) {
+      console.warn("[runDigestNow] push step failed", e);
+    }
+  }
+  return { ok: true, summary, skipped: existed.exists };
+});

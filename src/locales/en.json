@@ -101,5 +101,7 @@
   "photos": "Photos",
   "addPhoto": "Add photo",
   "acceptTask": "I’ve got it",
-  "releaseTask": "Release"
+  "releaseTask": "Release",
+  "prepAt": "Prep at {{when}}",
+  "occursAt": "Occurs at {{when}}"
 }

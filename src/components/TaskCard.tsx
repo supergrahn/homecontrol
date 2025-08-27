@@ -127,11 +127,20 @@ export default function TaskCard({
       onChanged?.();
     },
   });
-  const when = task.nextOccurrenceAt
-    ? dayjs(task.nextOccurrenceAt).format("ddd HH:mm")
-    : task.dueAt
-      ? dayjs(task.dueAt).format("ddd HH:mm")
-      : "—";
+  const occurrenceAt = task.startAt ?? task.dueAt ?? null;
+  const hasPrep =
+    !!task.prepWindowHours &&
+    task.prepWindowHours > 0 &&
+    !!task.nextOccurrenceAt &&
+    !!occurrenceAt &&
+    new Date(task.nextOccurrenceAt).getTime() !== new Date(occurrenceAt).getTime();
+  const when = hasPrep
+    ? `${t("prepAt", { when: dayjs(task.nextOccurrenceAt as Date).format("ddd HH:mm") })} • ${t("occursAt", { when: dayjs(occurrenceAt as Date).format("ddd HH:mm") })}`
+    : task.nextOccurrenceAt
+      ? dayjs(task.nextOccurrenceAt).format("ddd HH:mm")
+      : task.dueAt
+        ? dayjs(task.dueAt).format("ddd HH:mm")
+        : "—";
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <View

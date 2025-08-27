@@ -1,11 +1,15 @@
 import React from "react";
-import { View, Button } from "react-native";
+import { View, Button, Alert } from "react-native";
+import { httpsCallable, getFunctions } from "firebase/functions";
+import { firebaseApp } from "../firebase";
+import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DevToolbar() {
   const { i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { householdId } = useHousehold();
 
   const toggleLang = () => {
     const next = i18n.language === "no" ? "en" : "no";
@@ -15,6 +19,17 @@ export default function DevToolbar() {
   const reloadI18n = async () => {
     await i18n.reloadResources();
     await i18n.changeLanguage(i18n.language);
+  };
+
+  const runDigestNow = async () => {
+    try {
+      if (!householdId) return;
+      const fn = httpsCallable(getFunctions(firebaseApp), "runDigestNow");
+      await fn({ householdId });
+      Alert.alert("OK", "Digest triggered");
+    } catch (e) {
+      Alert.alert("Error", String(e));
+    }
   };
 
   return (
@@ -51,6 +66,15 @@ export default function DevToolbar() {
         }}
       >
         <Button title="Reload i18n" onPress={reloadI18n} color="#fff" />
+      </View>
+      <View
+        style={{
+          backgroundColor: "#0009",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <Button title="Run digest" onPress={runDigestNow} color="#fff" />
       </View>
     </View>
   );

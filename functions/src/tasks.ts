@@ -3,7 +3,7 @@ import { admin, db } from "./admin";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { rrulestr, RRule } from "rrule";
+import { computeNextOccurrence } from "./utils/rrule";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -56,44 +56,32 @@ export const onTaskWrite = functions.firestore
       const taskId = ctx.params.taskId as string;
       if (!after) return;
 
-      const startAt = asDate(after.startAt);
-      const dueAt = asDate(after.dueAt);
-      let next: Date | null = null;
+  const startAt = asDate(after.startAt);
+  const dueAt = asDate(after.dueAt);
+  const prepHours = Number((after as any)?.prepWindowHours ?? 0);
+  let nextOccurrence: Date | null = null; // the actual event/due time in UTC
 
-      if (after.rrule) {
-        try {
-          // Resolve household timezone (default to UTC)
-          const hid = ctx.params.hid as string;
-          const tz = await getHouseholdTimezone(hid);
-
-          // Base DTSTART: prefer startAt, then dueAt, else now in TZ
-          const base = startAt ?? dueAt ?? new Date();
-          const baseTz = dayjs(base).tz(tz, true).toDate();
-
-          // Parse rule; ensure DTSTART applied if missing
-          const rule: RRule = rrulestr(after.rrule, {
-            dtstart: baseTz,
-            forceset: false,
-          }) as RRule;
-
-          // Compute from "now" in the same TZ to respect local day boundaries
-          const nowTz = dayjs().tz(tz).toDate();
-          const occurrence = rule.after(nowTz, true);
-          next = occurrence ? dayjs(occurrence).tz("UTC").toDate() : null;
-        } catch (e) {
-          console.warn("RRULE parse failed, falling back to dueAt", e);
-          next = dueAt ?? null;
-        }
-      } else if (dueAt) {
-        next = dueAt;
-      }
+      const tz = await getHouseholdTimezone(hid);
+      const { occurrenceAt, nextOccurrenceAt } = await computeNextOccurrence(
+        tz,
+        {
+          rrule: (after as any)?.rrule ?? null,
+          startAt,
+          dueAt,
+          prepWindowHours: prepHours,
+        },
+      );
+      nextOccurrence = occurrenceAt;
 
       // only write if changed, to avoid loops
+      // Apply prep window if present: notify/show earlier than the actual occurrence
+  const showAt = nextOccurrenceAt;
+
       const prevNext = asDate(after.nextOccurrenceAt);
-      if ((prevNext?.getTime() || 0) !== (next?.getTime() || 0)) {
+      if ((prevNext?.getTime() || 0) !== (showAt?.getTime() || 0)) {
         await change.after.ref.update({
-          nextOccurrenceAt: next
-            ? admin.firestore.Timestamp.fromDate(next)
+          nextOccurrenceAt: showAt
+            ? admin.firestore.Timestamp.fromDate(showAt)
             : null,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });

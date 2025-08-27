@@ -13,5 +13,6 @@ export const onHouseholdCreate = tasks.onHouseholdCreate;
 export const onTaskWrite = tasks.onTaskWrite;
 
 export const runDailyDigests = digest.runDailyDigests;
+export const runDigestNow = digest.runDigestNow;
 export const deleteHouseholdRecursive = households.deleteHouseholdRecursive;
 export const processPushQueueFn = processPushQueue;

@@ -28,6 +28,10 @@ import { useToast } from "../components/ToastProvider";
 import { createInvite as createInviteFn } from "../services/invites";
 import { listInvites, revokeInvite, type Invite } from "../services/invites";
 import { getUserSettings, updateUserSettings } from "../services/users";
+import {
+  registerForPushNotificationsAsync,
+  savePushToken,
+} from "../services/push";
 import { auth, db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 
@@ -238,6 +242,12 @@ export default function SettingsScreen() {
             setNotifEnabled(val);
             try {
               await updateUserSettings({ notificationsEnabled: val });
+              if (val) {
+                const token = await registerForPushNotificationsAsync();
+                await savePushToken(token ?? null);
+              } else {
+                await savePushToken(null);
+              }
             } catch {}
           }}
         />

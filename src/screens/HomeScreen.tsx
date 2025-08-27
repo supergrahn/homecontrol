@@ -63,6 +63,16 @@ export default function HomeScreen({ navigation }: any) {
     enabled,
   });
 
+  // If a digest arrives indicating zero 'today' but some overdue, switch to Overdue once
+  React.useEffect(() => {
+    const d = digest.data;
+    if (d && d.counts) {
+      if (d.counts.today === 0 && d.counts.overdue > 0 && tab === "today") {
+        setTab("overdue");
+      }
+    }
+  }, [digest.data]);
+
   const list = tab === "today" ? today : tab === "overdue" ? overdue : upcoming;
   const activity = useQuery({
     queryKey: ["activity", householdId],
