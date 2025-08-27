@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Image } from "react-native";
+import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Image, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   listChecklist,
@@ -184,11 +184,24 @@ export default function TaskDetailScreen({ route }: any) {
             <TouchableOpacity
               onPress={async () => {
                 if (!householdId) return;
-                try {
-                  await deleteTaskPhoto(householdId, taskId, p.name);
-                  const next = await listTaskPhotos(householdId, taskId);
-                  setPhotos(next);
-                } catch {}
+                Alert.alert(
+                  t("delete") || "Delete",
+                  (t("confirmDeletePhoto") as string) || "Delete this photo?",
+                  [
+                    { text: t("cancel") || "Cancel", style: "cancel" },
+                    {
+                      text: t("delete") || "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await deleteTaskPhoto(householdId, taskId, p.name);
+                          const next = await listTaskPhotos(householdId, taskId);
+                          setPhotos(next);
+                        } catch {}
+                      },
+                    },
+                  ],
+                );
               }}
               style={{
                 position: "absolute",

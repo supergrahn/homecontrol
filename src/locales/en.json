@@ -101,6 +101,7 @@
   "escalationEnabled": "Escalation (due-soon ping)",
   "photos": "Photos",
   "addPhoto": "Add photo",
+  "confirmDeletePhoto": "Delete this photo?",
   "acceptTask": "I’ve got it",
   "releaseTask": "Release",
   "prepAt": "Prep at {{when}}",
