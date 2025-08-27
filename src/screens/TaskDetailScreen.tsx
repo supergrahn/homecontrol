@@ -6,6 +6,7 @@ import {
   addChecklistItem,
   toggleChecklistItem,
   removeChecklistItem,
+  renameChecklistItem,
 } from "../services/checklist";
 import * as ImagePicker from "expo-image-picker";
 import { listTaskPhotos, uploadTaskPhoto, deleteTaskPhoto } from "../services/storage";
@@ -23,6 +24,8 @@ export default function TaskDetailScreen({ route }: any) {
     [],
   );
   const [accepted, setAccepted] = React.useState<boolean>(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editingText, setEditingText] = React.useState<string>("");
 
   const load = React.useCallback(async () => {
     if (!householdId) return;
@@ -49,6 +52,30 @@ export default function TaskDetailScreen({ route }: any) {
   await addChecklistItem(householdId, taskId, newItem.trim());
     setNewItem("");
     load();
+  };
+
+  const startEdit = (itemId: string, current: string) => {
+    setEditingId(itemId);
+    setEditingText(current);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editingText.trim() || !householdId) {
+      cancelEdit();
+      return;
+    }
+    try {
+      await renameChecklistItem(householdId, taskId, editingId, editingText.trim());
+      cancelEdit();
+      load();
+    } catch {
+      cancelEdit();
+    }
   };
 
   const pickAndUpload = React.useCallback(async () => {
@@ -109,45 +136,78 @@ export default function TaskDetailScreen({ route }: any) {
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
-        renderItem={({ item }) => (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            <TouchableOpacity
-              onPress={async () => {
-                if (!householdId) return;
-                await toggleChecklistItem(householdId, taskId, item.id, !item.done);
-                load();
-              }}
+        renderItem={({ item }) => {
+          const isEditing = item.id === editingId;
+          return (
+            <View
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: 4,
-                borderWidth: 1,
-                borderColor: "#999",
+                flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                marginRight: 10,
-                backgroundColor: item.done ? "#4caf50" : "transparent",
+                marginBottom: 8,
               }}
             >
-              {item.done ? <Text style={{ color: "#fff" }}>✓</Text> : null}
-            </TouchableOpacity>
-            <Text style={{ flex: 1 }}>{item.label}</Text>
-            <Button
-              title={t("del")}
-              onPress={async () => {
-                if (!householdId) return;
-                await removeChecklistItem(householdId, taskId, item.id);
-                load();
-              }}
-            />
-          </View>
-        )}
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!householdId) return;
+                  await toggleChecklistItem(
+                    householdId,
+                    taskId,
+                    item.id,
+                    !item.done,
+                  );
+                  load();
+                }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor: "#999",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 10,
+                  backgroundColor: item.done ? "#4caf50" : "transparent",
+                }}
+              >
+                {item.done ? <Text style={{ color: "#fff" }}>✓</Text> : null}
+              </TouchableOpacity>
+
+              {isEditing ? (
+                <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                  <TextInput
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: "#ddd",
+                      borderRadius: 8,
+                      padding: 8,
+                    }}
+                  />
+                  <Button title={t("save")} onPress={saveEdit} />
+                  <Button title={t("cancel")} onPress={cancelEdit} />
+                </View>
+              ) : (
+                <>
+                  <Text style={{ flex: 1 }}>{item.label}</Text>
+                  <Button
+                    title={(t("edit") as string) || "Edit"}
+                    onPress={() => startEdit(item.id, item.label)}
+                  />
+                  <Button
+                    title={t("del")}
+                    onPress={async () => {
+                      if (!householdId) return;
+                      await removeChecklistItem(householdId, taskId, item.id);
+                      load();
+                    }}
+                  />
+                </>
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           <Text style={{ color: "#999" }}>{t("noChecklist")}</Text>
         }
