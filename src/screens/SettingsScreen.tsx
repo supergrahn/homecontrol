@@ -34,6 +34,7 @@ import {
 } from "../services/push";
 import { auth, db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -230,6 +231,20 @@ export default function SettingsScreen() {
       <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
         {t("quietHours") || "Quiet hours"}
       </Text>
+      <View style={{ marginBottom: 8 }}>
+        <Button
+          title={t("sendTestNotification") || "Send test notification"}
+          onPress={async () => {
+            try {
+              const fn = httpsCallable(getFunctions(), "sendTestPush");
+              const res = await fn({});
+              Alert.alert("Push", JSON.stringify(res.data));
+            } catch (e) {
+              Alert.alert("Push Error", String(e));
+            }
+          }}
+        />
+      </View>
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >

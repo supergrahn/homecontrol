@@ -4,6 +4,7 @@ import * as digest from "./digest";
 import * as tasks from "./tasks";
 import * as households from "./households";
 import * as health from "./health";
+import * as testPush from "./testPush";
 import { processPushQueue } from "./notifications";
 
 export const createInvite = invites.createInvite;
@@ -18,3 +19,4 @@ export const runDigestNow = digest.runDigestNow;
 export const deleteHouseholdRecursive = households.deleteHouseholdRecursive;
 export const processPushQueueFn = processPushQueue;
 export const healthCheck = health.healthCheck;
+export const sendTestPush = testPush.sendTestPush;

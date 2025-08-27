@@ -90,6 +90,7 @@
   "quietHours": "Quiet hours",
   "timezoneOptional": "Europe/Oslo (optional)",
   "saveQuietHours": "Save quiet hours",
+  "sendTestNotification": "Send test notification",
   "saved": "Saved",
   "notifications": "Notifications",
   "invalidTime": "Enter time as HH:mm (00-23:59).",
