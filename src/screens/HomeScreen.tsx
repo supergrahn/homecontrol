@@ -1,6 +1,8 @@
 import React from "react";
 import { View, Text, FlatList, Button, TouchableOpacity, Modal, Animated, PanResponder } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import TaskCard from "../components/TaskCard";
@@ -303,7 +305,10 @@ export default function HomeScreen({ navigation }: any) {
 
       {/* Floating + button */}
       <TouchableOpacity
-        onPress={() => setTypePickerOpen(true)}
+        onPress={async () => {
+          try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+          setTypePickerOpen(true);
+        }}
         activeOpacity={0.8}
         style={{
           position: "absolute",
@@ -428,10 +433,15 @@ export default function HomeScreen({ navigation }: any) {
         onRequestClose={() => setTypePickerOpen(false)}
       >
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "#0006", justifyContent: "flex-end" }}
+          style={{ flex: 1, backgroundColor: "transparent", justifyContent: "flex-end" }}
           activeOpacity={1}
           onPress={() => setTypePickerOpen(false)}
         >
+          <BlurView
+            tint="dark"
+            intensity={30}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
           <Animated.View
             style={{
               transform: [{ translateY: sheetY.interpolate({ inputRange: [-200, 0, 300], outputRange: [-30, 0, 300] }) }],
@@ -458,7 +468,8 @@ export default function HomeScreen({ navigation }: any) {
               return (
                 <TouchableOpacity
                   key={tk}
-                  onPress={() => {
+                  onPress={async () => {
+                    try { await Haptics.selectionAsync(); } catch {}
                     setTypePickerOpen(false);
                     navigation.navigate("AddTask", { type: tk });
                   }}
