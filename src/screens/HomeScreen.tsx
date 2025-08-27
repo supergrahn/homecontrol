@@ -30,6 +30,16 @@ export default function HomeScreen({ navigation }: any) {
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const sheetY = React.useRef(new Animated.Value(0)).current;
+  const closeSheet = React.useCallback(() => {
+    Animated.timing(sheetY, {
+      toValue: 300,
+      duration: 200,
+      useNativeDriver: false,
+    }).start(() => {
+      setTypePickerOpen(false);
+      sheetY.setValue(0);
+    });
+  }, [sheetY]);
   const pan = React.useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_evt, gesture) => Math.abs(gesture.dy) > 6,
@@ -38,8 +48,7 @@ export default function HomeScreen({ navigation }: any) {
       }),
       onPanResponderRelease: (_evt, gesture) => {
         if (gesture.dy > 120) {
-          setTypePickerOpen(false);
-          sheetY.setValue(0);
+          closeSheet();
         } else {
           Animated.spring(sheetY, {
             toValue: 0,
@@ -52,6 +61,18 @@ export default function HomeScreen({ navigation }: any) {
       },
     }),
   ).current;
+
+  React.useEffect(() => {
+    if (typePickerOpen) {
+      sheetY.setValue(280);
+      Animated.spring(sheetY, {
+        toValue: 0,
+        useNativeDriver: false,
+        speed: 14,
+        bounciness: 9,
+      }).start();
+    }
+  }, [typePickerOpen, sheetY]);
   const [refreshing, setRefreshing] = React.useState(false);
   React.useEffect(() => {
     const sub = appEvents.addListener("show-overdue", () => setTab("overdue"));
@@ -430,12 +451,12 @@ export default function HomeScreen({ navigation }: any) {
         visible={typePickerOpen}
         animationType="fade"
         transparent
-        onRequestClose={() => setTypePickerOpen(false)}
+        onRequestClose={closeSheet}
       >
         <TouchableOpacity
           style={{ flex: 1, backgroundColor: "transparent", justifyContent: "flex-end" }}
           activeOpacity={1}
-          onPress={() => setTypePickerOpen(false)}
+          onPress={closeSheet}
         >
           <BlurView
             tint="dark"
