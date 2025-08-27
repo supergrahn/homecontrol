@@ -105,5 +105,7 @@
   "acceptTask": "I’ve got it",
   "releaseTask": "Release",
   "prepAt": "Prep at {{when}}",
-  "occursAt": "Occurs at {{when}}"
+  "occursAt": "Occurs at {{when}}",
+  "mine": "Mine",
+  "acceptedCount": "{{count}} accepted"
 }

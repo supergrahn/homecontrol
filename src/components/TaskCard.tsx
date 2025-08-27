@@ -75,6 +75,7 @@ export default function TaskCard({
   const uid = auth.currentUser?.uid;
   const acceptedBy = Array.isArray(task.acceptedBy) ? task.acceptedBy : [];
   const isAcceptedByMe = !!uid && acceptedBy.includes(uid);
+  const acceptedCount = acceptedBy.length;
 
   const toggleAccept = useMutation({
     mutationFn: async () => {
@@ -157,6 +158,42 @@ export default function TaskCard({
         <Text style={{ color: "#666", marginTop: 2 }}>
           {t(typeKey).toUpperCase()} • {when}
         </Text>
+        {(isAcceptedByMe || acceptedCount > 0) ? (
+          <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+            {isAcceptedByMe ? (
+              <View
+                style={{
+                  backgroundColor: "#E6F4EA",
+                  borderRadius: 999,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderWidth: 1,
+                  borderColor: "#C8E6C9",
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text style={{ color: "#2E7D32", fontSize: 12 }}>{t("mine") || "Mine"}</Text>
+              </View>
+            ) : null}
+            {acceptedCount > 0 ? (
+              <View
+                style={{
+                  backgroundColor: "#EEF2FF",
+                  borderRadius: 999,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderWidth: 1,
+                  borderColor: "#E0E7FF",
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text style={{ color: "#3730A3", fontSize: 12 }}>
+                  {t("acceptedCount", { count: acceptedCount }) || `${acceptedCount} accepted`}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <View style={{ marginTop: 8, flexDirection: "row", gap: 8 }}>
           <View style={{ alignSelf: "flex-start" }}>
             <Button

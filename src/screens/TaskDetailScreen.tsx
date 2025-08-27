@@ -46,12 +46,16 @@ export default function TaskDetailScreen({ route }: any) {
     load();
   }, [load]);
 
+  const inputRef = React.useRef<TextInput | null>(null);
+
   const add = async () => {
     if (!newItem.trim()) return;
   if (!householdId) return;
   await addChecklistItem(householdId, taskId, newItem.trim());
     setNewItem("");
     load();
+    // Re-focus for fast entry
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const startEdit = (itemId: string, current: string) => {
@@ -215,9 +219,13 @@ export default function TaskDetailScreen({ route }: any) {
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
         <TextInput
+          ref={(r) => {
+            inputRef.current = r;
+          }}
           placeholder={t("addChecklist")}
           value={newItem}
           onChangeText={setNewItem}
+          onSubmitEditing={add}
           style={{
             flex: 1,
             borderWidth: 1,

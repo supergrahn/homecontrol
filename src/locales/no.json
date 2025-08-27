@@ -104,5 +104,7 @@
   "acceptTask": "Jeg tar den",
   "releaseTask": "Frigi",
   "prepAt": "Forbered kl {{when}}",
-  "occursAt": "Skjer kl {{when}}"
+  "occursAt": "Skjer kl {{when}}",
+  "mine": "Min",
+  "acceptedCount": "{{count}} har tatt den"
 }
