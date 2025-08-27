@@ -116,6 +116,7 @@ export async function enqueueExpoPush(options: {
   const dedupTo: string[] = [];
   const dedupUids: string[] = [];
   to.forEach((tok, i) => {
+    if (!Expo.isExpoPushToken(tok)) return; // skip invalid tokens early
     if (seen.has(tok)) return;
     seen.add(tok);
     dedupTo.push(tok);

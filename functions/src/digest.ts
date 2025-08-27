@@ -12,6 +12,7 @@ dayjs.extend(timezone);
 // Run hourly; for each household, emit digest at its local target hour (default 07:00).
 export const runDailyDigests = functions.pubsub
   .schedule("0 * * * *")
+  .timeZone("Etc/UTC")
   .onRun(async () => {
     const householdsSnap = await db.collection("households").get();
     for (const h of householdsSnap.docs) {
@@ -120,6 +121,7 @@ export const runDailyDigests = functions.pubsub
           if (u?.notificationsEnabled === false) continue;
           const token: string | undefined = u?.pushToken;
           if (!token) continue;
+          const uid = doc.id;
           const quiet = u?.quietHours as
             | { start: string; end: string; tz?: string }
             | undefined;
@@ -128,6 +130,7 @@ export const runDailyDigests = functions.pubsub
             await enqueueExpoPush({
               hid,
               to: [token],
+              uids: [uid],
               title: "Daily summary",
               body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
               data: { type: "digest.daily", hid, counts: summary.counts, date: summary.date },
@@ -174,7 +177,7 @@ export const runDailyDigests = functions.pubsub
         const adultIds = Object.keys(roles).filter((uid) => roles[uid] === "adult" || roles[uid] === "admin");
 
         const escalationMsgs: { to: string[]; title: string; body: string; data?: any }[] = [];
-        const usersSnap2 = await db.getAll(...adultIds.map((uid) => db.doc(`users/${uid}`)));
+  const usersSnap2 = await db.getAll(...adultIds.map((uid) => db.doc(`users/${uid}`)));
         const pushTokens: Record<string, string | undefined> = {};
         usersSnap2.forEach((u) => (pushTokens[u.id] = (u.data() as any)?.pushToken));
 
@@ -193,12 +196,13 @@ export const runDailyDigests = functions.pubsub
             if (assignees.length > 0 && assignees.includes(uid)) continue;
             const token = pushTokens[uid];
             if (!token) continue;
-            const quiet = (usersSnap2.find((u) => u.id === uid)?.data() as any)?.quietHours;
+      const quiet = (usersSnap2.find((u) => u.id === uid)?.data() as any)?.quietHours;
             if (isWithinQuietHours(now, quiet, tz)) {
               const scheduled = nextAllowedTime(now, quiet, tz);
               await enqueueExpoPush({
                 hid,
                 to: [token],
+        uids: [uid],
                 title: "Heads-up",
                 body: `Unassigned task due soon: ${title}`,
                 data: { type: "escalation", hid, taskId: t.id },
