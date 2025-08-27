@@ -27,10 +27,8 @@ export function isWithinQuietHours(
   const endSameDay = nowTz.hour(eH).minute(eM).second(0).millisecond(0);
   // overnight window if start >= end
   if (sH > eH || (sH === eH && sM >= eM)) {
-    // Quiet from start today -> end tomorrow
-    const startWindow = start;
-    const endWindow = endSameDay.add(1, "day");
-    return nowTz.isAfter(startWindow) || nowTz.isBefore(endSameDay);
+    // Quiet spans from start today into next day until endSameDay
+    return nowTz.isAfter(start) || nowTz.isBefore(endSameDay);
   } else {
     // Same-day window
     return nowTz.isAfter(start) && nowTz.isBefore(endSameDay);
@@ -113,14 +111,24 @@ export async function enqueueExpoPush(options: {
   scheduledAt: Date;
 }) {
   const { hid, to, uids, title, body, data, scheduledAt } = options;
+  // Dedupe tokens, keeping first UID association if provided
+  const seen = new Set<string>();
+  const dedupTo: string[] = [];
+  const dedupUids: string[] = [];
+  to.forEach((tok, i) => {
+    if (seen.has(tok)) return;
+    seen.add(tok);
+    dedupTo.push(tok);
+    if (Array.isArray(uids)) dedupUids.push(uids[i]);
+  });
   const ref = admin
     .firestore()
     .collection(`households/${hid}/pushQueue`)
     .doc();
   await ref.set({
   hid,
-    to,
-    uids: Array.isArray(uids) ? uids : [],
+    to: dedupTo,
+    uids: Array.isArray(uids) ? dedupUids : [],
     title,
     body,
     data: data || null,
@@ -133,6 +141,7 @@ export async function enqueueExpoPush(options: {
 // Run every 5 minutes to deliver queued push notifications
 export const processPushQueue = require("firebase-functions").pubsub
   .schedule("*/5 * * * *")
+  .timeZone("Etc/UTC")
   .onRun(async () => {
     const now = new Date();
     const db = admin.firestore();
