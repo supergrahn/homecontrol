@@ -53,3 +53,6 @@ jobs:
 
       - name: Build (tsc)
         run: npm run build --if-present
+
+      - name: Test (jest)
+        run: npm test --if-present
