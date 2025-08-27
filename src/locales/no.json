@@ -108,5 +108,6 @@
   "mine": "Min",
   "acceptedCount": "{{count}} har tatt den",
   "saveAndAddAnother": "Lagre og legg til en til",
-  "cloneAsTemplate": "Klon som mal"
+  "cloneAsTemplate": "Klon som mal",
+  "open": "Åpne"
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Image, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useNavigation } from "@react-navigation/native";
 import {
   listChecklist,
   addChecklistItem,
@@ -16,6 +17,7 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 
 export default function TaskDetailScreen({ route }: any) {
   const { t } = useTranslation();
+  const navigation = useNavigation<any>();
   const { householdId } = useHousehold();
   const { id: taskId } = route.params;
   const [taskMeta, setTaskMeta] = React.useState<{ type?: string; title?: string } | null>(null);
@@ -131,7 +133,17 @@ export default function TaskDetailScreen({ route }: any) {
                     await addChecklistItem(householdId, newId, it.label.trim());
                   }
                 }
-                Alert.alert(t("templateCreated") || "Template created");
+                Alert.alert(
+                  t("templateCreated") || "Template created",
+                  "",
+                  [
+                    { text: (t("cancel") as string) || "Cancel", style: "cancel" },
+                    {
+                      text: (t("open") as string) || "Open",
+                      onPress: () => navigation.navigate("TaskDetail", { id: newId }),
+                    },
+                  ],
+                );
               } catch (e) {
                 Alert.alert("Error", String(e));
               }
