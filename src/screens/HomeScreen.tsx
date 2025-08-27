@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Button,
-  TouchableOpacity,
-  Modal,
-} from "react-native";
+import { View, Text, FlatList, Button, TouchableOpacity, Modal, Animated, PanResponder } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +27,29 @@ export default function HomeScreen({ navigation }: any) {
   const { householdId, households, loading, selectHousehold } = useHousehold();
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
+  const sheetY = React.useRef(new Animated.Value(0)).current;
+  const pan = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) => Math.abs(gesture.dy) > 6,
+      onPanResponderMove: Animated.event([null, { dy: sheetY }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (_evt, gesture) => {
+        if (gesture.dy > 120) {
+          setTypePickerOpen(false);
+          sheetY.setValue(0);
+        } else {
+          Animated.spring(sheetY, {
+            toValue: 0,
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(sheetY, { toValue: 0, useNativeDriver: false }).start();
+      },
+    }),
+  ).current;
   const [refreshing, setRefreshing] = React.useState(false);
   React.useEffect(() => {
     const sub = appEvents.addListener("show-overdue", () => setTab("overdue"));
@@ -416,32 +432,49 @@ export default function HomeScreen({ navigation }: any) {
           activeOpacity={1}
           onPress={() => setTypePickerOpen(false)}
         >
-          <View
+          <Animated.View
             style={{
+              transform: [{ translateY: sheetY.interpolate({ inputRange: [-200, 0, 300], outputRange: [-30, 0, 300] }) }],
               backgroundColor: "#fff",
-              padding: 16,
+              padding: 12,
+              paddingBottom: 16,
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
             }}
+            {...pan.panHandlers}
           >
-            {(["chore", "event", "deadline", "checklist"] as const).map((tk) => (
-              <TouchableOpacity
-                key={tk}
-                onPress={() => {
-                  setTypePickerOpen(false);
-                  navigation.navigate("AddTask", { type: tk });
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ paddingVertical: 12 }}>
-                  <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            <View style={{ alignItems: "center", paddingVertical: 6 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: "#ddd" }} />
+            </View>
+            {(["chore", "event", "deadline", "checklist"] as const).map((tk) => {
+              const iconName =
+                tk === "chore"
+                  ? "construct-outline"
+                  : tk === "event"
+                    ? "calendar-outline"
+                    : tk === "deadline"
+                      ? "time-outline"
+                      : "list-outline";
+              return (
+                <TouchableOpacity
+                  key={tk}
+                  onPress={() => {
+                    setTypePickerOpen(false);
+                    navigation.navigate("AddTask", { type: tk });
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ paddingVertical: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <Ionicons name={iconName as any} size={20} color="#333" />
+                    <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
             <View style={{ marginTop: 8 }}>
               <Button title={t("cancel")} onPress={() => setTypePickerOpen(false)} />
             </View>
-          </View>
+          </Animated.View>
         </TouchableOpacity>
       </Modal>
     </View>
