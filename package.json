@@ -13,7 +13,14 @@
     "lint": "eslint -c eslint.config.mjs . --ext .ts,.tsx",
     "lint:fix": "eslint -c eslint.config.mjs . --ext .ts,.tsx --fix",
     "format": "prettier --write .",
-    "test": "echo 'No tests yet'"
+  "test": "echo 'No tests yet'",
+  "fb:version": "firebase --version",
+  "fb:login": "firebase login",
+  "fb:whoami": "firebase login:list",
+  "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project $FIREBASE_PROJECT",
+  "deploy:functions": "firebase deploy --only functions --project $FIREBASE_PROJECT",
+  "deploy:rules": "firebase deploy --only firestore:rules,storage --project $FIREBASE_PROJECT",
+  "deploy:indexes": "firebase deploy --only firestore:indexes --project $FIREBASE_PROJECT"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -58,7 +65,8 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
     "expo-dev-client": "^5.2.4",
-    "prettier": "^3.3.3",
+  "prettier": "^3.3.3",
+  "firebase-tools": "^13.7.2",
     "sharp": "^0.33.4",
     "typescript": "~5.8.3"
   }
