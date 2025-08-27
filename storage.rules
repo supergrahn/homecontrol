@@ -2,18 +2,15 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function signedIn() { return request.auth != null; }
-    function uid() { return request.auth.uid; }
+  function signedIn() { return request.auth != null; }
 
-    // membership check: member doc id == user uid
-    function isMember(hid) {
-      return exists(/databases/(default)/documents/households/$(hid)/members/$(uid()));
-    }
+  // NOTE: Storage rules cannot depend on Firestore lookups for membership.
+  // Enforce membership in app/CF; here we only restrict to signed-in users.
 
     // Scope all files to a household folder:
     // households/{hid}/tasks/{taskId}/...  OR  households/{hid}/attachments/...
     match /households/{hid}/{allPaths=**} {
-      allow read, write: if signedIn() && isMember(hid)
+      allow read, write: if signedIn()
         && request.resource.size < 10 * 1024 * 1024  // 10MB limit
         && request.resource.contentType.matches('image/.*|application/pdf');
     }

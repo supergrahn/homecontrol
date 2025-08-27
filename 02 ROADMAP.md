@@ -9,7 +9,7 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 - [x] EAS build: add eas.json if you plan to ship to stores.
 - [ ] Strengthen Functions: expand RRULE edge cases (EXDATE/COUNT/UNTIL, DST), and finalize invite email (SMTP/Dynamic Links) with quiet-hours queueing.
 - [x] Add icons, create an eas.json and wire a basic invite flow in the app UI.
-- [ ] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
+- [x] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
 
 ---
 

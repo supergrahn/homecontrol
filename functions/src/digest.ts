@@ -3,11 +3,7 @@ import { admin, db } from "./admin";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import {
-  isWithinQuietHours,
-  nextAllowedTime,
-  sendExpoPush,
-} from "./notifications";
+import { isWithinQuietHours, nextAllowedTime, sendExpoPush, enqueueExpoPush } from "./notifications";
 
 
 dayjs.extend(utc);
@@ -128,20 +124,28 @@ export const runDailyDigests = functions.pubsub
             | { start: string; end: string; tz?: string }
             | undefined;
           if (isWithinQuietHours(now, quiet, tzFallback)) {
-            // Skip immediate send; could schedule later with a separate queue. For now, we skip.
-            continue;
-          }
-          messages.push({
-            to: [token],
-            title: "Daily summary",
-            body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
-            data: {
-              type: "digest.daily",
+            const scheduled = nextAllowedTime(now, quiet, tzFallback);
+            await enqueueExpoPush({
               hid,
-              counts: summary.counts,
-              date: summary.date,
-            },
-          });
+              to: [token],
+              title: "Daily summary",
+              body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
+              data: { type: "digest.daily", hid, counts: summary.counts, date: summary.date },
+              scheduledAt: scheduled,
+            });
+          } else {
+            messages.push({
+              to: [token],
+              title: "Daily summary",
+              body: `Today ${summary.counts.today} · Overdue ${summary.counts.overdue}`,
+              data: {
+                type: "digest.daily",
+                hid,
+                counts: summary.counts,
+                date: summary.date,
+              },
+            });
+          }
         }
         if (messages.length) await sendExpoPush(messages);
       } catch (e) {
@@ -190,13 +194,24 @@ export const runDailyDigests = functions.pubsub
             const token = pushTokens[uid];
             if (!token) continue;
             const quiet = (usersSnap2.find((u) => u.id === uid)?.data() as any)?.quietHours;
-            if (isWithinQuietHours(now, quiet, tz)) continue;
-            escalationMsgs.push({
-              to: [token],
-              title: "Heads-up",
-              body: `Unassigned task due soon: ${title}`,
-              data: { type: "escalation", hid, taskId: t.id },
-            });
+            if (isWithinQuietHours(now, quiet, tz)) {
+              const scheduled = nextAllowedTime(now, quiet, tz);
+              await enqueueExpoPush({
+                hid,
+                to: [token],
+                title: "Heads-up",
+                body: `Unassigned task due soon: ${title}`,
+                data: { type: "escalation", hid, taskId: t.id },
+                scheduledAt: scheduled,
+              });
+            } else {
+              escalationMsgs.push({
+                to: [token],
+                title: "Heads-up",
+                body: `Unassigned task due soon: ${title}`,
+                data: { type: "escalation", hid, taskId: t.id },
+              });
+            }
           }
         }
         if (escalationMsgs.length) await sendExpoPush(escalationMsgs);

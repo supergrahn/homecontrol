@@ -101,3 +101,57 @@ export async function sendExpoPush(messages: PushMessage[]): Promise<void> {
 export function serverTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
+
+// Queue-based push to respect quiet hours
+export async function enqueueExpoPush(options: {
+  hid: string;
+  to: string[];
+  title: string;
+  body: string;
+  data?: Record<string, any>;
+  scheduledAt: Date;
+}) {
+  const { hid, to, title, body, data, scheduledAt } = options;
+  const ref = admin
+    .firestore()
+    .collection(`households/${hid}/pushQueue`)
+    .doc();
+  await ref.set({
+    to,
+    title,
+    body,
+    data: data || null,
+    scheduledAt: admin.firestore.Timestamp.fromDate(scheduledAt),
+    createdAt: serverTimestamp(),
+    attempts: 0,
+  });
+}
+
+// Run every 5 minutes to deliver queued push notifications
+export const processPushQueue = require("firebase-functions").pubsub
+  .schedule("*/5 * * * *")
+  .onRun(async () => {
+    const now = new Date();
+    const db = admin.firestore();
+    const snap = await db
+      .collectionGroup("pushQueue")
+      .where("scheduledAt", "<=", admin.firestore.Timestamp.fromDate(now))
+      .limit(500)
+      .get();
+    if (snap.empty) return null;
+    const messages: PushMessage[] = [];
+    const batch = db.batch();
+    snap.docs.forEach((d) => {
+      const x = d.data() as any;
+      messages.push({
+        to: Array.isArray(x.to) ? x.to : [],
+        title: String(x.title || ""),
+        body: String(x.body || ""),
+        data: x.data || undefined,
+      });
+      batch.delete(d.ref);
+    });
+    if (messages.length) await sendExpoPush(messages);
+    await batch.commit();
+    return null;
+  });
