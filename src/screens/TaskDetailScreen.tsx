@@ -10,7 +10,7 @@ import {
 } from "../services/checklist";
 import * as ImagePicker from "expo-image-picker";
 import { listTaskPhotos, uploadTaskPhoto, deleteTaskPhoto } from "../services/storage";
-import { acceptTask, releaseTask, getTask } from "../services/tasks";
+import { acceptTask, releaseTask, getTask, createTask } from "../services/tasks";
 import { auth } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 
@@ -18,6 +18,7 @@ export default function TaskDetailScreen({ route }: any) {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
   const { id: taskId } = route.params;
+  const [taskMeta, setTaskMeta] = React.useState<{ type?: string; title?: string } | null>(null);
   const [items, setItems] = React.useState<any[]>([]);
   const [newItem, setNewItem] = React.useState("");
   const [photos, setPhotos] = React.useState<{ name: string; url: string }[]>(
@@ -36,7 +37,8 @@ export default function TaskDetailScreen({ route }: any) {
       setPhotos(p);
     } catch {}
     try {
-      const task = await getTask(householdId, taskId);
+  const task = await getTask(householdId, taskId);
+  if (task) setTaskMeta({ type: task.type, title: task.title });
       const uid = auth.currentUser?.uid;
       setAccepted(!!uid && !!task?.acceptedBy?.includes(uid));
     } catch {}
@@ -110,6 +112,33 @@ export default function TaskDetailScreen({ route }: any) {
       <Text style={{ marginBottom: 12, color: "#666" }}>
         {t("id")}: {taskId}
       </Text>
+      {taskMeta?.type === "checklist" ? (
+        <View style={{ marginBottom: 12, alignSelf: "flex-start" }}>
+          <Button
+            title={(t("cloneAsTemplate") as string) || "Clone as template"}
+            onPress={async () => {
+              if (!householdId) return;
+              try {
+                // create new task from this checklist
+                const newId = await createTask(householdId, {
+                  title: `${taskMeta?.title || "Checklist"} (copy)`,
+                  type: "checklist",
+                  createdBy: auth.currentUser?.uid || "unknown",
+                });
+                // copy checklist items
+                for (const it of items) {
+                  if (typeof it?.label === "string" && it.label.trim()) {
+                    await addChecklistItem(householdId, newId, it.label.trim());
+                  }
+                }
+                Alert.alert(t("templateCreated") || "Template created");
+              } catch (e) {
+                Alert.alert("Error", String(e));
+              }
+            }}
+          />
+        </View>
+      ) : null}
       <View style={{ marginBottom: 12 }}>
         <Button
           title={accepted ? (t("releaseTask") as string) || "Release" : (t("acceptTask") as string) || "I’ve got it"}

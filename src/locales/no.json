@@ -106,5 +106,7 @@
   "prepAt": "Forbered kl {{when}}",
   "occursAt": "Skjer kl {{when}}",
   "mine": "Min",
-  "acceptedCount": "{{count}} har tatt den"
+  "acceptedCount": "{{count}} har tatt den",
+  "saveAndAddAnother": "Lagre og legg til en til",
+  "cloneAsTemplate": "Klon som mal"
 }

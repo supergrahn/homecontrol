@@ -107,5 +107,7 @@
   "prepAt": "Prep at {{when}}",
   "occursAt": "Occurs at {{when}}",
   "mine": "Mine",
-  "acceptedCount": "{{count}} accepted"
+  "acceptedCount": "{{count}} accepted",
+  "saveAndAddAnother": "Save and add another",
+  "cloneAsTemplate": "Clone as template"
 }
