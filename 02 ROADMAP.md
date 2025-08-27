@@ -1,4 +1,4 @@
-Heck yes—React Native + Firebase it is. Let’s make something that actually *lightens* the load. Below you’ll get: a lean Firestore schema, **Security Rules** (your Firebase equivalent of “RLS”), Storage rules, a pinch of Cloud Functions scaffolding, and a clear 3-sprint roadmap with bite-sized issues.
+Heck yes—React Native + Firebase it is. Let’s make something that actually _lightens_ the load. Below you’ll get: a lean Firestore schema, **Security Rules** (your Firebase equivalent of “RLS”), Storage rules, a pinch of Cloud Functions scaffolding, and a clear 3-sprint roadmap with bite-sized issues.
 
 I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot in a trench coat. 😉
 
@@ -9,6 +9,7 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 - [] EAS build: add eas.json if you plan to ship to stores.
 - [] Strengthen Functions: add proper RRULE computation and email sending for invites.
 - [] Add icons, create an eas.json and wire a basic invite flow in the app UI, I can do that next.
+
 ---
 
 # Firestore data model (collections)
@@ -51,7 +52,7 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 // /households/{householdId}/members/{memberId}
 {
   "userId": "<uid>",
-  "role": "admin" | "adult" | "viewer",
+  "role": "admin" | "adult",
   "displayName": "Ava",
   "joinedAt": <serverTimestamp>
 }
@@ -204,7 +205,7 @@ service cloud.firestore {
              );
 
         allow delete: if isSignedIn() && isHouseholdMember(householdId);
-        
+
         // Checklist items follow same membership rule
         match /checklist/{itemId} {
           allow read, write: if isSignedIn() && isHouseholdMember(householdId);
@@ -286,10 +287,10 @@ service firebase.storage {
   /utils
 ```
 
-* **State**: React Query for server cache + Zustand for UI state.
-* **Offline**: Firestore cache + `@react-native-async-storage/async-storage` for extras.
-* **Date/rrule**: `rrule` npm + dayjs (timezone plugin).
-* **Push**: Expo Notifications → FCM/APNs.
+- **State**: React Query for server cache + Zustand for UI state.
+- **Offline**: Firestore cache + `@react-native-async-storage/async-storage` for extras.
+- **Date/rrule**: `rrule` npm + dayjs (timezone plugin).
+- **Push**: Expo Notifications → FCM/APNs.
 
 ---
 
@@ -299,32 +300,37 @@ service firebase.storage {
 
 ```ts
 export const onHouseholdCreate = functions.firestore
-  .document('households/{hid}')
+  .document("households/{hid}")
   .onCreate(async (snap, ctx) => {
     const { createdBy } = snap.data();
     await db.doc(`households/${ctx.params.hid}/members/${createdBy}`).set({
-      userId: createdBy, role: 'admin', joinedAt: FieldValue.serverTimestamp()
+      userId: createdBy,
+      role: "admin",
+      joinedAt: FieldValue.serverTimestamp(),
     });
-    await db.doc(`users/${createdBy}`).set({
-      householdIds: FieldValue.arrayUnion(ctx.params.hid)
-    }, { merge: true });
+    await db.doc(`users/${createdBy}`).set(
+      {
+        householdIds: FieldValue.arrayUnion(ctx.params.hid),
+      },
+      { merge: true },
+    );
   });
 ```
 
 **2) Invite flow (callable)**
 
-* Admin calls `createInvite({email, role})` → generates token, stores `tokenHash`, sends email.
-* Invitee opens app link → `acceptInvite({householdId, token})` validates and upserts member doc.
+- Admin calls `createInvite({email, role})` → generates token, stores `tokenHash`, sends email.
+- Invitee opens app link → `acceptInvite({householdId, token})` validates and upserts member doc.
 
 **3) Daily digests & escalation**
 
-* Cloud Scheduler → HTTPS function `runDailyDigests` per tz window.
-* For each member: query tasks where `dueAt` in next 24h OR `nextOccurrenceAt` today; respect quiet hours; send one tidy push.
-* Optional escalation: if deadline within 3h and no assignee accepted → ping other adult.
+- Cloud Scheduler → HTTPS function `runDailyDigests` per tz window.
+- For each member: query tasks where `dueAt` in next 24h OR `nextOccurrenceAt` today; respect quiet hours; send one tidy push.
+- Optional escalation: if deadline within 3h and no assignee accepted → ping other adult.
 
 **4) Denormalize `nextOccurrenceAt`**
 
-* On task write, recompute next occurrence from `rrule`, `startAt`, and `dueAt`.
+- On task write, recompute next occurrence from `rrule`, `startAt`, and `dueAt`.
 
 ---
 
@@ -332,12 +338,11 @@ export const onHouseholdCreate = functions.firestore
 
 Create composite indexes for the “Today / Upcoming / Overdue” lists:
 
-* `households/{hid}/tasks`
-
-  * `status ASC, nextOccurrenceAt ASC`
-  * `status ASC, dueAt ASC`
-  * `assigneeIds ARRAY_CONTAINS, status ASC, dueAt ASC`
-  * `childIds ARRAY_CONTAINS, status ASC, nextOccurrenceAt ASC`
+- `households/{hid}/tasks`
+  - `status ASC, nextOccurrenceAt ASC`
+  - `status ASC, dueAt ASC`
+  - `assigneeIds ARRAY_CONTAINS, status ASC, dueAt ASC`
+  - `childIds ARRAY_CONTAINS, status ASC, nextOccurrenceAt ASC`
 
 ---
 
@@ -357,10 +362,10 @@ Tiny steps, visible value, no yak-shaving.
 4. **Auth screens**: sign up/in/out; error handling; passwordless magic link optional.
 5. **Create household** flow; onCreate CF adds creator as admin.
 6. **Home screen (Today/Overdue/Upcoming)** with queries:
+   - Today: `status != 'done'` && (`nextOccurrenceAt` is today OR `dueAt` is today).
+   - Overdue: `dueAt < now` && `status != 'done'`.
+   - Upcoming: next 7 days.
 
-   * Today: `status != 'done'` && (`nextOccurrenceAt` is today OR `dueAt` is today).
-   * Overdue: `dueAt < now` && `status != 'done'`.
-   * Upcoming: next 7 days.
 7. **Add Task screen**: types (chore/event/deadline/checklist), `dueAt/startAt/rrule`, assignees, child tags.
 8. **Task detail**: edit core fields; checklist CRUD; mark complete; optimistic updates + rollback.
 9. **Activity feed (append-only)**: show last 20 actions per household.
@@ -380,16 +385,16 @@ Tiny steps, visible value, no yak-shaving.
 
 1. **Member list UI** (roles shown; admin badge).
 2. **Invite flow (admin only)**:
+   - Callable `createInvite` → email with magic link (Dynamic Links).
+   - Accept invite in-app (deep link), CF validates token, adds member, updates `/users`.
 
-   * Callable `createInvite` → email with magic link (Dynamic Links).
-   * Accept invite in-app (deep link), CF validates token, adds member, updates `/users`.
 3. **Permissions in UI**: hide dangerous buttons from non-admins.
 4. **Quiet hours per user** UI; validation (start/end/tz).
 5. **Server-side daily digest**:
+   - Cloud Scheduler triggers at 06:30 local household tz.
+   - CF compiles tasks (Today/Overdue), batches notifications per user.
+   - Respect quiet hours (queue to 07:00 if needed).
 
-   * Cloud Scheduler triggers at 06:30 local household tz.
-   * CF compiles tasks (Today/Overdue), batches notifications per user.
-   * Respect quiet hours (queue to 07:00 if needed).
 6. **Escalation (opt-in)**: if due in <3h and unaccepted, ping unassigned adult.
 7. **Checklist templates (Birthday, Day Trip, Season Change)**: one-tap generate.
 8. **Child profiles & measurements** UI; record foot length; history chart (client-side).
@@ -402,7 +407,7 @@ Tiny steps, visible value, no yak-shaving.
 
 ## Sprint 3 — Smart lists, seasonal magic, and polish
 
-**Goal:** Make it feel *intuitive* and slightly psychic.
+**Goal:** Make it feel _intuitive_ and slightly psychic.
 
 **Backlog issues**
 
@@ -426,27 +431,27 @@ Tiny steps, visible value, no yak-shaving.
 **React Query + Firestore: fetch Today**
 
 ```ts
-import { useQuery } from '@tanstack/react-query';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import dayjs from 'dayjs';
+import { useQuery } from "@tanstack/react-query";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import dayjs from "dayjs";
 
 export function useTodayTasks(hid: string) {
   return useQuery({
-    queryKey: ['todayTasks', hid],
+    queryKey: ["todayTasks", hid],
     queryFn: async () => {
-      const start = dayjs().startOf('day').toDate();
-      const end   = dayjs().endOf('day').toDate();
+      const start = dayjs().startOf("day").toDate();
+      const end = dayjs().endOf("day").toDate();
       const ref = collection(db, `households/${hid}/tasks`);
       const q = query(
         ref,
-        where('status', 'in', ['open','in_progress','blocked']),
-        where('nextOccurrenceAt', '>=', start),
-        where('nextOccurrenceAt', '<=', end),
-        orderBy('nextOccurrenceAt', 'asc')
+        where("status", "in", ["open", "in_progress", "blocked"]),
+        where("nextOccurrenceAt", ">=", start),
+        where("nextOccurrenceAt", "<=", end),
+        orderBy("nextOccurrenceAt", "asc"),
       );
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    }
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    },
   });
 }
 ```
@@ -457,19 +462,27 @@ export function useTodayTasks(hid: string) {
 export const createInvite = https.onCall(async (data, context) => {
   const { householdId, email, role } = data;
   const uid = context.auth?.uid;
-  if (!uid) throw new HttpsError('unauthenticated', 'Sign in');
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in");
 
   const memberRef = db.doc(`households/${householdId}/members/${uid}`);
   const member = await memberRef.get();
-  if (!member.exists || member.data()?.role !== 'admin')
-    throw new HttpsError('permission-denied', 'Admin only');
+  if (!member.exists || member.data()?.role !== "admin")
+    throw new HttpsError("permission-denied", "Admin only");
 
   const token = crypto.randomUUID();
-  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const tokenHash = createHash("sha256").update(token).digest("hex");
 
   const inviteRef = db.collection(`households/${householdId}/invites`).doc();
-  const expiresAt = Timestamp.fromDate(dayjs().add(7, 'day').toDate());
-  await inviteRef.set({ email, role, status: 'pending', tokenHash, createdBy: uid, createdAt: FieldValue.serverTimestamp(), expiresAt });
+  const expiresAt = Timestamp.fromDate(dayjs().add(7, "day").toDate());
+  await inviteRef.set({
+    email,
+    role,
+    status: "pending",
+    tokenHash,
+    createdBy: uid,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt,
+  });
 
   // TODO: send email w/ Firebase Dynamic Link including ?hid=...&token=...
   return { inviteId: inviteRef.id };
@@ -482,26 +495,31 @@ export const createInvite = https.onCall(async (data, context) => {
 export const acceptInvite = https.onCall(async (data, context) => {
   const { householdId, inviteId, token } = data;
   const uid = context.auth?.uid;
-  if (!uid) throw new HttpsError('unauthenticated', 'Sign in');
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in");
 
   const inviteRef = db.doc(`households/${householdId}/invites/${inviteId}`);
   const snap = await inviteRef.get();
-  if (!snap.exists) throw new HttpsError('not-found', 'Invite missing');
+  if (!snap.exists) throw new HttpsError("not-found", "Invite missing");
 
   const inv = snap.data()!;
-  if (inv.status !== 'pending' || inv.expiresAt.toDate() < new Date())
-    throw new HttpsError('failed-precondition', 'Invite invalid/expired');
+  if (inv.status !== "pending" || inv.expiresAt.toDate() < new Date())
+    throw new HttpsError("failed-precondition", "Invite invalid/expired");
 
-  const hash = createHash('sha256').update(token).digest('hex');
-  if (hash !== inv.tokenHash) throw new HttpsError('permission-denied', 'Bad token');
+  const hash = createHash("sha256").update(token).digest("hex");
+  if (hash !== inv.tokenHash)
+    throw new HttpsError("permission-denied", "Bad token");
 
   await db.doc(`households/${householdId}/members/${uid}`).set({
-    userId: uid, role: inv.role ?? 'adult', joinedAt: FieldValue.serverTimestamp()
+    userId: uid,
+    role: inv.role ?? "adult",
+    joinedAt: FieldValue.serverTimestamp(),
   });
 
-  await inviteRef.update({ status: 'accepted' });
+  await inviteRef.update({ status: "accepted" });
 
-  await db.doc(`users/${uid}`).set({ householdIds: FieldValue.arrayUnion(householdId) }, { merge: true });
+  await db
+    .doc(`users/${uid}`)
+    .set({ householdIds: FieldValue.arrayUnion(householdId) }, { merge: true });
 
   return { ok: true };
 });
@@ -511,18 +529,18 @@ export const acceptInvite = https.onCall(async (data, context) => {
 
 # Final skeptical nits (because future-you will thank us)
 
-* **EU data residency**: create your Firebase project in **europe-west** locations; set Firestore/Storage to EU multi-region.
-* **Never write roles from the client.** Only CF changes `members/{memberId}.role`.
-* **Denormalize sparingly**: `nextOccurrenceAt` is worth it; everything else, only if it meaningfully speeds Today/Upcoming.
-* **One push per morning** per user. Digests > drip torture.
+- **EU data residency**: create your Firebase project in **europe-west** locations; set Firestore/Storage to EU multi-region.
+- **Never write roles from the client.** Only CF changes `members/{memberId}.role`.
+- **Denormalize sparingly**: `nextOccurrenceAt` is worth it; everything else, only if it meaningfully speeds Today/Upcoming.
+- **One push per morning** per user. Digests > drip torture.
 
 ---
 
 If you want, I can turn this into:
 
-* A **ready-to-deploy `firestore.rules` and `storage.rules` files**,
-* An **Expo starter repo layout** with the providers wired,
-* A **postman collection** for callable functions,
-* Or **sample UI mocks** for the Today/Task/Template flows.
+- A **ready-to-deploy `firestore.rules` and `storage.rules` files**,
+- An **Expo starter repo layout** with the providers wired,
+- A **postman collection** for callable functions,
+- Or **sample UI mocks** for the Today/Task/Template flows.
 
 Say the word and I’ll drop the actual files you can run.

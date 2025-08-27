@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HomeControl",
-    "slug": "home-control",
+    "slug": "poty",
     "scheme": "homecontrol",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -12,22 +12,25 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.supergrahn.homecontrol",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.supergrahn.homecontrol",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
-    "plugins": [
-      "expo-notifications",
-      "expo-localization"
-    ],
+    "plugins": ["expo-notifications", "expo-localization"],
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "de4fa559-a42f-4575-acdb-020bf5a1e620"
       }
-    }
+    },
+    "owner": "supergrahn"
   }
 }

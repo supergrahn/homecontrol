@@ -1,5 +1,10 @@
-export type TaskType = 'chore' | 'event' | 'deadline' | 'checklist';
-export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'done' | 'verified';
+export type TaskType = "chore" | "event" | "deadline" | "checklist";
+export type TaskStatus =
+  | "open"
+  | "in_progress"
+  | "blocked"
+  | "done"
+  | "verified";
 
 export interface Task {
   id: string;
@@ -8,10 +13,11 @@ export interface Task {
   type: TaskType;
   description?: string;
   context?: string[];
-  visibility?: 'adults' | 'all';
+  visibility?: "adults" | "all";
   status: TaskStatus;
   priority?: number;
   assigneeIds?: string[];
+  acceptedBy?: string[];
   childIds?: string[];
   startAt?: Date | null;
   dueAt?: Date | null;

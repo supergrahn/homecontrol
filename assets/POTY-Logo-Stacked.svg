@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="1100" viewBox="0 0 900 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(-110,0) scale(0.9)">
+    <path d="M512 760C512 760 240 610 240 440C240 340 320 280 400 280C460 280 512 320 512 360C512 320 564 280 624 280C704 280 784 340 784 440C784 610 512 760 512 760Z"
+          fill="#FF8F7E"/>
+    <rect x="560" y="240" width="280" height="280" rx="40" fill="#A9E3DA"/>
+    <rect x="560" y="240" width="280" height="80" rx="40" fill="#7FC8BF"/>
+    <rect x="620" y="220" width="28" height="48" rx="14" fill="#7FC8BF"/>
+    <rect x="752" y="220" width="28" height="48" rx="14" fill="#7FC8BF"/>
+    <path d="M640 402 L700 462 L800 342" stroke="white" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="450" y="980" text-anchor="middle"
+        font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        font-size="220" font-weight="800" fill="#264E60" letter-spacing="6">POTY</text>
+</svg>

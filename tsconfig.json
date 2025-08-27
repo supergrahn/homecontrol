@@ -12,24 +12,11 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "*": [
-        "src/*"
-      ]
+      "*": ["src/*"]
     },
-    "types": [
-      "react",
-      "react-native",
-      "expo"
-    ]
+    "types": ["react", "react-native", "expo"]
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "App.tsx"
-  ],
-  "exclude": [
-    "functions/**",
-    "node_modules"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "App.tsx"],
+  "exclude": ["functions/**", "node_modules"],
   "extends": "expo/tsconfig.base"
 }

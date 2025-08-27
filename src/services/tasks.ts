@@ -1,24 +1,32 @@
-import { db } from '../firebase';
+import { db, auth } from "../firebase";
 import {
-  collection, doc, getDocs, addDoc, updateDoc, serverTimestamp,
-  query, where, orderBy
-} from 'firebase/firestore';
-import dayjs from 'dayjs';
-import { Task } from '../models/task';
+  collection,
+  doc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  getDoc,
+} from "firebase/firestore";
+import dayjs from "dayjs";
+import { Task } from "../models/task";
 
 export async function fetchTodayTasks(hid: string): Promise<Task[]> {
-  const start = dayjs().startOf('day').toDate();
-  const end = dayjs().endOf('day').toDate();
+  const start = dayjs().startOf("day").toDate();
+  const end = dayjs().endOf("day").toDate();
   const ref = collection(db, `households/${hid}/tasks`);
   const q = query(
     ref,
-    where('status', 'in', ['open','in_progress','blocked']),
-    where('nextOccurrenceAt', '>=', start),
-    where('nextOccurrenceAt', '<=', end),
-    orderBy('nextOccurrenceAt', 'asc')
+    where("status", "in", ["open", "in_progress", "blocked"]),
+    where("nextOccurrenceAt", ">=", start),
+    where("nextOccurrenceAt", "<=", end),
+    orderBy("nextOccurrenceAt", "asc"),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...convert(d.data()) } as Task));
+  return snap.docs.map((d) => ({ id: d.id, ...convert(d.data()) }) as Task);
 }
 
 export async function createTask(hid: string, input: Partial<Task>) {
@@ -26,21 +34,47 @@ export async function createTask(hid: string, input: Partial<Task>) {
   const docRef = await addDoc(ref, {
     ...input,
     householdId: hid,
-    status: input.status ?? 'open',
+    status: input.status ?? "open",
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
   return docRef.id;
 }
 
-export async function updateTask(hid: string, id: string, patch: Partial<Task>) {
+export async function updateTask(
+  hid: string,
+  id: string,
+  patch: Partial<Task>,
+) {
   const ref = doc(db, `households/${hid}/tasks/${id}`);
   await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
 }
 
 // Mark a task occurrence as complete; default to status 'done'
 export async function completeTask(hid: string, id: string) {
-  await updateTask(hid, id, { status: 'done' });
+  await updateTask(hid, id, { status: "done" });
+}
+
+export async function acceptTask(hid: string, id: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not signed in");
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  const { arrayUnion } = await import("firebase/firestore");
+  await updateDoc(ref, {
+    acceptedBy: arrayUnion(uid) as any,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function releaseTask(hid: string, id: string) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not signed in");
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  const { arrayRemove } = await import("firebase/firestore");
+  await updateDoc(ref, {
+    acceptedBy: arrayRemove(uid) as any,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function fetchOverdueTasks(hid: string): Promise<Task[]> {
@@ -48,37 +82,45 @@ export async function fetchOverdueTasks(hid: string): Promise<Task[]> {
   const ref = collection(db, `households/${hid}/tasks`);
   const q = query(
     ref,
-    where('status', 'in', ['open','in_progress','blocked']),
-    where('dueAt', '<', now),
-    orderBy('dueAt', 'asc')
+    where("status", "in", ["open", "in_progress", "blocked"]),
+    where("dueAt", "<", now),
+    orderBy("dueAt", "asc"),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...convert(d.data()) } as Task));
+  return snap.docs.map((d) => ({ id: d.id, ...convert(d.data()) }) as Task);
 }
 
 export async function fetchUpcomingTasks(hid: string): Promise<Task[]> {
-  const start = dayjs().add(1, 'day').startOf('day').toDate();
-  const end = dayjs().add(7, 'day').endOf('day').toDate();
+  const start = dayjs().add(1, "day").startOf("day").toDate();
+  const end = dayjs().add(7, "day").endOf("day").toDate();
   const ref = collection(db, `households/${hid}/tasks`);
   const q = query(
     ref,
-    where('status', 'in', ['open','in_progress','blocked']),
-    where('nextOccurrenceAt', '>=', start),
-    where('nextOccurrenceAt', '<=', end),
-    orderBy('nextOccurrenceAt', 'asc')
+    where("status", "in", ["open", "in_progress", "blocked"]),
+    where("nextOccurrenceAt", ">=", start),
+    where("nextOccurrenceAt", "<=", end),
+    orderBy("nextOccurrenceAt", "asc"),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...convert(d.data()) } as Task));
+  return snap.docs.map((d) => ({ id: d.id, ...convert(d.data()) }) as Task);
+}
+
+export async function getTask(hid: string, id: string): Promise<Task | null> {
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...convert(snap.data()) } as Task;
 }
 
 function convert(raw: any): any {
-  const toDate = (t: any) => (t && t.toDate) ? t.toDate() : t;
+  const toDate = (t: any) => (t && t.toDate ? t.toDate() : t);
   return {
     ...raw,
     startAt: toDate(raw.startAt),
     dueAt: toDate(raw.dueAt),
     nextOccurrenceAt: toDate(raw.nextOccurrenceAt),
     createdAt: toDate(raw.createdAt),
-    updatedAt: toDate(raw.updatedAt)
+    updatedAt: toDate(raw.updatedAt),
+  acceptedBy: Array.isArray(raw.acceptedBy) ? raw.acceptedBy : [],
   };
 }

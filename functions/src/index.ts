@@ -1,10 +1,8 @@
-import * as admin from 'firebase-admin';
-import * as invites from './invites';
-import * as digest from './digest';
-import * as tasks from './tasks';
-import * as households from './households';
-
-if (!admin.apps.length) admin.initializeApp();
+import "./admin"; // ensure firebase-admin is initialized before importing modules
+import * as invites from "./invites";
+import * as digest from "./digest";
+import * as tasks from "./tasks";
+import * as households from "./households";
 
 export const createInvite = invites.createInvite;
 export const acceptInvite = invites.acceptInvite;

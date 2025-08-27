@@ -69,7 +69,14 @@ service cloud.firestore {
         // prevent privilege escalation & path drift
         allow update: if signedIn() && isMember(hid)
           && request.resource.data.householdId == resource.data.householdId
-          && request.resource.data.createdBy == resource.data.createdBy;
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
+            [
+              "title","description","context","visibility","status","priority",
+              "assigneeIds","childIds","startAt","dueAt","rrule",
+              "prepWindowHours","nextOccurrenceAt","updatedAt","acceptedBy"
+            ]
+          );
 
         allow delete: if signedIn() && isMember(hid);
 

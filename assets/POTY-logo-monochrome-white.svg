@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Transparent background -->
+  <path d="M512 760C512 760 240 610 240 440C240 340 320 280 400 280C460 280 512 320 512 360C512 320 564 280 624 280C704 280 784 340 784 440C784 610 512 760 512 760Z"
+        fill="#FFFFFF"/>
+  <rect x="560" y="240" width="280" height="280" rx="40" fill="#FFFFFF"/>
+  <rect x="620" y="220" width="28" height="48" rx="14" fill="#FFFFFF"/>
+  <rect x="752" y="220" width="28" height="48" rx="14" fill="#FFFFFF"/>
+  <path d="M640 402 L700 462 L800 342" stroke="#264E60" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- To keep the checkmark visible on dark backgrounds, we invert it with a dark stroke -->
+</svg>

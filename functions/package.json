@@ -1,7 +1,9 @@
 {
   "name": "family-tasks-functions",
   "main": "lib/index.js",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "scripts": {
     "build": "tsc",
     "deploy": "firebase deploy --only functions",
@@ -9,13 +11,15 @@
   },
   "dependencies": {
     "dayjs": "^1.11.11",
+    "expo-server-sdk": "^4.0.0",
     "firebase-admin": "^12.6.0",
-  "firebase-functions": "^5.0.1",
-  "rrule": "^2.8.1",
-  "expo-server-sdk": "^4.11.1"
+    "firebase-functions": "^5.0.1",
+    "nodemailer": "^6.9.15",
+    "rrule": "^2.8.1"
   },
   "devDependencies": {
-  "typescript": "^5.4.0",
-    "@types/node-fetch": "^2.6.12"
+    "@types/node-fetch": "^2.6.12",
+    "@types/nodemailer": "^7.0.1",
+    "typescript": "^5.4.0"
   }
 }

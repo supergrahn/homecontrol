@@ -55,6 +55,7 @@ sudo apt install openjdk-17-jdk
 
 2. **Set Environment Variables:**
    Add to your `~/.bashrc` or `~/.zshrc`:
+
    ```sh
    export ANDROID_HOME=$HOME/android-sdk
    export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
