@@ -22,7 +22,8 @@
   "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project $FIREBASE_PROJECT",
   "deploy:functions": "firebase deploy --only functions --project $FIREBASE_PROJECT",
   "deploy:rules": "firebase deploy --only firestore:rules,storage --project $FIREBASE_PROJECT",
-  "deploy:indexes": "firebase deploy --only firestore:indexes --project $FIREBASE_PROJECT"
+  "deploy:indexes": "firebase deploy --only firestore:indexes --project $FIREBASE_PROJECT",
+  "emulators": "firebase emulators:start --only functions,firestore"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
