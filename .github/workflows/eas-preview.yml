@@ -1,0 +1,44 @@
+name: EAS Preview Builds
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: eas-preview-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  build:
+    if: ${{ env.EXPO_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ env.EXPO_TOKEN }}
+
+      - name: Enqueue Android preview build
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+
+      - name: Enqueue iOS preview build
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
+
+  note:
+    if: ${{ env.EXPO_TOKEN == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "EXPO_TOKEN secret not set; skipping EAS preview builds. Add EXPO_TOKEN in repo secrets to enable."

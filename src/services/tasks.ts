@@ -38,6 +38,39 @@ export async function updateTask(hid: string, id: string, patch: Partial<Task>) 
   await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
 }
 
+// Mark a task occurrence as complete; default to status 'done'
+export async function completeTask(hid: string, id: string) {
+  await updateTask(hid, id, { status: 'done' });
+}
+
+export async function fetchOverdueTasks(hid: string): Promise<Task[]> {
+  const now = dayjs().toDate();
+  const ref = collection(db, `households/${hid}/tasks`);
+  const q = query(
+    ref,
+    where('status', 'in', ['open','in_progress','blocked']),
+    where('dueAt', '<', now),
+    orderBy('dueAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...convert(d.data()) } as Task));
+}
+
+export async function fetchUpcomingTasks(hid: string): Promise<Task[]> {
+  const start = dayjs().add(1, 'day').startOf('day').toDate();
+  const end = dayjs().add(7, 'day').endOf('day').toDate();
+  const ref = collection(db, `households/${hid}/tasks`);
+  const q = query(
+    ref,
+    where('status', 'in', ['open','in_progress','blocked']),
+    where('nextOccurrenceAt', '>=', start),
+    where('nextOccurrenceAt', '<=', end),
+    orderBy('nextOccurrenceAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...convert(d.data()) } as Task));
+}
+
 function convert(raw: any): any {
   const toDate = (t: any) => (t && t.toDate) ? t.toDate() : t;
   return {

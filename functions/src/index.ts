@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import * as invites from './invites';
 import * as digest from './digest';
 import * as tasks from './tasks';
+import * as households from './households';
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -12,3 +13,4 @@ export const onHouseholdCreate = tasks.onHouseholdCreate;
 export const onTaskWrite = tasks.onTaskWrite;
 
 export const runDailyDigests = digest.runDailyDigests;
+export const deleteHouseholdRecursive = households.deleteHouseholdRecursive;

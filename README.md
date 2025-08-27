@@ -10,7 +10,12 @@ Small Expo app for household tasks with Firebase Auth/Firestore/Storage.
 
 ## Build (optional)
 - Install EAS CLI: `npm i -g eas-cli`
-- Create `eas.json` (see `01 QUICKSTART.md` or Expo docs).
+- Config: `eas.json` is included with dev/preview/production profiles.
+- Login: `eas login`
+- Configure project: `eas init`
+- iOS build: `eas build -p ios --profile preview`
+- Android build: `eas build -p android --profile preview`
+- Submit (optional): `eas submit -p ios|android`
 
 ## Firebase
 - Rules and indexes are in root: `firestore.rules`, `firestore.indexes.json`, `storage.rules`.
