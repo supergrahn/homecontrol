@@ -33,6 +33,7 @@ export default function HomeScreen({ navigation }: any) {
   );
   const { householdId, households, loading, selectHousehold } = useHousehold();
   const [selectorOpen, setSelectorOpen] = React.useState(false);
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
   React.useEffect(() => {
     const sub = appEvents.addListener("show-overdue", () => setTab("overdue"));
@@ -284,6 +285,31 @@ export default function HomeScreen({ navigation }: any) {
         />
       </View>
 
+      {/* Floating + button */}
+      <TouchableOpacity
+        onPress={() => setTypePickerOpen(true)}
+        activeOpacity={0.8}
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: 24,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: "#111",
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={t("add")}
+      >
+        <Text style={{ color: "#fff", fontSize: 28, lineHeight: 28 }}>＋</Text>
+      </TouchableOpacity>
+
       {/* Recent activity */}
       {enabled ? (
         <View style={{ marginTop: 24 }}>
@@ -376,6 +402,47 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Type picker modal */}
+      <Modal
+        visible={typePickerOpen}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setTypePickerOpen(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "#0006", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setTypePickerOpen(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              padding: 16,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+            }}
+          >
+            {(["chore", "event", "deadline", "checklist"] as const).map((tk) => (
+              <TouchableOpacity
+                key={tk}
+                onPress={() => {
+                  setTypePickerOpen(false);
+                  navigation.navigate("AddTask", { type: tk });
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ paddingVertical: 12 }}>
+                  <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <View style={{ marginTop: 8 }}>
+              <Button title={t("cancel")} onPress={() => setTypePickerOpen(false)} />
+            </View>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );

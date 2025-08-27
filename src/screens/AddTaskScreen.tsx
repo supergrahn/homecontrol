@@ -5,7 +5,7 @@ import { createTask } from "../services/tasks";
 import { auth } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 
-export default function AddTaskScreen({ navigation }: any) {
+export default function AddTaskScreen({ navigation, route }: any) {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
   const [title, setTitle] = React.useState("");
@@ -13,6 +13,16 @@ export default function AddTaskScreen({ navigation }: any) {
     "chore" | "event" | "deadline" | "checklist"
   >("chore");
   const inputRef = React.useRef<TextInput | null>(null);
+
+  React.useEffect(() => {
+    const initial = route?.params?.type as
+      | "chore"
+      | "event"
+      | "deadline"
+      | "checklist"
+      | undefined;
+    if (initial) setType(initial);
+  }, [route?.params?.type]);
 
   const save = async () => {
     if (!title.trim()) return;
