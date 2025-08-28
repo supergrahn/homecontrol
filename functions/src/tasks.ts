@@ -17,18 +17,26 @@ export const onHouseholdCreate = functions.firestore
     ) => {
       const { createdBy } = snap.data() as any;
       if (!createdBy) return;
+      const fv: any = (admin.firestore as any)?.FieldValue ?? {};
+      const joinedAt = typeof fv.serverTimestamp === "function"
+        ? fv.serverTimestamp()
+        : new Date();
+      const unionHid = typeof fv.arrayUnion === "function"
+        ? fv.arrayUnion(ctx.params.hid)
+        : [ctx.params.hid];
+
       await db.doc(`households/${ctx.params.hid}/members/${createdBy}`).set(
         {
           userId: createdBy,
           role: "admin",
-          joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+          joinedAt,
         },
         { merge: true },
       );
 
       await db.doc(`users/${createdBy}`).set(
         {
-          householdIds: admin.firestore.FieldValue.arrayUnion(ctx.params.hid),
+          householdIds: unionHid,
         },
         { merge: true },
       );

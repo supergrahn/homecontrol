@@ -10,7 +10,8 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 - [ ] Strengthen Functions:
   - [x] Expand RRULE edge cases (EXDATE/COUNT/UNTIL, BYDAY/BYMONTHDAY, DST) with tests
   - [x] Quiet-hours-aware push queue with retries/backoff + daily digest and escalation
-  - [ ] Finalize invite email via SMTP + Dynamic Links
+  - [x] Finalize invite email via SMTP + Dynamic Links
+    - Config via env or functions:config (smtp.*, dynamiclinks.*); long DL builder; docs added; unit test added
 - [x] Add icons, create an eas.json and wire a basic invite flow in the app UI.
 - [x] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
 

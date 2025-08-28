@@ -18,9 +18,11 @@ export const createInvite = functions.https.onCall(async (data, context) => {
   const token = crypto.randomUUID();
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const inviteRef = db.collection(`households/${householdId}/invites`).doc();
-  const expiresAt = admin.firestore.Timestamp.fromDate(
-    new Date(Date.now() + 7 * 864e5),
-  );
+  const expiresAt = (admin.firestore as any)?.Timestamp?.fromDate
+    ? (admin.firestore as any).Timestamp.fromDate(
+        new Date(Date.now() + 7 * 864e5),
+      )
+    : new Date(Date.now() + 7 * 864e5);
 
   await inviteRef.set({
     email,
@@ -28,7 +30,8 @@ export const createInvite = functions.https.onCall(async (data, context) => {
     status: "pending",
     tokenHash,
     createdBy: uid,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt:
+      (admin.firestore as any)?.FieldValue?.serverTimestamp?.() || new Date(),
     expiresAt,
   });
 
@@ -38,11 +41,13 @@ export const createInvite = functions.https.onCall(async (data, context) => {
 
   // Try sending an email if SMTP config is set; otherwise, return token for client sharing
   try {
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || "no-reply@homecontrol";
+    const cfg: any = (functions as any).config ? (functions as any).config() : {};
+    const smtpCfg = (cfg && cfg.smtp) || {};
+    const host = process.env.SMTP_HOST || smtpCfg.host;
+    const port = Number(process.env.SMTP_PORT || smtpCfg.port || 587);
+    const user = process.env.SMTP_USER || smtpCfg.user;
+    const pass = process.env.SMTP_PASS || smtpCfg.pass;
+    const from = process.env.SMTP_FROM || smtpCfg.from || "no-reply@homecontrol";
     const appLink = dynamicLink || deepLink;
     if (host && user && pass) {
   // Require nodemailer dynamically to avoid type resolution issues if types are absent in some environments
@@ -100,19 +105,31 @@ export const acceptInvite = functions.https.onCall(async (data, context) => {
     {
       userId: uid,
       role: inv.role ?? "adult",
-      joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+      joinedAt:
+        (admin.firestore as any)?.FieldValue?.serverTimestamp?.() || new Date(),
     },
     { merge: true },
   );
 
   await invRef.update({ status: "accepted" });
 
-  await db.doc(`users/${uid}`).set(
-    {
-      householdIds: admin.firestore.FieldValue.arrayUnion(householdId),
-    },
-    { merge: true },
-  );
+  try {
+    await db.doc(`users/${uid}`).set(
+      {
+        householdIds:
+          (admin.firestore as any)?.FieldValue?.arrayUnion?.(householdId) || [
+            householdId,
+          ],
+      },
+      { merge: true },
+    );
+  } catch {
+    // best-effort in emulator
+    await db.doc(`users/${uid}`).set(
+      { householdIds: [householdId] },
+      { merge: true },
+    );
+  }
 
   // Append activity: invite accepted
   await db.collection(`households/${householdId}/activity`).add({
@@ -120,7 +137,8 @@ export const acceptInvite = functions.https.onCall(async (data, context) => {
     action: "invite.accept",
     taskId: null,
     payload: { inviteId },
-    at: admin.firestore.FieldValue.serverTimestamp(),
+    at:
+      (admin.firestore as any)?.FieldValue?.serverTimestamp?.() || new Date(),
   });
 
   return { ok: true };
@@ -138,15 +156,17 @@ function buildAppDeepLink(hid: string, inviteId: string, token: string): string 
 //   DYNAMIC_LINK_IBI (iOS bundle id)
 //   DYNAMIC_LINK_ISI (iOS App Store id)
 //   DYNAMIC_LINK_LINK_BASE (https base to wrap deep params, e.g., https://homecontrol.app/invite)
-function buildDynamicLink(deepLink: string): string | null {
-  const domain = process.env.DYNAMIC_LINK_DOMAIN; // e.g., hc.page.link
+export function buildDynamicLink(deepLink: string): string | null {
+  const cfg: any = (functions as any).config ? (functions as any).config() : {};
+  const dlCfg = (cfg && cfg.dynamiclinks) || {};
+  const domain = process.env.DYNAMIC_LINK_DOMAIN || dlCfg.domain; // e.g., hc.page.link
   if (!domain) return null;
   // Prefer wrapping deep parameters into an https link base if provided
-  const base = process.env.DYNAMIC_LINK_LINK_BASE; // e.g., https://homecontrol.app/invite
+  const base = process.env.DYNAMIC_LINK_LINK_BASE || dlCfg.link_base; // e.g., https://homecontrol.app/invite
   const url = base ? `${base}?d=${encodeURIComponent(deepLink)}` : deepLink;
-  const apn = process.env.DYNAMIC_LINK_APN;
-  const ibi = process.env.DYNAMIC_LINK_IBI;
-  const isi = process.env.DYNAMIC_LINK_ISI;
+  const apn = process.env.DYNAMIC_LINK_APN || dlCfg.apn;
+  const ibi = process.env.DYNAMIC_LINK_IBI || dlCfg.ibi;
+  const isi = process.env.DYNAMIC_LINK_ISI || dlCfg.isi;
   const params = new URLSearchParams({ link: url, efr: "1" });
   if (apn) params.set("apn", apn);
   if (ibi) params.set("ibi", ibi);
@@ -169,7 +189,9 @@ export const onInviteWrite = functions.firestore
         action: "invite.create",
         taskId: null,
         payload: { inviteId, email: inv.email, role: inv.role ?? "adult" },
-        at: admin.firestore.FieldValue.serverTimestamp(),
+        at:
+          (admin.firestore as any)?.FieldValue?.serverTimestamp?.() ||
+          new Date(),
       });
       return;
     }
@@ -188,7 +210,9 @@ export const onInviteWrite = functions.firestore
             action,
             taskId: null,
             payload: { inviteId },
-            at: admin.firestore.FieldValue.serverTimestamp(),
+            at:
+              (admin.firestore as any)?.FieldValue?.serverTimestamp?.() ||
+              new Date(),
           });
         }
       }
