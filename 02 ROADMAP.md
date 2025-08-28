@@ -32,6 +32,41 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 /households/{householdId}/activity/{activityId}
 ```
 
+## DONE
+Next steps
+
+All sub-items are done; the parent “Strengthen Functions” box can be checked.
+
+- Sprint 1 (Foundations)
+
+  - Auth screens; create household flow; Today/Overdue/Upcoming lists
+  - Add Task screen + Task Detail (edit, checklist, complete)
+  - Activity feed UI
+  - Basic local notifications
+  - QA/accessibility
+  - Analytics/crash (Sentry + minimal PostHog)
+- Sprint 2 (Multi-user, invites, digests)
+
+  - Member list UI + admin badge
+  - Permissions in UI (hide admin-only actions)
+  - Quiet hours UI + validation
+  - Server-side daily digest scheduling + escalation
+  - Checklist templates (generate)
+  - Child profiles & measurements UI
+  - Storage upload UI for task photos
+  - Index tuning/perf pass
+- Sprint 3 (Smart lists & polish)
+
+  - Smart Lists/filters (by kid/context/energy)
+  - Seasonal views (gear gaps)
+  - RRULE exceptions UI
+  - Undo window for destructive actions
+  - Conflict resolution affordances
+  - Batch assign/self-assign
+  - Accessibility/localization polish
+  - Settings: data export + delete household
+  - QA hardening + store readiness
+
 **Document shapes (representative)**
 
 ```jsonc
