@@ -11,6 +11,36 @@
   "loading": "Laster…",
   "noTasks": "Ingen oppgaver i dag. pust. 🌿",
   "templates": "Maler",
+  "manageTemplates": "Administrer maler",
+  "deleteTemplateTitle": "Slett mal",
+  "deleteTemplateConfirm": "Slette denne malen?",
+  "taskCreated": "Oppgave opprettet",
+  "templateInserted": "Mal satt inn",
+  "templateSaved": "Mal lagret",
+  "newTemplate": "Ny mal",
+  "enterTemplateName": "Skriv inn et malnavn",
+  "nameExists": "Navnet finnes allerede",
+  "created": "Opprettet",
+  "renamed": "Endret",
+  "deleted": "Slettet",
+  "useLastTemplate": "Bruk siste mal",
+  "inviteNotFound": "Invitasjon ikke funnet",
+  "inviteExpiredOrInvalid": "Invitasjon utløpt eller ugyldig",
+  "inviteBadToken": "Ugyldig invitasjonskode",
+  "tooManyInvites": "For mange invitasjoner; prøv igjen senere",
+  "usedTimes": "brukt {{count}}",
+  "priority": "Prioritet",
+  "priorityNone": "Ingen",
+  "priorityLow": "Lav",
+  "priorityMedium": "Middels",
+  "priorityHigh": "Høy",
+  "tags": "Tagger",
+  "tagsPlaceholder": "Kommaseparert",
+  "filters": "Filter",
+  "tagsFilter": "Filtrer på tagger (kommaseparert)",
+  "sortByPriorityHighFirst": "Høy prioritet først",
+  "sortByPriorityLowFirst": "Lav prioritet først",
+  "clearFilters": "Tøm",
   "overdue": "Forfalt",
   "upcoming": "Kommende",
   "newTask": "Ny oppgave",
@@ -61,6 +91,7 @@
   "leftHousehold": "Du har forlatt husstanden.",
   "actionFailed": "Noe gikk galt.",
   "invites": "Invitasjoner",
+  "joinHousehold": "Bli med i husstand",
   "createInvite": "Opprett invitasjon",
   "inviteCreated": "Invitasjon opprettet",
   "acceptInvite": "Godta invitasjon",
@@ -71,6 +102,23 @@
   "noInvites": "Ingen invitasjoner ennå.",
   "revoke": "Opphev",
   "share": "Del",
+  "skip": "Hopp over",
+  "pasteFromClipboard": "Lim inn fra utklippstavle",
+  "scanQrInvite": "Skann QR-invitasjon",
+  "scanInvite": "Skann invitasjon",
+  "scannedInvalidInvite": "Ikke en gyldig invitasjonslenke",
+  "scanning": "Skanner…",
+  "cameraPermissionDenied": "Kameratilgang avslått. Aktiver kamera i innstillinger.",
+  "requestPermission": "Be om tillatelse",
+  "onboarding": {
+    "createOrJoin": "Opprett en husstand eller bli med med en invitasjonslenke.",
+    "haveInviteLink": "Har du en invitasjonslenke?",
+    "pasteInviteLink": "Lim inn invitasjonslenke"
+  },
+  "validation": {
+    "householdNameShort": "Skriv minst 2 tegn"
+  },
+  "invalidInviteLink": "Ugyldig invitasjonslenke",
   "invite": {
     "status": {
       "pending": "avventer",
@@ -107,7 +155,35 @@
   "occursAt": "Skjer kl {{when}}",
   "mine": "Min",
   "acceptedCount": "{{count}} har tatt den",
+  "accepted": "Tatt",
   "saveAndAddAnother": "Lagre og legg til en til",
   "cloneAsTemplate": "Klon som mal",
-  "open": "Åpne"
+  "saveAsTemplate": "Lagre som mal",
+  "insertFromTemplate": "Sett inn fra mal",
+  "search": "Søk",
+  "open": "Åpne",
+  "quickActions": "Hurtigvalg",
+  "showHouseholdQr": "Vis husstands-QR",
+  "scanHouseholdQr": "Skann husstands-QR",
+  "noHouseholdSelected": "Ingen husstand valgt",
+  "inviteLinkUnavailable": "Invitasjonslenke er ikke tilgjengelig"
+  ,"shareHouseholdInvite": "Del husstands-invitasjon",
+  "resetToDefaults": "Tilbakestill til standard",
+  "filtersReset": "Filter tilbakestilt",
+  "moreCount": "+{{count}} flere",
+  "showLess": "Vis færre"
+  ,"calendar": "Kalender",
+  "agenda": "Agenda",
+  "week": "Uke"
+  ,"month": "Måned"
+  ,"kids": "Barn"
+  ,"noKidsYet": "Ingen barn ennå."
+  ,"assignToKids": "Tildel til barn"
+  ,"approvalRequired": "Krever godkjenning"
+  ,"approve": "Godkjenn"
+  ,"reject": "Avvis"
+  ,"rotation": "Rotasjon"
+  ,"rotationHint": "Velg medlemmer/barn som roterer oppgaver. Neste tildeling settes automatisk."
+  ,"nextAssignee": "Neste tildeling"
+  ,"fairness": "Rettferdighet"
 }

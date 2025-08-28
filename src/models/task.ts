@@ -24,6 +24,12 @@ export interface Task {
   rrule?: string | null;
   prepWindowHours?: number | null;
   nextOccurrenceAt?: Date | null;
+  pausedUntil?: Date | null;
+  skipDates?: string[];
+  exceptionShifts?: Record<string, number>;
+  approvalRequired?: boolean;
+  rotationPool?: string[]; // memberIds or childIds (v1: memberIds)
+  rotationIndex?: number; // server-maintained
   createdBy: string;
   createdAt?: Date;
   updatedAt?: Date;

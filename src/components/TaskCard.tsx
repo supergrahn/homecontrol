@@ -158,6 +158,22 @@ export default function TaskCard({
         <Text style={{ color: "#666", marginTop: 2 }}>
           {t(typeKey).toUpperCase()} • {when}
         </Text>
+        {(Array.isArray(task.context) && task.context.length > 0) || typeof task.priority === "number" ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+            {typeof task.priority === "number" ? (
+              <View style={{ backgroundColor: "#FFF7ED", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: "#FFEDD5" }}>
+                <Text style={{ color: "#9A3412", fontSize: 12 }}>
+                  {t("priority")}: {task.priority === 1 ? (t("priorityLow") as string) || "Low" : task.priority === 2 ? (t("priorityMedium") as string) || "Medium" : (t("priorityHigh") as string) || "High"}
+                </Text>
+              </View>
+            ) : null}
+            {(task.context || []).map((tag) => (
+              <View key={tag} style={{ backgroundColor: "#EEF2FF", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: "#E0E7FF" }}>
+                <Text style={{ color: "#3730A3", fontSize: 12 }}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {(isAcceptedByMe || acceptedCount > 0) ? (
           <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
             {isAcceptedByMe ? (

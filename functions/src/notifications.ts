@@ -72,6 +72,7 @@ type PushMessage = {
   title: string;
   body: string;
   data?: Record<string, any>;
+  categoryId?: string;
 };
 
 export async function sendExpoPush(messages: PushMessage[]): Promise<void> {
@@ -84,6 +85,7 @@ export async function sendExpoPush(messages: PushMessage[]): Promise<void> {
       title: msg.title,
       body: msg.body,
       data: msg.data,
+      categoryId: msg.categoryId,
     }));
     chunks.push(...expo.chunkPushNotifications(payloads));
   }
@@ -109,8 +111,9 @@ export async function enqueueExpoPush(options: {
   body: string;
   data?: Record<string, any>;
   scheduledAt: Date;
+  categoryId?: string;
 }) {
-  const { hid, to, uids, title, body, data, scheduledAt } = options;
+  const { hid, to, uids, title, body, data, scheduledAt, categoryId } = options;
   // Dedupe tokens, keeping first UID association if provided
   const seen = new Set<string>();
   const dedupTo: string[] = [];
@@ -133,6 +136,7 @@ export async function enqueueExpoPush(options: {
     title,
     body,
     data: data || null,
+  categoryId: categoryId || null,
     scheduledAt: admin.firestore.Timestamp.fromDate(scheduledAt),
     createdAt: serverTimestamp(),
     attempts: 0,
@@ -177,6 +181,7 @@ export const processPushQueue = require("firebase-functions").pubsub
         title: String(x.title || ""),
         body: String(x.body || ""),
         data: x.data || undefined,
+        categoryId: x.categoryId || undefined,
       }));
 
       let transientError = false;

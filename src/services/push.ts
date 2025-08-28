@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import { auth, db } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { navRef } from "../firebase/providers/NavigationProvider";
+import { appEvents } from "../App";
 
 export async function registerForPushNotificationsAsync(): Promise<
   string | null
@@ -35,6 +36,33 @@ export function registerNotificationResponseHandler() {
   Notifications.addNotificationResponseReceivedListener((response) => {
     try {
       const data: any = response.notification.request.content.data || {};
+      const action = (response as any).actionIdentifier as string | undefined;
+      if (action && data?.hid && data?.taskId) {
+        // Handle action buttons
+        (async () => {
+          const { acceptTask, completeTask, snoozeTask } = await import("../services/tasks");
+          const { logActivity } = await import("./activity");
+          if (action === "ACCEPT_TASK") {
+            try {
+              await acceptTask(String(data.hid), String(data.taskId));
+              await logActivity({ hid: String(data.hid), action: "task.accept", taskId: String(data.taskId) });
+              appEvents.emit("toast", { key: "accepted" });
+            } catch {}
+          } else if (action === "COMPLETE_TASK") {
+            try {
+              await completeTask(String(data.hid), String(data.taskId));
+              await logActivity({ hid: String(data.hid), action: "task.complete", taskId: String(data.taskId) });
+              appEvents.emit("toast", { key: "markComplete" });
+            } catch {}
+          } else if (action === "SNOOZE_15") {
+            try {
+              await snoozeTask(String(data.hid), String(data.taskId), 15);
+              await logActivity({ hid: String(data.hid), action: "task.snooze", taskId: String(data.taskId), payload: { minutes: 15 } });
+              appEvents.emit("toast", { message: "Snoozed 15m" });
+            } catch {}
+          }
+        })();
+      }
       if (data?.type === "escalation" && data?.taskId) {
         if (navRef.isReady()) {
           navRef.navigate("TaskDetail", { id: String(data.taskId) });
@@ -44,4 +72,16 @@ export function registerNotificationResponseHandler() {
       console.warn("[push] response handler error", e);
     }
   });
+}
+
+export async function configureNotificationCategories() {
+  try {
+    await Notifications.setNotificationCategoryAsync("task_actions", [
+      { identifier: "ACCEPT_TASK", buttonTitle: "Accept", options: { opensAppToForeground: true } },
+      { identifier: "COMPLETE_TASK", buttonTitle: "Done", options: { opensAppToForeground: true } },
+      { identifier: "SNOOZE_15", buttonTitle: "Snooze 15m", options: { opensAppToForeground: true } },
+    ]);
+  } catch (e) {
+    console.warn("[push] set categories failed", e);
+  }
 }

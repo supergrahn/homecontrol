@@ -339,3 +339,59 @@ export const runDigestNow = functions.https.onCall(async (data, context) => {
   }
   return { ok: true, summary, skipped: existed.exists };
 });
+
+// Admin-only: compute today's digest summary but do not write or send push
+export const runDigestDryRun = functions.https.onCall(async (data, context) => {
+  const { householdId } = data as { householdId: string };
+  const uid = context.auth?.uid;
+  if (!uid) throw new functions.https.HttpsError("unauthenticated", "Sign in");
+  const member = await db.doc(`households/${householdId}/members/${uid}`).get();
+  if (!member.exists || (member.data() as any)?.role !== "admin") {
+    throw new functions.https.HttpsError("permission-denied", "Admin only");
+  }
+
+  const h = await db.doc(`households/${householdId}`).get();
+  const tz = (h.data() as any)?.timezone || "UTC";
+  const nowTz = dayjs().tz(tz);
+  const start = nowTz.startOf("day").toDate();
+  const end = nowTz.endOf("day").toDate();
+  const now = nowTz.toDate();
+  const tasksRef = db.collection(`households/${householdId}/tasks`);
+  const statusIn = ["open", "in_progress", "blocked"];
+  const todayNextSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("nextOccurrenceAt", ">=", start)
+    .where("nextOccurrenceAt", "<=", end)
+    .orderBy("nextOccurrenceAt", "asc")
+    .get();
+  const todayDueSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("dueAt", ">=", start)
+    .where("dueAt", "<=", end)
+    .orderBy("dueAt", "asc")
+    .get();
+  const overdueSnap = await tasksRef
+    .where("status", "in", statusIn as any)
+    .where("dueAt", "<", now)
+    .orderBy("dueAt", "asc")
+    .get();
+  const dedup: Record<string, FirebaseFirestore.DocumentSnapshot> = {};
+  todayNextSnap.docs.forEach((d) => (dedup[d.id] = d));
+  todayDueSnap.docs.forEach((d) => (dedup[d.id] = d));
+  const todayTasks = Object.values(dedup);
+  const overdueTasks = overdueSnap.docs.filter((d) => !todayTasks.find((t) => t.id === d.id));
+  const topTitles = (
+    docs: FirebaseFirestore.DocumentSnapshot[],
+    n: number,
+  ) => docs.slice(0, n).map((d) => String((d.data() as any)?.title || d.id));
+  const summary = {
+    date: nowTz.format("YYYY-MM-DD"),
+    tz,
+    counts: { today: todayTasks.length, overdue: overdueTasks.length },
+    samples: {
+      todayTitles: topTitles(todayTasks, 2),
+      overdueTitles: topTitles(overdueTasks, 2),
+    },
+  };
+  return { ok: true, summary };
+});

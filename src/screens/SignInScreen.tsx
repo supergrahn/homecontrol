@@ -11,7 +11,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 import { FirebaseError } from "firebase/app";
 import {
   signInWithEmailAndPassword,
@@ -20,6 +20,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { useTranslation } from "react-i18next";
+import { getDocs, collection } from "firebase/firestore";
 
 export default function SignInScreen({ navigation }: any) {
   const [email, setEmail] = React.useState("");
@@ -33,7 +34,7 @@ export default function SignInScreen({ navigation }: any) {
     if (!pass) return setError("auth.weakPassword");
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
-      navigation.replace("Home");
+  navigation.replace("MainTabs");
     } catch (e) {
       const err = e as FirebaseError;
       const code = err.code;
@@ -70,8 +71,19 @@ export default function SignInScreen({ navigation }: any) {
     if (!email.trim()) return setError("auth.invalidEmail");
     if (!pass || pass.length < 6) return setError("auth.weakPassword");
     try {
-      await createUserWithEmailAndPassword(auth, email.trim(), pass);
-      navigation.replace("Home");
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+      // Check if the user is already a member of any household
+      const qs = await getDocs(collection(db, "households"));
+      const uid = cred.user.uid;
+      let hasMembership = false;
+      for (const d of qs.docs) {
+        const m = await getDocs(collection(db, `households/${d.id}/members`));
+        if (m.docs.find((x) => x.id === uid)) {
+          hasMembership = true;
+          break;
+        }
+      }
+      navigation.replace(hasMembership ? "MainTabs" : "CreateHousehold");
     } catch (e) {
       const err = e as FirebaseError;
       const code = err.code;

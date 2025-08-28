@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, FlatList, Button, TouchableOpacity, Modal, Animated, PanResponder } from "react-native";
+import { View, Text, FlatList, Button, TouchableOpacity, Modal, Animated, PanResponder, TextInput } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
@@ -11,6 +12,7 @@ import {
   fetchOverdueTasks,
   fetchUpcomingTasks,
 } from "../services/tasks";
+import { listChildren, type Child } from "../services/children";
 import { fetchRecentActivity } from "../services/activity";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { fetchLatestDigest } from "../services/digest";
@@ -27,6 +29,12 @@ export default function HomeScreen({ navigation }: any) {
     "today",
   );
   const { householdId, households, loading, selectHousehold } = useHousehold();
+  const [tagFilter, setTagFilter] = React.useState("");
+  const [tagInput, setTagInput] = React.useState("");
+  const [prioritySort, setPrioritySort] = React.useState<"none" | "high" | "low">("none");
+  const [showAllTags, setShowAllTags] = React.useState(false);
+  const [kids, setKids] = React.useState<Child[]>([]);
+  const [kidIds, setKidIds] = React.useState<string[]>([]);
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const sheetY = React.useRef(new Animated.Value(0)).current;
@@ -84,17 +92,17 @@ export default function HomeScreen({ navigation }: any) {
   const enabled = !!householdId;
   const today = useQuery({
     queryKey: ["today", householdId],
-    queryFn: () => fetchTodayTasks(householdId!),
+    queryFn: () => fetchTodayTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
     enabled,
   });
   const overdue = useQuery({
     queryKey: ["overdue", householdId],
-    queryFn: () => fetchOverdueTasks(householdId!),
+    queryFn: () => fetchOverdueTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
     enabled,
   });
   const upcoming = useQuery({
     queryKey: ["upcoming", householdId],
-    queryFn: () => fetchUpcomingTasks(householdId!),
+    queryFn: () => fetchUpcomingTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
     enabled,
   });
   const digest = useQuery({
@@ -119,6 +127,103 @@ export default function HomeScreen({ navigation }: any) {
     queryFn: () => fetchRecentActivity(householdId!),
     enabled,
   });
+
+  // Persist filters per household and tab
+  React.useEffect(() => {
+    (async () => {
+      try {
+        if (!householdId) return;
+        const raw = await AsyncStorage.getItem(`@hc:filters:${householdId}:${tab}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed?.tagFilter === "string") {
+            setTagFilter(parsed.tagFilter);
+            setTagInput(parsed.tagFilter);
+          }
+          if (["none", "high", "low"].includes(parsed?.prioritySort)) setPrioritySort(parsed.prioritySort);
+          if (Array.isArray(parsed?.kidIds)) setKidIds(parsed.kidIds);
+        } else {
+          setTagFilter("");
+          setTagInput("");
+          setPrioritySort("none");
+          setKidIds([]);
+        }
+      } catch {}
+    })();
+  }, [householdId, tab]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        if (!householdId) return;
+        await AsyncStorage.setItem(
+          `@hc:filters:${householdId}:${tab}`,
+          JSON.stringify({ tagFilter, prioritySort, kidIds }),
+        );
+      } catch {}
+    })();
+  }, [householdId, tab, tagFilter, prioritySort, kidIds]);
+
+  // Debounce tag input -> tagFilter
+  React.useEffect(() => {
+    const h = setTimeout(() => setTagFilter(tagInput), 250);
+    return () => clearTimeout(h);
+  }, [tagInput]);
+
+  // Collapse expanded tag chips when switching tabs/household
+  React.useEffect(() => {
+    setShowAllTags(false);
+  }, [tab, householdId]);
+
+  // Load kids for chips
+  React.useEffect(() => {
+    (async () => {
+      try {
+        if (!householdId) { setKids([]); return; }
+        const list = await listChildren(householdId);
+        setKids(list);
+      } catch { setKids([]); }
+    })();
+  }, [householdId]);
+
+  const { displayData, kidCounts } = React.useMemo(() => {
+    const raw = ((!!householdId ? list.data : []) || []).slice();
+    // Tag filter first
+    const terms = tagFilter
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const tagFiltered = terms.length
+      ? raw.filter((task: any) => {
+          const ctx = Array.isArray(task.context)
+            ? task.context.map((x: string) => String(x).toLowerCase())
+            : [];
+          return terms.some((t) => ctx.includes(t));
+        })
+      : raw;
+    // Build per-kid counts from tag-filtered set
+    const map = new Map<string, number>();
+    for (const t of tagFiltered as any[]) {
+      const ids: string[] = Array.isArray((t as any).childIds) ? (t as any).childIds : [];
+      for (const id of ids) map.set(id, (map.get(id) || 0) + 1);
+    }
+    // Apply kid filter
+    const byKids = kidIds.length
+      ? tagFiltered.filter((t: any) => {
+          const ids: string[] = Array.isArray((t as any).childIds) ? (t as any).childIds : [];
+          return ids.some((id) => kidIds.includes(id));
+        })
+      : tagFiltered;
+    // Priority sort last
+    if (prioritySort !== "none") {
+      byKids.sort((a: any, b: any) => {
+        const pa = typeof a.priority === "number" ? a.priority : 0;
+        const pb = typeof b.priority === "number" ? b.priority : 0;
+        return prioritySort === "high" ? pb - pa : pa - pb;
+      });
+    }
+    return { displayData: byKids, kidCounts: map } as { displayData: any[]; kidCounts: Map<string, number> };
+  }, [list.data, householdId, tagFilter, prioritySort, kidIds]);
 
   const refreshAll = React.useCallback(async () => {
     if (!enabled) return;
@@ -289,11 +394,12 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      {enabled && list.isLoading ? (
+    {enabled && list.isLoading ? (
         <Text>{t("loading")}</Text>
       ) : (
         <FlatList
-          data={(enabled ? list.data : []) || []}
+      // Filtered+sorted client-side for now; can move to server later
+      data={displayData}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={refreshAll}
@@ -312,6 +418,150 @@ export default function HomeScreen({ navigation }: any) {
           ListEmptyComponent={<Text>{t("noTasks")}</Text>}
         />
       )}
+
+      {/* Filters */}
+      {enabled ? (
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ fontWeight: "600", marginBottom: 6 }}>{t("filters") || "Filters"}</Text>
+          {/* Kid chips */}
+          {kids.length > 0 ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+              {kids.map((k) => {
+                const active = kidIds.includes(k.id);
+                const count = kidCounts.get(k.id) || 0;
+                return (
+                  <TouchableOpacity key={k.id} onPress={() => {
+                    const next = active ? kidIds.filter((x) => x !== k.id) : [...kidIds, k.id];
+                    setKidIds(next);
+                  }}>
+                    <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? "#111" : "#E5E7EB", backgroundColor: active ? "#EEF2FF" : "#F9FAFB" }}>
+                      <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
+                      <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
+                      {count > 0 ? (
+                        <View style={{ marginLeft: 4, backgroundColor: "#111", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ color: "#fff", fontSize: 10 }}>{count}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        <TextInput
+              placeholder={(t("tagsFilter") as string) || "Filter by tags (comma-separated)"}
+          value={tagInput}
+          onChangeText={setTagInput}
+              autoCapitalize="none"
+              style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }}
+            />
+          </View>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+            <Button
+              title={(t("sortByPriorityHighFirst") as string) || "High priority first"}
+              onPress={() => setPrioritySort("high")}
+              color={prioritySort === "high" ? ("#111") : undefined}
+            />
+            <Button
+              title={(t("sortByPriorityLowFirst") as string) || "Low priority first"}
+              onPress={() => setPrioritySort("low")}
+              color={prioritySort === "low" ? ("#111") : undefined}
+            />
+            <Button
+              title={(t("clearFilters") as string) || "Clear"}
+              onPress={() => {
+                setTagFilter("");
+                setTagInput("");
+                setPrioritySort("none");
+              }}
+            />
+          </View>
+          {/* Quick tag chips from visible tasks (capped with +N more) */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {(() => {
+              const tagSet = new Set<string>();
+              for (const task of displayData as any[]) {
+                const ctx = Array.isArray(task?.context) ? task.context : [];
+                for (const t of ctx) {
+                  if (typeof t === "string" && t.trim()) tagSet.add(t.trim());
+                }
+              }
+              const current = new Set(
+                tagFilter
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              );
+              const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+              const MAX_CHIPS = 12;
+              const visibleTags = showAllTags ? tags : tags.slice(0, MAX_CHIPS);
+              const hiddenCount = Math.max(0, tags.length - MAX_CHIPS);
+
+              const chips = visibleTags.map((tg) => {
+                const active = current.has(tg);
+                return (
+                  <TouchableOpacity
+                    key={tg}
+                    onPress={() => {
+                      const next = new Set(current);
+                      if (active) next.delete(tg); else next.add(tg);
+                      const nextList = Array.from(next);
+                      setTagInput(nextList.join(nextList.length > 1 ? ", " : ","));
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{
+                      backgroundColor: active ? "#111" : "#EEF2FF",
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderWidth: 1,
+                      borderColor: active ? "#111" : "#E0E7FF",
+                    }}>
+                      <Text style={{ color: active ? "#fff" : "#3730A3", fontSize: 12 }}>#{tg}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              });
+
+              if (hiddenCount > 0 && !showAllTags) {
+                chips.push(
+                  <TouchableOpacity key="more" onPress={() => setShowAllTags(true)} activeOpacity={0.8}>
+                    <View style={{
+                      backgroundColor: "#F3F4F6",
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                    }}>
+                      <Text style={{ color: "#374151", fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
+                    </View>
+                  </TouchableOpacity>,
+                );
+              } else if (showAllTags && tags.length > MAX_CHIPS) {
+                chips.push(
+                  <TouchableOpacity key="less" onPress={() => setShowAllTags(false)} activeOpacity={0.8}>
+                    <View style={{
+                      backgroundColor: "#F3F4F6",
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                    }}>
+                      <Text style={{ color: "#374151", fontSize: 12 }}>{t("showLess")}</Text>
+                    </View>
+                  </TouchableOpacity>,
+                );
+              }
+
+              return chips;
+            })()}
+          </View>
+        </View>
+      ) : null}
 
       <View style={{ marginTop: 16, gap: 8 }}>
         <Button

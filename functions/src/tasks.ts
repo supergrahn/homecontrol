@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { computeNextOccurrence } from "./utils/rrule";
+import { isWithinQuietHours, nextAllowedTime, sendExpoPush, enqueueExpoPush } from "./notifications";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -70,13 +71,16 @@ export const onTaskWrite = functions.firestore
   let nextOccurrence: Date | null = null; // the actual event/due time in UTC
 
       const tz = await getHouseholdTimezone(hid);
-      const { occurrenceAt, nextOccurrenceAt } = await computeNextOccurrence(
+    const { occurrenceAt, nextOccurrenceAt } = await computeNextOccurrence(
         tz,
         {
           rrule: (after as any)?.rrule ?? null,
           startAt,
           dueAt,
-          prepWindowHours: prepHours,
+      prepWindowHours: prepHours,
+      pausedUntil: asDate((after as any)?.pausedUntil) ?? null,
+      skipDates: Array.isArray((after as any)?.skipDates) ? (after as any)?.skipDates : [],
+      exceptionShifts: (after as any)?.exceptionShifts ?? {},
         },
       );
       nextOccurrence = occurrenceAt;
@@ -95,6 +99,21 @@ export const onTaskWrite = functions.firestore
         });
       }
 
+      // Rotation MVP: on create (no before) or if nextOccurrenceAt advanced from null -> value, assign next from rotationPool
+      if (!before || (!asDate(before?.nextOccurrenceAt) && showAt)) {
+        const pool = Array.isArray((after as any)?.rotationPool) ? (after as any).rotationPool as string[] : [];
+        if (pool.length) {
+          const idx = Number((after as any)?.rotationIndex ?? 0);
+          const nextIdx = (idx + 1) % pool.length;
+          const assignee = pool[idx];
+          await change.after.ref.set({
+            assigneeIds: [assignee],
+            rotationIndex: nextIdx,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      }
+
       // Activity: creation and completion
       if (!before) {
         // Creation
@@ -105,6 +124,50 @@ export const onTaskWrite = functions.firestore
           payload: { title: (after as any).title, type: (after as any).type },
           at: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+        // Push notification to household members (excluding creator), respecting user settings and quiet hours
+        try {
+          const createdBy: string | undefined = (after as any)?.createdBy;
+          const membersSnap = await db.collection(`households/${hid}/members`).get();
+          const memberIds = membersSnap.docs.map((d) => d.id).filter((id) => id && id !== createdBy);
+          if (memberIds.length) {
+            const usersSnap = await db.getAll(...memberIds.map((uid) => db.doc(`users/${uid}`)));
+            const now = new Date();
+            const title = String((after as any)?.title || taskId);
+            const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
+            for (const u of usersSnap) {
+              const data = u.data() as any;
+              if (data?.notificationsEnabled === false) continue;
+              const token: string | undefined = data?.pushToken;
+              if (!token) continue;
+              const quiet = data?.quietHours as { start: string; end: string; tz?: string } | undefined;
+              if (isWithinQuietHours(now, quiet, await getHouseholdTimezone(hid))) {
+                const scheduledAt = nextAllowedTime(now, quiet, await getHouseholdTimezone(hid));
+                await enqueueExpoPush({
+                  hid,
+                  to: [token],
+                  uids: [u.id],
+                  title: "New task",
+                  body: title,
+                  data: { type: "task.create", hid, taskId },
+                  categoryId: "task_actions",
+                  scheduledAt,
+                });
+              } else {
+                messages.push({
+                  to: [token],
+                  title: "New task",
+                  body: title,
+                  data: { type: "task.create", hid, taskId },
+                  categoryId: "task_actions",
+                });
+              }
+            }
+            if (messages.length) await sendExpoPush(messages);
+          }
+        } catch (e) {
+          console.warn("[tasks.onWrite] push on create failed", e);
+        }
       } else {
         const beforeStatus = (before as any).status;
         const afterStatus = (after as any).status;
@@ -117,6 +180,56 @@ export const onTaskWrite = functions.firestore
             payload: { title: (after as any).title },
             at: admin.firestore.FieldValue.serverTimestamp(),
           });
+          // Notify adults for approval if required
+          if ((after as any)?.approvalRequired) {
+            try {
+              const membersSnap = await db.collection(`households/${hid}/members`).get();
+              const adultIds = membersSnap.docs.filter((d) => {
+                const role = (d.data() as any)?.role;
+                return role === "adult" || role === "admin";
+              }).map((d) => d.id);
+              if (adultIds.length) {
+                const usersSnap = await db.getAll(...adultIds.map((uid) => db.doc(`users/${uid}`)));
+                const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
+                for (const u of usersSnap) {
+                  const data = u.data() as any;
+                  const token: string | undefined = data?.pushToken;
+                  if (!token) continue;
+                  messages.push({
+                    to: [token],
+                    title: "Needs verification",
+                    body: String((after as any)?.title || taskId),
+                    data: { type: "task.needs_verify", hid, taskId },
+                    categoryId: "task_actions",
+                  });
+                }
+                if (messages.length) await sendExpoPush(messages);
+              }
+            } catch {}
+          }
+        }
+        // Adult verification notification back to assignees
+        if (beforeStatus !== "verified" && afterStatus === "verified") {
+          try {
+            const assignees: string[] = Array.isArray((after as any)?.assigneeIds) ? (after as any).assigneeIds : [];
+            if (assignees.length) {
+              const usersSnap = await db.getAll(...assignees.map((uid) => db.doc(`users/${uid}`)));
+              const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
+              for (const u of usersSnap) {
+                const data = u.data() as any;
+                const token: string | undefined = data?.pushToken;
+                if (!token) continue;
+                messages.push({
+                  to: [token],
+                  title: "Verified",
+                  body: String((after as any)?.title || taskId),
+                  data: { type: "task.verified", hid, taskId },
+                  categoryId: "task_actions",
+                });
+              }
+              if (messages.length) await sendExpoPush(messages);
+            }
+          } catch {}
         }
       }
     },

@@ -41,10 +41,18 @@ export default function DeepLinkHandler() {
           type: "success",
         });
         await selectHousehold(hid);
-      } catch (e) {
-        // Swallow to avoid UX disruption; a toast is enough
+      } catch (e: any) {
         console.error("[DeepLinkHandler] invite accept failed", e);
-        toast.show(t("actionFailed"), { type: "error" });
+        const code = String(e?.code || e?.message || "");
+        const msg =
+          code.includes("not-found")
+            ? t("inviteNotFound") || "Invite not found"
+            : code.includes("failed-precondition")
+              ? t("inviteExpiredOrInvalid") || "Invite expired or invalid"
+              : code.includes("permission-denied")
+                ? t("inviteBadToken") || "Invite token invalid"
+                : t("actionFailed");
+        toast.show(msg, { type: "error" });
       }
     },
     [toast, selectHousehold, t],

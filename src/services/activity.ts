@@ -1,5 +1,5 @@
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { db } from "../firebase";
+import { collection, getDocs, query, orderBy, limit, addDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "../firebase";
 
 export type Activity = {
   id: string;
@@ -25,5 +25,22 @@ export async function fetchRecentActivity(hid: string): Promise<Activity[]> {
       payload: data.payload,
       at: toDate(data.at),
     } as Activity;
+  });
+}
+
+export async function logActivity(options: {
+  hid: string;
+  action: string;
+  taskId?: string | null;
+  payload?: any;
+}) {
+  const { hid, action, taskId = null, payload } = options;
+  const ref = collection(db, `households/${hid}/activity`);
+  await addDoc(ref, {
+  actorId: auth.currentUser?.uid ?? null,
+    action,
+    taskId: taskId ?? null,
+    payload: payload ?? null,
+    at: serverTimestamp(),
   });
 }

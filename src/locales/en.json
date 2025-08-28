@@ -11,6 +11,36 @@
   "loading": "Loading…",
   "noTasks": "No tasks today. breathe. 🌿",
   "templates": "Templates",
+  "manageTemplates": "Manage templates",
+  "deleteTemplateTitle": "Delete template",
+  "deleteTemplateConfirm": "Delete this template?",
+  "taskCreated": "Task created",
+  "templateInserted": "Template inserted",
+  "templateSaved": "Template saved",
+  "newTemplate": "New template",
+  "enterTemplateName": "Enter a template name",
+  "nameExists": "Name already exists",
+  "created": "Created",
+  "renamed": "Renamed",
+  "deleted": "Deleted",
+  "useLastTemplate": "Use last template",
+  "inviteNotFound": "Invite not found",
+  "inviteExpiredOrInvalid": "Invite expired or invalid",
+  "inviteBadToken": "Invite token invalid",
+  "tooManyInvites": "Too many invites; try again later",
+  "usedTimes": "used {{count}}",
+  "priority": "Priority",
+  "priorityNone": "None",
+  "priorityLow": "Low",
+  "priorityMedium": "Medium",
+  "priorityHigh": "High",
+  "tags": "Tags",
+  "tagsPlaceholder": "Comma-separated",
+  "filters": "Filters",
+  "tagsFilter": "Filter by tags (comma-separated)",
+  "sortByPriorityHighFirst": "High priority first",
+  "sortByPriorityLowFirst": "Low priority first",
+  "clearFilters": "Clear",
   "overdue": "Overdue",
   "upcoming": "Upcoming",
   "newTask": "New Task",
@@ -61,6 +91,7 @@
   "leftHousehold": "You left the household.",
   "actionFailed": "Something went wrong.",
   "invites": "Invites",
+  "joinHousehold": "Join household",
   "createInvite": "Create invite",
   "inviteCreated": "Invite created",
   "acceptInvite": "Accept invite",
@@ -71,6 +102,23 @@
   "noInvites": "No invites yet.",
   "revoke": "Revoke",
   "share": "Share",
+  "skip": "Skip",
+  "pasteFromClipboard": "Paste from clipboard",
+  "scanQrInvite": "Scan QR invite",
+  "scanInvite": "Scan invite",
+  "scannedInvalidInvite": "Not a valid invite link",
+  "scanning": "Scanning…",
+  "cameraPermissionDenied": "Camera permission denied. Enable camera in settings.",
+  "requestPermission": "Request permission",
+  "onboarding": {
+    "createOrJoin": "Create a household or join with an invite link.",
+    "haveInviteLink": "Have an invite link?",
+    "pasteInviteLink": "Paste invite link"
+  },
+  "validation": {
+    "householdNameShort": "Please enter at least 2 characters"
+  },
+  "invalidInviteLink": "Invalid invite link",
   "invite": {
     "status": {
       "pending": "pending",
@@ -108,7 +156,48 @@
   "occursAt": "Occurs at {{when}}",
   "mine": "Mine",
   "acceptedCount": "{{count}} accepted",
+  "accepted": "Accepted",
   "saveAndAddAnother": "Save and add another",
   "cloneAsTemplate": "Clone as template",
-  "open": "Open"
+  "saveAsTemplate": "Save as template",
+  "insertFromTemplate": "Insert from template",
+  "search": "Search",
+  "open": "Open",
+  "quickActions": "Quick actions",
+  "showHouseholdQr": "Show Household QR",
+  "scanHouseholdQr": "Scan Household QR",
+  "noHouseholdSelected": "No household selected",
+  "inviteLinkUnavailable": "Invite link unavailable"
+  ,"shareHouseholdInvite": "Share Household Invite",
+  "resetToDefaults": "Reset to defaults",
+  "filtersReset": "Filters reset",
+  "moreCount": "+{{count}} more",
+  "showLess": "Show less"
+  ,"calendar": "Calendar",
+  "agenda": "Agenda",
+  "week": "Week",
+  "month": "Month",
+  "custom": "Custom",
+  "timeline": "Timeline",
+  "from": "From",
+  "to": "To",
+  "name": "Name",
+  "saveRange": "Save range",
+  "apply": "Apply",
+  "clearRange": "Clear",
+  "freeSlots": "Free slots",
+  "noFreeSlots": "No free slots between 06:00–22:00",
+  "skipToday": "Skip today",
+  "shift30": "+30m",
+  "pause7": "Pause 7d"
+  ,"kids": "Kids"
+  ,"noKidsYet": "No kids yet."
+  ,"assignToKids": "Assign to kids"
+  ,"approvalRequired": "Approval required"
+  ,"approve": "Approve"
+  ,"reject": "Reject"
+  ,"rotation": "Rotation"
+  ,"rotationHint": "Pick members/children to rotate assignments. Next assignee cycles when scheduled."
+  ,"nextAssignee": "Next assignee"
+  ,"fairness": "Fairness"
 }

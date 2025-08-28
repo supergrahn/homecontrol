@@ -12,7 +12,7 @@ import { firebaseApp, db } from "../firebase";
 export async function createInvite(
   householdId: string,
   email: string,
-  role: "adult" = "adult",
+  role: "adult" | "admin" = "adult",
 ) {
   const functions = getFunctions(firebaseApp);
   const fn = httpsCallable(functions, "createInvite");
@@ -36,7 +36,7 @@ export async function acceptInvite(
 export type Invite = {
   id: string;
   email: string;
-  role: "adult";
+  role: "adult" | "admin";
   status: "pending" | "accepted" | "revoked" | "expired";
   createdAt?: Date | null;
   expiresAt?: Date | null;

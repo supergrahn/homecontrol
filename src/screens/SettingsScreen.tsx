@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
+import { useNavigation } from "@react-navigation/native";
 import {
   createHousehold,
   updateHouseholdSettings,
@@ -35,9 +36,12 @@ import {
 import { auth, db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation<any>();
   const { householdId, households, selectHousehold } = useHousehold();
   const [name, setName] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -195,6 +199,89 @@ export default function SettingsScreen() {
         </View>
       ))}
       <View style={{ height: 16 }} />
+      {!!householdId ? (
+        <View style={{ marginBottom: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+            {t("showHouseholdQr") || "Show Household QR"}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button
+              title={t("showHouseholdQr") || "Show Household QR"}
+              onPress={() => navigation.navigate("ShowHouseholdQR")}
+            />
+            <Button
+              title={t("scanHouseholdQr") || "Scan Household QR"}
+              onPress={() => navigation.navigate("ScanInvite")}
+            />
+            <Button
+              title={t("shareHouseholdInvite") || "Share Household Invite"}
+              onPress={async () => {
+                try {
+                  if (!householdId) return;
+                  const res = await createInviteFn(householdId, "", "adult");
+                  const link = res.url || undefined;
+                  if (link) {
+                    await Share.share({ message: link });
+                  } else {
+                    Alert.alert(t("inviteLinkUnavailable") || "Invite link unavailable");
+                  }
+                } catch (e: any) {
+                  const code = String(e?.code || e?.message || "");
+                  const msg = code.includes("resource-exhausted")
+                    ? (t("tooManyInvites") as string) || "Too many invites; try again later"
+                    : (t("actionFailed") as string) || "Something went wrong.";
+                  Alert.alert(msg);
+                }
+              }}
+            />
+            <Button
+              title={(t("manageTemplates") as string) || "Manage templates"}
+              onPress={() => navigation.navigate("ManageTemplates")}
+            />
+          </View>
+          {/* Filters & sort utilities */}
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title={(t("resetToDefaults") as string) || "Reset to defaults"}
+              onPress={async () => {
+                try {
+                  if (!householdId) return;
+                  await AsyncStorage.multiRemove([
+                    `@hc:filters:${householdId}:today`,
+                    `@hc:filters:${householdId}:overdue`,
+                    `@hc:filters:${householdId}:upcoming`,
+                  ]);
+                  toast.show((t("filtersReset") as string) || "Filters reset", { type: "success" });
+                } catch (e) {
+                  console.error(e);
+                  toast.show(t("actionFailed"), { type: "error" });
+                }
+              }}
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {/* Templates shortcuts */}
+      {!!householdId ? (
+        <View style={{ marginBottom: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+            {t("templates") || "Templates"}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button
+              title={(t("manageTemplates") as string) || "Manage templates"}
+              onPress={() => navigation.navigate("ManageTemplates")}
+            />
+            <Button
+              title={(t("insertFromTemplate") as string) || "Insert from template"}
+              onPress={() => navigation.navigate("TemplatePicker")}
+            />
+          </View>
+        </View>
+      ) : null}
+      
+      <View style={{ height: 16 }} />
       <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
         {t("createHousehold")}
       </Text>
@@ -241,6 +328,28 @@ export default function SettingsScreen() {
               Alert.alert("Push", JSON.stringify(res.data));
             } catch (e) {
               Alert.alert("Push Error", String(e));
+            }
+          }}
+        />
+        <View style={{ height: 8 }} />
+        <Button
+          title={t("runDigestDryRun") || "Run digest dry-run (local)"}
+          onPress={async () => {
+            try {
+              if (!householdId) return;
+              const fn = httpsCallable(getFunctions(), "runDigestDryRun");
+              const res: any = await fn({ householdId });
+              const counts = res?.data?.summary?.counts || { today: 0, overdue: 0 };
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: "Daily summary (dry-run)",
+                  body: `Today ${counts.today} · Overdue ${counts.overdue}`,
+                  data: { type: "digest.daily.dryrun", hid: householdId, counts },
+                },
+                trigger: null,
+              });
+            } catch (e) {
+              Alert.alert("Error", String(e));
             }
           }}
         />

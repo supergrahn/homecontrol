@@ -53,7 +53,9 @@ service cloud.firestore {
 
       // -------- children ---------------------
       match /children/{childId} {
-        allow read, write: if signedIn() && isMember(hid);
+  allow read: if signedIn() && isMember(hid);
+  allow create: if signedIn() && isMember(hid);
+  allow update, delete: if signedIn() && isAdmin(hid);
       }
 
       // -------- tasks ------------------------
@@ -74,8 +76,20 @@ service cloud.firestore {
             [
               "title","description","context","visibility","status","priority",
               "assigneeIds","childIds","startAt","dueAt","rrule",
-              "prepWindowHours","nextOccurrenceAt","updatedAt","acceptedBy"
+              "prepWindowHours","nextOccurrenceAt","updatedAt","acceptedBy",
+              "pausedUntil","skipDates","exceptionShifts",
+              "approvalRequired","rotationPool","rotationIndex"
             ]
+          );
+
+        // Approval workflow constraints
+        allow update: if signedIn() && isMember(hid)
+          && request.resource.data.status in ["open","in_progress","blocked","done","verified"]
+          && (
+            // Kids/regular members can mark done, but cannot set verified
+            (!isAdmin(hid) && request.resource.data.status != "verified") ||
+            // Adults/admins can set verified
+            (isAdmin(hid))
           );
 
         allow delete: if signedIn() && isMember(hid);
@@ -84,6 +98,23 @@ service cloud.firestore {
         match /checklist/{itemId} {
           allow read, write: if signedIn() && isMember(hid);
         }
+
+        // task comments
+        match /comments/{commentId} {
+          allow read, write: if signedIn() && isMember(hid);
+        }
+      }
+
+      // -------- checklist templates ----------
+      match /checklistTemplates/{templateId} {
+        // Members can list/read templates
+        allow read: if signedIn() && isMember(hid);
+
+        // Any member can create a template for their household
+  allow create: if signedIn() && isMember(hid);
+
+        // Only admins can rename or delete templates
+        allow update, delete: if signedIn() && isAdmin(hid);
       }
 
       // -------- measurements -----------------

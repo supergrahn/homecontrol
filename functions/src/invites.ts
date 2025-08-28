@@ -15,6 +15,31 @@ export const createInvite = functions.https.onCall(async (data, context) => {
   if (!member.exists || member.data()?.role !== "admin")
     throw new functions.https.HttpsError("permission-denied", "Admin only");
 
+  // Simple rate limit: max 5 invites per user per household per hour
+  const now = Date.now();
+  const windowMs = 60 * 60 * 1000; // 1h
+  const limit = 5;
+  const rlId = `${uid}:${householdId}`;
+  const rlRef = db.doc(`rateLimits/invites_${rlId}`);
+  const rlSnap = await rlRef.get();
+  const bucket = rlSnap.exists ? (rlSnap.data() as any) : null;
+  const resetAt = bucket?.resetAt?.toDate ? bucket.resetAt.toDate().getTime() : bucket?.resetAt || 0;
+  const count = typeof bucket?.count === "number" ? bucket.count : 0;
+  if (bucket && now < resetAt && count >= limit) {
+    throw new functions.https.HttpsError("resource-exhausted", "Too many invites; try again later");
+  }
+  const newResetAt = now >= resetAt ? now + windowMs : resetAt;
+  await rlRef.set(
+    {
+      count: now >= resetAt ? 1 : (count + 1),
+      resetAt:
+        (admin.firestore as any)?.Timestamp?.fromDate?.(new Date(newResetAt)) || new Date(newResetAt),
+      updatedAt:
+        (admin.firestore as any)?.FieldValue?.serverTimestamp?.() || new Date(),
+    },
+    { merge: true },
+  );
+
   const token = crypto.randomUUID();
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const inviteRef = db.collection(`households/${householdId}/invites`).doc();

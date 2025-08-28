@@ -5,6 +5,7 @@ import { createTask } from "../services/tasks";
 import { auth } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { addChecklistItem } from "../services/checklist";
+import { useNavigation } from "@react-navigation/native";
 
 // use selected household from context
 
@@ -37,6 +38,7 @@ const templates: Record<string, string[]> = {
 export default function TemplatesScreen() {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
+  const navigation = useNavigation<any>();
   const addTemplate = async (name: string) => {
     if (!householdId) return;
     const createdBy = auth.currentUser?.uid || "unknown";
@@ -59,6 +61,12 @@ export default function TemplatesScreen() {
       <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 12 }}>
         {t("templates")}
       </Text>
+      <View style={{ marginBottom: 8 }}>
+        <Button
+          title={(t("manageTemplates") as string) || "Manage templates"}
+          onPress={() => navigation.navigate("ManageTemplates")}
+        />
+      </View>
       {Object.keys(templates).map((k) => (
         <View key={k} style={{ marginBottom: 16 }}>
           <Text style={{ fontWeight: "600", marginBottom: 6 }}>{k}</Text>
