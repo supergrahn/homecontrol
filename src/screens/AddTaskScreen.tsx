@@ -1,5 +1,7 @@
 import React from "react";
-import { View, TextInput, Text, Button, Platform, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { createTask } from "../services/tasks";
 import { addChecklistItem } from "../services/checklist";
@@ -8,10 +10,13 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { useToast } from "../components/ToastProvider";
 import { listTemplates } from "../services/templates";
 import { listChildren, type Child } from "../services/children";
+import Input from "../components/Input";
+import Button from "../components/Button";
 
 export default function AddTaskScreen({ navigation, route }: any) {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
+  const theme = useTheme();
   const toast = useToast();
   const [title, setTitle] = React.useState("");
   const [type, setType] = React.useState<
@@ -19,7 +24,7 @@ export default function AddTaskScreen({ navigation, route }: any) {
   >("chore");
   const [priority, setPriority] = React.useState<number | undefined>(undefined);
   const [tagsText, setTagsText] = React.useState<string>("");
-  const inputRef = React.useRef<TextInput | null>(null);
+  const inputRef = React.useRef<any>(null);
   const [lastTemplate, setLastTemplate] = React.useState<{ id: string; name: string; items: string[] } | null>(null);
   const [kids, setKids] = React.useState<Child[]>([]);
   const [childIds, setChildIds] = React.useState<string[]>([]);
@@ -100,40 +105,31 @@ export default function AddTaskScreen({ navigation, route }: any) {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Text style={{ fontSize: 20, fontWeight: "600" }}>{t("newTask")}</Text>
-      <TextInput
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>
+        {t("newTask")}
+      </Text>
+      <Input
         ref={(r) => {
           inputRef.current = r;
         }}
         placeholder={t("titleLabel")}
         value={title}
         onChangeText={setTitle}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ddd",
-          borderRadius: 8,
-          padding: 12,
-        }}
+        returnKeyType="done"
       />
-      <Text>{t("type")}</Text>
+      <Text style={{ color: theme.colors.text }}>{t("type")}</Text>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {(["chore", "event", "deadline", "checklist"] as const).map((tk) => (
           <Button
             key={tk}
             title={t(tk)}
             onPress={() => setType(tk)}
-            color={
-              type === tk
-                ? Platform.OS === "ios"
-                  ? undefined
-                  : "#0066cc"
-                : undefined
-            }
+            variant={type === tk ? "primary" : "outline"}
           />
         ))}
       </View>
-      <Text style={{ marginTop: 8 }}>{t("priority") || "Priority"}</Text>
+  <Text style={{ marginTop: 8, color: theme.colors.text }}>{t("priority") || "Priority"}</Text>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {[undefined, 1, 2, 3].map((p) => (
           <Button
@@ -148,14 +144,14 @@ export default function AddTaskScreen({ navigation, route }: any) {
                     : (t("priorityHigh") as string) || "High"
             }
             onPress={() => setPriority(p as any)}
-            color={priority === p ? (Platform.OS === "ios" ? undefined : "#8a2be2") : undefined}
-          />)
-        )}
+            variant={priority === p ? "primary" : "outline"}
+          />
+        ))}
       </View>
       {/* Kid assignment chips */}
       {kids.length > 0 ? (
         <View style={{ marginTop: 8 }}>
-          <Text style={{ marginBottom: 6 }}>{(t("assignToKids") as string) || "Assign to kids"}</Text>
+          <Text style={{ marginBottom: 6, color: theme.colors.text }}>{(t("assignToKids") as string) || "Assign to kids"}</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {kids.map((k) => {
               const active = childIds.includes(k.id);
@@ -163,9 +159,9 @@ export default function AddTaskScreen({ navigation, route }: any) {
                 <TouchableOpacity key={k.id} onPress={() => {
                   setChildIds((prev) => prev.includes(k.id) ? prev.filter((x) => x !== k.id) : [...prev, k.id]);
                 }}>
-                  <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? "#111" : "#E5E7EB", backgroundColor: active ? "#EEF2FF" : "#F9FAFB" }}>
+                  <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? theme.colors.text : theme.colors.border, backgroundColor: theme.colors.card }}>
                     <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
-                    <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>{k.displayName}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -173,13 +169,12 @@ export default function AddTaskScreen({ navigation, route }: any) {
           </View>
         </View>
       ) : null}
-      <Text style={{ marginTop: 8 }}>{t("tags") || "Tags"}</Text>
-      <TextInput
+      <Text style={{ marginTop: 8, color: theme.colors.text }}>{t("tags") || "Tags"}</Text>
+  <Input
         placeholder={(t("tagsPlaceholder") as string) || "Comma-separated"}
         value={tagsText}
         onChangeText={setTagsText}
         autoCapitalize="none"
-        style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }}
       />
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button title={t("save")} onPress={save} disabled={!householdId} />
@@ -234,6 +229,6 @@ export default function AddTaskScreen({ navigation, route }: any) {
         }}
         disabled={!householdId}
       />
-    </View>
+  </ScreenContainer>
   );
 }

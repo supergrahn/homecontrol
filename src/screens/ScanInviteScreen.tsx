@@ -1,43 +1,50 @@
 import React from "react";
-import { View, Text, Button, Alert, Platform } from "react-native";
+import { View, Text, Alert, Platform } from "react-native";
+import Button from "../components/Button";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { parseInviteFromUrl } from "../services/inviteLinks";
 import { acceptInvite } from "../services/invites";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 
-export default function ScanInviteScreen({ navigation }: any) {
+export default function ScanInviteScreen({ navigation, route }: any) {
   const { t } = useTranslation();
   const { selectHousehold } = useHousehold();
-  const [hasPermission, setHasPermission] = React.useState<boolean | null>(
-    null
-  );
+  const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
   const [scanned, setScanned] = React.useState(false);
   const [Scanner, setScanner] = React.useState<any | null>(null);
   const [scannerError, setScannerError] = React.useState<string | null>(null);
   const [pasting, setPasting] = React.useState(false);
 
   React.useEffect(() => {
+    // Scanner module intentionally disabled in this build to avoid native linking issues.
+    // Fallback to paste-from-clipboard flow only.
+    setScanner(null);
+    setScannerError(
+      Platform.OS === "ios"
+        ? (t("scannerUnavailableUseDevClient") as string) ||
+            "QR scanner isn’t available in this build. Use a dev build with scanner support, or paste an invite link instead."
+        : (t("scannerUnavailable") as string) ||
+            "QR scanner isn’t available in this build. Paste an invite link instead."
+    );
+    setHasPermission(false);
+  }, [t]);
+
+  // Auto-accept invite if deep link params are provided
+  React.useEffect(() => {
     (async () => {
       try {
-        const mod = await import("expo-barcode-scanner");
-        const BarCodeScanner = (mod as any)?.BarCodeScanner;
-        if (!BarCodeScanner) throw new Error("Scanner module unavailable");
-        setScanner(() => BarCodeScanner);
-        const { status } = await BarCodeScanner.requestPermissionsAsync();
-        setHasPermission(status === "granted");
-      } catch (e) {
-        setScannerError(
-          Platform.OS === "ios"
-            ? (t("scannerUnavailableUseDevClient") as string) ||
-                "QR scanner isn’t available in Expo Go on iOS. Use a development build to scan invites."
-            : (t("scannerUnavailable") as string) ||
-                "QR scanner module isn’t available on this build."
-        );
-        setHasPermission(false);
-      }
+        const hid = route?.params?.hid as string | undefined;
+        const inviteId = route?.params?.inviteId as string | undefined;
+        const token = route?.params?.token as string | undefined;
+        if (hid && inviteId && token) {
+          await acceptInvite(hid, inviteId, token);
+          await selectHousehold(hid);
+          navigation.replace("MainTabs");
+        }
+      } catch {}
     })();
-  }, []);
+  }, [route?.params, navigation, selectHousehold]);
 
   const handleScan = async ({ data }: { data: string }) => {
     if (scanned) return;
@@ -137,18 +144,21 @@ export default function ScanInviteScreen({ navigation }: any) {
           {t("cameraPermissionDenied") ||
             "Camera permission denied. Enable camera in settings."}
         </Text>
-        <Button
-          title={t("requestPermission") || "Request permission"}
-          onPress={async () => {
-            try {
-              const mod = await import("expo-barcode-scanner");
-              const { status } = await (
-                mod as any
-              ).BarCodeScanner.requestPermissionsAsync();
-              setHasPermission(status === "granted");
-            } catch {}
-          }}
-        />
+        <View style={{ gap: 12, width: "100%", marginTop: 12 }}>
+          <Button
+            title={
+              pasting
+                ? t("pasting") || "Pasting…"
+                : t("pasteInviteLink") || "Paste invite link"
+            }
+            onPress={handlePasteInvite}
+            disabled={pasting}
+          />
+          <Button
+            title={t("goBack") || "Go back"}
+            onPress={() => navigation.goBack?.()}
+          />
+        </View>
       </View>
     );
   }

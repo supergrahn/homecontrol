@@ -1,19 +1,12 @@
 import React from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Button,
-  TouchableOpacity,
-  Modal,
-  Animated,
-  PanResponder,
-  TextInput,
-} from "react-native";
+import { View, Text, FlatList, TouchableOpacity, LayoutAnimation, Platform, UIManager } from "react-native";
+import EmptyState from "../components/EmptyState";
+import { useTheme } from "../design/theme";
+import ScreenContainer from "../components/ScreenContainer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-import * as Haptics from "expo-haptics";
+// import { BlurView } from "expo-blur";
+// import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import TaskCard from "../components/TaskCard";
@@ -28,77 +21,53 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { fetchLatestDigest } from "../services/digest";
 import dayjs from "dayjs";
 import { appEvents } from "../events";
+// import { navRef } from "../firebase/providers/NavigationProvider";
 // import { createHousehold } from '../services/households';
+import Input from "../components/Input";
+import Button from "../components/Button";
 
 // Household id from context
 
 export default function HomeScreen({ navigation }: any) {
   const { t } = useTranslation();
+  const theme = useTheme();
   const qc = useQueryClient();
   const [tab, setTab] = React.useState<"today" | "overdue" | "upcoming">(
     "today"
   );
-  const { householdId, households, loading, selectHousehold } = useHousehold();
+  const { householdId, households, loading } = useHousehold();
   const [tagFilter, setTagFilter] = React.useState("");
   const [tagInput, setTagInput] = React.useState("");
   const [prioritySort, setPrioritySort] = React.useState<
     "none" | "high" | "low"
   >("none");
   const [showAllTags, setShowAllTags] = React.useState(false);
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [showQuick, setShowQuick] = React.useState(false);
   const [kids, setKids] = React.useState<Child[]>([]);
   const [kidIds, setKidIds] = React.useState<string[]>([]);
-  const [selectorOpen, setSelectorOpen] = React.useState(false);
-  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
-  const sheetY = React.useRef(new Animated.Value(0)).current;
-  const closeSheet = React.useCallback(() => {
-    Animated.timing(sheetY, {
-      toValue: 300,
-      duration: 200,
-      useNativeDriver: false,
-    }).start(() => {
-      setTypePickerOpen(false);
-      sheetY.setValue(0);
-    });
-  }, [sheetY]);
-  const pan = React.useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesture) => Math.abs(gesture.dy) > 6,
-      onPanResponderMove: Animated.event([null, { dy: sheetY }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: (_evt, gesture) => {
-        if (gesture.dy > 120) {
-          closeSheet();
-        } else {
-          Animated.spring(sheetY, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(sheetY, { toValue: 0, useNativeDriver: false }).start();
-      },
-    })
-  ).current;
+  // const [selectorOpen, setSelectorOpen] = React.useState(false);
+  // Removed local type picker; global FAB handles quick actions
 
-  React.useEffect(() => {
-    if (typePickerOpen) {
-      sheetY.setValue(280);
-      Animated.spring(sheetY, {
-        toValue: 0,
-        useNativeDriver: false,
-        speed: 14,
-        bounciness: 9,
-      }).start();
-    }
-  }, [typePickerOpen, sheetY]);
+  // (was: animate local type picker sheet)
   const [refreshing, setRefreshing] = React.useState(false);
   React.useEffect(() => {
     const sub = appEvents.addListener("show-overdue", () => setTab("overdue"));
+    const qa = appEvents.addListener("quickactions:toggle", () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowQuick((v) => !v);
+    });
     return () => {
       sub.remove();
+      qa.remove();
     };
+  }, []);
+
+  // Enable smooth expand/collapse animations for filters
+  React.useEffect(() => {
+    if (Platform.OS === "android" && (UIManager as any)?.setLayoutAnimationEnabledExperimental) {
+      (UIManager as any).setLayoutAnimationEnabledExperimental(true);
+    }
   }, []);
 
   const enabled = !!householdId;
@@ -293,48 +262,8 @@ export default function HomeScreen({ navigation }: any) {
   }, [enabled, qc, householdId]);
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 8,
-        }}
-      >
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>
-          {tab === "today"
-            ? t("today")
-            : tab === "overdue"
-              ? t("overdue")
-              : t("upcoming")}
-        </Text>
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          <Button
-            title={
-              householdId
-                ? households.find((h) => h.id === householdId)?.name ||
-                  householdId
-                : t("selectHousehold")
-            }
-            onPress={() => setSelectorOpen(true)}
-          />
-          <Button
-            title={t("add")}
-            onPress={() => navigation.navigate("AddTask")}
-          />
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Activity")}
-            accessibilityLabel={t("recentActivity")}
-            accessibilityRole="button"
-          >
-            <Ionicons name="time-outline" size={22} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-            <Ionicons name="settings-outline" size={22} color="#333" />
-          </TouchableOpacity>
-        </View>
-      </View>
+    <ScreenContainer style={{ paddingTop: 8 }}>
+      {/* Top action row removed per design: household selector, add, activity, settings */}
 
       {!enabled && !loading ? (
         <View>
@@ -354,60 +283,91 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-        {(["today", "overdue", "upcoming"] as const).map((key) => (
-          <TouchableOpacity
-            key={key}
-            onPress={() => setTab(key)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={{
-                paddingVertical: 6,
-                paddingHorizontal: 12,
-                borderRadius: 999,
-                backgroundColor: tab === key ? "#111" : "#eee",
-              }}
-            >
-              <Text style={{ color: tab === key ? "#fff" : "#111" }}>
-                {t(key)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Daily summary card */}
-      {enabled ? (
-        <View
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            backgroundColor: "#f7f7f7",
-            borderWidth: 1,
-            borderColor: "#eee",
-            marginBottom: 12,
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", flexShrink: 1 }}>
+          {["today", "overdue", "upcoming"].map((key) => (
+            <TouchableOpacity key={key as any} onPress={() => setTab(key as any)} activeOpacity={0.8}>
+              <View
+                style={{
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 999,
+                  backgroundColor: (tab === (key as any)) ? theme.colors.primary : theme.colors.card,
+                }}
+              >
+                <Text style={{ color: (tab === (key as any)) ? theme.colors.onPrimary : theme.colors.text }}>
+                  {t(key as any)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={{ flex: 1 }} />
+        {/* Filter toggle */}
+        <TouchableOpacity
+          onPress={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setShowFilters((v) => !v);
           }}
+          accessibilityLabel={t("filters") || "Filters"}
+          accessibilityRole="button"
+          style={{ padding: 8, marginLeft: 4 }}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
+          <Ionicons name="funnel-outline" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+        {/* Quick action (same as floating +), now styled with circular primary background */}
+        <TouchableOpacity
+          onPress={() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowQuick((v) => !v);
+          }}
+          accessibilityLabel={t("add") || "Add"}
+          accessibilityRole="button"
+          style={{ padding: 4, marginLeft: 4 }}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: theme.colors.primary,
               alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+            <Ionicons name="add" size={18} color="#fff" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Daily summary card */}
+  {enabled ? (
+        <View
+          style={{
+    padding: theme.spacing(1.5),
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+            marginBottom: 12,
+          }}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
               {t("dailySummary")}
             </Text>
-            <Button
-              title={t("refresh")}
-              onPress={() => {
+              <Button
+                title={t("refresh")}
+                onPress={() => {
                 qc.invalidateQueries({ queryKey: ["digest", householdId] });
                 qc.invalidateQueries({ queryKey: ["today", householdId] });
                 qc.invalidateQueries({ queryKey: ["overdue", householdId] });
                 qc.invalidateQueries({ queryKey: ["upcoming", householdId] });
               }}
-            />
+                variant="outline"
+              />
           </View>
           {digest.isLoading ? (
             <Text>{t("loading")}</Text>
@@ -420,11 +380,8 @@ export default function HomeScreen({ navigation }: any) {
                 })}
               </Text>
               {!!(digest.data as any).samples ? (
-                <Text style={{ color: "#666", marginTop: 4 }}>
-                  {[
-                    (digest.data as any).samples.todayTitles,
-                    (digest.data as any).samples.overdueTitles,
-                  ]
+                <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
+                  {[(digest.data as any).samples.todayTitles, (digest.data as any).samples.overdueTitles]
                     .flat()
                     .filter(Boolean)
                     .slice(0, 2)
@@ -441,7 +398,7 @@ export default function HomeScreen({ navigation }: any) {
               ) : null}
             </View>
           ) : (
-            <Text style={{ color: "#666" }}>{t("noSummaryYet")}</Text>
+            <Text style={{ color: theme.colors.muted }}>{t("noSummaryYet")}</Text>
           )}
         </View>
       ) : null}
@@ -467,14 +424,25 @@ export default function HomeScreen({ navigation }: any) {
               showQuickAccept={tab === "today" || tab === "overdue"}
             />
           )}
-          ListEmptyComponent={<Text>{t("noTasks")}</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              title={t("noTasks") || "No tasks"}
+              subtitle={
+                tab === "today"
+                  ? (t("noTasksTodayTryAdd") as string) || "All clear today. Tap + to add a task."
+                  : tab === "overdue"
+                    ? (t("noOverdueGreatJob") as string) || "Nothing overdue. Great job!"
+                    : (t("noUpcoming") as string) || "No upcoming tasks."
+              }
+            />
+          }
         />
       )}
 
       {/* Filters */}
-      {enabled ? (
+  {enabled && showFilters ? (
         <View style={{ marginTop: 12 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 6 }}>
+          <Text style={{ fontWeight: "600", marginBottom: 6, color: theme.colors.text }}>
             {t("filters") || "Filters"}
           </Text>
           {/* Kid chips */}
@@ -509,25 +477,15 @@ export default function HomeScreen({ navigation }: any) {
                         paddingVertical: 6,
                         borderRadius: 999,
                         borderWidth: 1,
-                        borderColor: active ? "#111" : "#E5E7EB",
-                        backgroundColor: active ? "#EEF2FF" : "#F9FAFB",
+                        borderColor: active ? theme.colors.text : theme.colors.border,
+                        backgroundColor: active ? theme.colors.card : theme.colors.background,
                       }}
                     >
                       <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
                       <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
                       {count > 0 ? (
-                        <View
-                          style={{
-                            marginLeft: 4,
-                            backgroundColor: "#111",
-                            borderRadius: 999,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                          }}
-                        >
-                          <Text style={{ color: "#fff", fontSize: 10 }}>
-                            {count}
-                          </Text>
+                        <View style={{ marginLeft: 4, backgroundColor: theme.colors.text, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ color: theme.colors.onEmphasis, fontSize: 10 }}>{count}</Text>
                         </View>
                       ) : null}
                     </View>
@@ -537,38 +495,24 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ) : null}
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-            <TextInput
-              placeholder={
-                (t("tagsFilter") as string) ||
-                "Filter by tags (comma-separated)"
-              }
+            <Input
+              placeholder={(t("tagsFilter") as string) || "Filter by tags (comma-separated)"}
               value={tagInput}
               onChangeText={setTagInput}
               autoCapitalize="none"
-              style={{
-                flex: 1,
-                borderWidth: 1,
-                borderColor: "#ddd",
-                borderRadius: 8,
-                padding: 10,
-              }}
+              containerStyle={{ flex: 1 }}
             />
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
             <Button
-              title={
-                (t("sortByPriorityHighFirst") as string) ||
-                "High priority first"
-              }
+              title={(t("sortByPriorityHighFirst") as string) || "High priority first"}
               onPress={() => setPrioritySort("high")}
-              color={prioritySort === "high" ? "#111" : undefined}
+              variant={prioritySort === "high" ? "primary" : "outline"}
             />
             <Button
-              title={
-                (t("sortByPriorityLowFirst") as string) || "Low priority first"
-              }
+              title={(t("sortByPriorityLowFirst") as string) || "Low priority first"}
               onPress={() => setPrioritySort("low")}
-              color={prioritySort === "low" ? "#111" : undefined}
+              variant={prioritySort === "low" ? "primary" : "outline"}
             />
             <Button
               title={(t("clearFilters") as string) || "Clear"}
@@ -627,22 +571,8 @@ export default function HomeScreen({ navigation }: any) {
                   >
                     <View
                       style={{
-                        backgroundColor: active ? "#111" : "#EEF2FF",
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        borderWidth: 1,
-                        borderColor: active ? "#111" : "#E0E7FF",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: active ? "#fff" : "#3730A3",
-                          fontSize: 12,
-                        }}
-                      >
-                        #{tg}
-                      </Text>
+                        backgroundColor: active ? theme.colors.primary : theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: active ? theme.colors.primary : theme.colors.border }}>
+                      <Text style={{ color: active ? "#fff" : theme.colors.text, fontSize: 12 }}>#{tg}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -655,19 +585,8 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => setShowAllTags(true)}
                     activeOpacity={0.8}
                   >
-                    <View
-                      style={{
-                        backgroundColor: "#F3F4F6",
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        borderWidth: 1,
-                        borderColor: "#E5E7EB",
-                      }}
-                    >
-                      <Text style={{ color: "#374151", fontSize: 12 }}>
-                        {t("moreCount", { count: hiddenCount })}
-                      </Text>
+                    <View style={{ backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.colors.border }}>
+                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -678,19 +597,8 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => setShowAllTags(false)}
                     activeOpacity={0.8}
                   >
-                    <View
-                      style={{
-                        backgroundColor: "#F3F4F6",
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        borderWidth: 1,
-                        borderColor: "#E5E7EB",
-                      }}
-                    >
-                      <Text style={{ color: "#374151", fontSize: 12 }}>
-                        {t("showLess")}
-                      </Text>
+                    <View style={{ backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.colors.border }}>
+                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>{t("showLess")}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -702,46 +610,46 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      <View style={{ marginTop: 16, gap: 8 }}>
-        <Button
-          title={t("templates")}
-          onPress={() => navigation.navigate("Templates")}
-        />
-        <Button
-          title="Settings"
-          onPress={() => navigation.navigate("Settings")}
-        />
-      </View>
+      {/* Quick Actions dropdown */}
+      {enabled && showQuick ? (
+        <View
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: theme.radius.md,
+            backgroundColor: theme.colors.card,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}
+        >
+          <Text style={{ fontWeight: "600", marginBottom: 6, color: theme.colors.text }}>
+            {t("quickActions") || "Quick actions"}
+          </Text>
+          {(() => {
+            const role = households.find((h) => h.id === householdId)?.role;
+            const Item = ({ label, onPress }: { label: string; onPress: () => void }) => (
+              <TouchableOpacity onPress={onPress} style={{ paddingVertical: 12 }}>
+                <Text style={{ fontSize: 16, color: theme.colors.text }}>{label}</Text>
+              </TouchableOpacity>
+            );
+            return (
+              <View>
+                <Item label={(t("newTask") as string) || "New Task"} onPress={() => navigation.navigate("AddTask")} />
+                <Item label={(t("newEvent") as string) || "New event"} onPress={() => navigation.navigate("AddTask", { preset: "event" })} />
+                <Item label={(t("newBirthday") as string) || "New birthday"} onPress={() => navigation.navigate("AddTask", { preset: "birthday" })} />
+                {role === "admin" ? (
+                  <Item label={(t("showHouseholdQr") as string) || "Show Household QR"} onPress={() => navigation.navigate("ShowHouseholdQR")} />
+                ) : null}
+                <Item label={(t("scanHouseholdQr") as string) || "Scan Household QR"} onPress={() => navigation.navigate("ScanInvite")} />
+              </View>
+            );
+          })()}
+        </View>
+      ) : null}
 
-      {/* Floating + button */}
-      <TouchableOpacity
-        onPress={async () => {
-          try {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          } catch {}
-          setTypePickerOpen(true);
-        }}
-        activeOpacity={0.8}
-        style={{
-          position: "absolute",
-          right: 16,
-          bottom: 24,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: "#111",
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          elevation: 6,
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={t("add")}
-      >
-        <Text style={{ color: "#fff", fontSize: 28, lineHeight: 28 }}>＋</Text>
-      </TouchableOpacity>
+  {/* Bottom Templates/Settings buttons removed per design */}
+
+  {/* Floating + button removed; global FAB provided by Navigation */}
 
       {/* Recent activity */}
       {enabled ? (
@@ -753,10 +661,10 @@ export default function HomeScreen({ navigation }: any) {
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+            <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
               {t("recentActivity")}
             </Text>
-            <Button title={t("viewTasks")} onPress={() => setTab("today")} />
+            <Button title={t("viewTasks")} onPress={() => setTab("today")} variant="link" />
           </View>
           {activity.isLoading ? (
             <Text>{t("loading")}</Text>
@@ -776,168 +684,23 @@ export default function HomeScreen({ navigation }: any) {
                       : `${a.action}`;
                 const time = a.at ? dayjs(a.at).format("HH:mm") : "";
                 return (
-                  <Text key={a.id} style={{ color: "#555", marginBottom: 4 }}>
+                  <Text key={a.id} style={{ color: theme.colors.text, opacity: 0.8, marginBottom: 4 }}>
                     {time ? `${time} — ` : ""}
                     {line}
                   </Text>
                 );
               })}
               {(activity.data || []).length === 0 ? (
-                <Text style={{ color: "#999" }}>{t("nothingYet")}</Text>
+                <Text style={{ color: theme.colors.muted }}>{t("nothingYet")}</Text>
               ) : null}
             </View>
           )}
         </View>
       ) : null}
 
-      <Modal
-        visible={selectorOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelectorOpen(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "#0006",
-            justifyContent: "center",
-            padding: 24,
-          }}
-        >
-          <View
-            style={{ backgroundColor: "#fff", borderRadius: 12, padding: 16 }}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-              {t("selectHousehold")}
-            </Text>
-            {households.map((h) => (
-              <TouchableOpacity
-                key={h.id}
-                onPress={async () => {
-                  await selectHousehold(h.id);
-                  setSelectorOpen(false);
-                }}
-              >
-                <View style={{ paddingVertical: 10 }}>
-                  <Text
-                    style={{ fontWeight: h.id === householdId ? "700" : "400" }}
-                  >
-                    {h.name || h.id}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            <View style={{ marginTop: 12 }}>
-              <Button
-                title={t("close")}
-                onPress={() => setSelectorOpen(false)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+  {/* Household selector modal removed */}
 
-      {/* Type picker modal */}
-      <Modal
-        visible={typePickerOpen}
-        animationType="fade"
-        transparent
-        onRequestClose={closeSheet}
-      >
-        <TouchableOpacity
-          style={{
-            flex: 1,
-            backgroundColor: "transparent",
-            justifyContent: "flex-end",
-          }}
-          activeOpacity={1}
-          onPress={closeSheet}
-        >
-          <BlurView
-            tint="dark"
-            intensity={30}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-          />
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  translateY: sheetY.interpolate({
-                    inputRange: [-200, 0, 300],
-                    outputRange: [-30, 0, 300],
-                  }),
-                },
-              ],
-              backgroundColor: "#fff",
-              padding: 12,
-              paddingBottom: 16,
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-            }}
-            {...pan.panHandlers}
-          >
-            <View style={{ alignItems: "center", paddingVertical: 6 }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: "#ddd",
-                }}
-              />
-            </View>
-            {(["chore", "event", "deadline", "checklist"] as const).map(
-              (tk) => {
-                const iconName =
-                  tk === "chore"
-                    ? "construct-outline"
-                    : tk === "event"
-                      ? "calendar-outline"
-                      : tk === "deadline"
-                        ? "time-outline"
-                        : "list-outline";
-                return (
-                  <TouchableOpacity
-                    key={tk}
-                    onPress={async () => {
-                      try {
-                        await Haptics.selectionAsync();
-                      } catch {}
-                      setTypePickerOpen(false);
-                      navigation.navigate("AddTask", { type: tk });
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={{
-                        paddingVertical: 12,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
-                      }}
-                    >
-                      <Ionicons name={iconName as any} size={20} color="#333" />
-                      <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }
-            )}
-            <View style={{ marginTop: 8 }}>
-              <Button
-                title={t("cancel")}
-                onPress={() => setTypePickerOpen(false)}
-              />
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+  {/* Type picker modal removed */}
+    </ScreenContainer>
   );
 }

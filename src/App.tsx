@@ -2,10 +2,10 @@ import "react-native-gesture-handler";
 import React from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./firebase/providers/QueryProvider";
+import { ThemeProvider } from "./design/theme";
 import NavigationProvider, {
   navRef,
 } from "./firebase/providers/NavigationProvider";
-import DevToolbar from "./components/DevToolbar";
 import LiveActivityOverlay from "./components/LiveActivityOverlay";
 import {
   HouseholdProvider,
@@ -98,18 +98,19 @@ export default function App() {
   }, []);
   return (
     <SafeAreaProvider>
-      <QueryProvider>
-        <HouseholdProvider>
-          <ToastProvider>
-            <NavigationProvider />
-            <GlobalToasts />
-            <DeepLinkHandler />
-            <LiveActivityOverlay />
-            <HouseholdEffects />
-            {__DEV__ ? <DevToolbar /> : null}
-          </ToastProvider>
-        </HouseholdProvider>
-      </QueryProvider>
+      <ThemeProvider>
+        <QueryProvider>
+          <HouseholdProvider>
+            <ToastProvider>
+              <NavigationProvider />
+              <GlobalToasts />
+              <DeepLinkHandler />
+              <LiveActivityOverlay />
+              <HouseholdEffects />
+            </ToastProvider>
+          </HouseholdProvider>
+        </QueryProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

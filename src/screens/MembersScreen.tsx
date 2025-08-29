@@ -1,11 +1,14 @@
 import React from "react";
 import { View, Text, FlatList } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { listMembers, type Member } from "../services/members";
 import { getWorkloadHeatmap, type Heatmap } from "../services/workload";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { getFairnessStats, type FairnessUser } from "../services/stats";
 
 export default function MembersScreen() {
+  const theme = useTheme();
   const { householdId } = useHousehold();
   const [members, setMembers] = React.useState<Member[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -36,8 +39,8 @@ export default function MembersScreen() {
   }, [householdId]);
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 8 }}>
+    <ScreenContainer>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 8 }}>
         Members
       </Text>
       <FlatList
@@ -52,18 +55,18 @@ export default function MembersScreen() {
             style={{
               paddingVertical: 10,
               borderBottomWidth: 1,
-              borderBottomColor: "#eee",
+              borderBottomColor: theme.colors.border,
             }}
           >
-            <Text style={{ fontWeight: "600" }}>
+            <Text style={{ fontWeight: "600", color: theme.colors.text }}>
               {item.displayName || item.userId}
             </Text>
-            <Text style={{ color: "#666" }}>{item.role}</Text>
+            <Text style={{ color: theme.colors.muted }}>{item.role}</Text>
           </View>
         )}
         ListEmptyComponent={
           !loading ? (
-            <Text style={{ color: "#666", textAlign: "center", marginTop: 24 }}>
+            <Text style={{ color: theme.colors.muted, textAlign: "center", marginTop: 24 }}>
               No members yet
             </Text>
           ) : null
@@ -72,7 +75,7 @@ export default function MembersScreen() {
           stats ? (
             <View style={{ paddingVertical: 8 }}>
               <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 4 }}
+                style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 4 }}
               >
                 Fairness
               </Text>
@@ -85,11 +88,11 @@ export default function MembersScreen() {
                     paddingVertical: 4,
                   }}
                 >
-                  <Text style={{ flex: 1 }} numberOfLines={1}>
+                  <Text style={{ flex: 1, color: theme.colors.text }} numberOfLines={1}>
                     {members.find((m) => m.userId === u.userId)?.displayName ||
                       u.userId}
                   </Text>
-                  <Text style={{ width: 64, textAlign: "right" }}>
+                  <Text style={{ width: 64, textAlign: "right", color: theme.colors.text }}>
                     {u.completed}
                   </Text>
                   <Text
@@ -107,7 +110,7 @@ export default function MembersScreen() {
               {heatmap ? (
                 <View style={{ marginTop: 12 }}>
                   <Text
-                    style={{ fontSize: 16, fontWeight: "600", marginBottom: 6 }}
+                    style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}
                   >
                     Next 7 days
                   </Text>
@@ -119,7 +122,7 @@ export default function MembersScreen() {
                         style={{
                           width: 28,
                           textAlign: "center",
-                          color: "#666",
+                          color: theme.colors.muted,
                           fontSize: 11,
                         }}
                       >
@@ -136,7 +139,7 @@ export default function MembersScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      <Text style={{ width: 120 }} numberOfLines={1}>
+                      <Text style={{ width: 120, color: theme.colors.text }} numberOfLines={1}>
                         {m.displayName || m.userId}
                       </Text>
                       {heatmap.days.map((day) => {
@@ -163,7 +166,7 @@ export default function MembersScreen() {
                             <Text
                               style={{
                                 fontSize: 10,
-                                color: intensity === 0 ? "#999" : "#111",
+                                color: intensity === 0 ? theme.colors.muted : theme.colors.text,
                               }}
                             >
                               {count || ""}
@@ -179,6 +182,6 @@ export default function MembersScreen() {
           ) : null
         }
       />
-    </View>
+    </ScreenContainer>
   );
 }

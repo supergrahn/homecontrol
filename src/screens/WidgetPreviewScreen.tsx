@@ -1,5 +1,8 @@
 import React from "react";
-import { View, Text, Button, FlatList, TouchableOpacity } from "react-native";
+import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import Button from "../components/Button";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import dayjs from "dayjs";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import {
@@ -12,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 export default function WidgetPreviewScreen() {
   const { householdId } = useHousehold();
   const nav = useNavigation<any>();
+  const theme = useTheme();
   const [payload, setPayload] = React.useState<NextUpPayload | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
 
@@ -42,7 +46,7 @@ export default function WidgetPreviewScreen() {
   }, [load]);
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
         <Button
           title={loading ? "…" : "Reload"}
@@ -55,7 +59,7 @@ export default function WidgetPreviewScreen() {
           disabled={loading || !householdId}
         />
       </View>
-      <Text style={{ color: "#666", marginBottom: 8 }}>
+      <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
         {payload?.updatedAt
           ? `Updated ${dayjs(payload.updatedAt).format("YYYY-MM-DD HH:mm:ss")}`
           : "No widget payload stored yet."}
@@ -64,7 +68,7 @@ export default function WidgetPreviewScreen() {
         data={payload?.tasks || []}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={() => (
-          <Text style={{ color: "#666" }}>No items.</Text>
+          <Text style={{ color: theme.colors.muted }}>No items.</Text>
         )}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -72,20 +76,20 @@ export default function WidgetPreviewScreen() {
             style={{
               padding: 12,
               borderRadius: 10,
-              backgroundColor: "#fff",
+              backgroundColor: theme.colors.card,
               borderWidth: 1,
-              borderColor: "#eee",
+              borderColor: theme.colors.border,
               marginBottom: 8,
             }}
           >
-            <Text style={{ fontWeight: "600" }}>{item.title}</Text>
-            <Text style={{ color: "#666", marginTop: 2 }}>
+            <Text style={{ fontWeight: "600", color: theme.colors.text }}>{item.title}</Text>
+            <Text style={{ color: theme.colors.muted, marginTop: 2 }}>
               {dayjs(item.when).format("ddd HH:mm")} · {item.status}
               {typeof item.priority === "number" ? ` · P${item.priority}` : ""}
             </Text>
           </TouchableOpacity>
         )}
       />
-    </View>
+    </ScreenContainer>
   );
 }

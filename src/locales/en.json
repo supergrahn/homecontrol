@@ -1,5 +1,5 @@
 {
-  "title": "Linda har kontroll",
+  "title": "Sign in",
   "email": "Email",
   "password": "Password",
   "signInFailed": "Sign-in failed — try creating an account.",
@@ -167,6 +167,7 @@
   "showHouseholdQr": "Show Household QR",
   "scanHouseholdQr": "Scan Household QR",
   "noHouseholdSelected": "No household selected",
+  "notAllowed": "Not allowed",
   "inviteLinkUnavailable": "Invite link unavailable"
   ,"shareHouseholdInvite": "Share Household Invite",
   "resetToDefaults": "Reset to defaults",
@@ -200,4 +201,17 @@
   ,"rotationHint": "Pick members/children to rotate assignments. Next assignee cycles when scheduled."
   ,"nextAssignee": "Next assignee"
   ,"fairness": "Fairness"
+  ,"language": "Language"
+  ,"appearance": "Appearance"
+  ,"account": "Account"
+  ,"insights": "Insights"
+  ,"syncPendingActions": "Sync pending actions"
+  ,"pendingCount": "Pending"
+  ,"retrySync": "Retry sync"
+  ,"nightBefore": "Night-before reminder"
+  ,"nightBeforeHint": "Send a preview of tomorrow around 20:00."
+  ,"workloadHeatmap": "Workload heatmap"
+  ,"themeMode": "Theme"
+  ,"newEvent": "New event"
+  ,"newBirthday": "New birthday"
 }

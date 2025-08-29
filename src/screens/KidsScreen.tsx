@@ -1,12 +1,17 @@
 import React from "react";
-import { View, Text, TextInput, Button, FlatList } from "react-native";
+import { View, Text, FlatList } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { listChildren, addChild, renameChild, deleteChild, type Child } from "../services/children";
+import Input from "../components/Input";
+import Button from "../components/Button";
 
 export default function KidsScreen() {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
+  const theme = useTheme();
   const [kids, setKids] = React.useState<Child[]>([]);
   const [name, setName] = React.useState("");
   const [emoji, setEmoji] = React.useState("🙂");
@@ -29,14 +34,16 @@ export default function KidsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 8 }}>{(t("kids") as string) || "Kids"}</Text>
-      {!householdId ? <Text>{t("selectHouseholdToContinue")}</Text> : null}
+    <ScreenContainer>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 8 }}>
+        {(t("kids") as string) || "Kids"}
+      </Text>
+      {!householdId ? <Text style={{ color: theme.colors.muted }}>{t("selectHouseholdToContinue")}</Text> : null}
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-        <TextInput placeholder={(t("name") as string) || "Name"} value={name} onChangeText={setName} style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }} />
-        <TextInput placeholder="🙂" value={emoji} onChangeText={setEmoji} style={{ width: 64, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, textAlign: "center" }} />
-        <TextInput placeholder="#FDE68A" value={color} onChangeText={setColor} style={{ width: 100, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }} />
-        <Button title={(t("add") as string) || "Add"} onPress={create} disabled={!householdId} />
+  <Input placeholder={(t("name") as string) || "Name"} value={name} onChangeText={setName} containerStyle={{ flex: 1 }} />
+  <Input placeholder="\ud83d\ude42" value={emoji} onChangeText={setEmoji} containerStyle={{ width: 64 }} />
+  <Input placeholder="#FDE68A" value={color} onChangeText={setColor} autoCapitalize="characters" containerStyle={{ width: 100 }} />
+  <Button title={(t("add") as string) || "Add"} onPress={create} disabled={!householdId} />
       </View>
       <FlatList
         data={kids}
@@ -44,28 +51,28 @@ export default function KidsScreen() {
         renderItem={({ item }) => {
           const isEditing = editing === item.id;
           return (
-            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#eee" }}>
-              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: item.color || "#eee", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: item.color || theme.colors.card, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
                 <Text style={{ fontSize: 16 }}>{item.emoji || "🙂"}</Text>
               </View>
               {isEditing ? (
                 <>
-                  <TextInput value={editName} onChangeText={setEditName} style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 8 }} />
-                  <Button title={(t("save") as string) || "Save"} onPress={async () => { if (!householdId) return; await renameChild(householdId, item.id, editName.trim() || item.displayName, item.emoji, item.color); setEditing(null); load(); }} />
-                  <Button title={(t("cancel") as string) || "Cancel"} onPress={() => setEditing(null)} />
+      <Input value={editName} onChangeText={setEditName} containerStyle={{ flex: 1 }} />
+  <Button title={(t("save") as string) || "Save"} accessibilityLabel={(t("save") as string) || "Save"} accessibilityHint={(t("hint.saveChanges") as string) || "Saves your edits."} onPress={async () => { if (!householdId) return; await renameChild(householdId, item.id, editName.trim() || item.displayName, item.emoji, item.color); setEditing(null); load(); }} />
+  <Button title={(t("cancel") as string) || "Cancel"} accessibilityLabel={(t("cancel") as string) || "Cancel"} accessibilityHint={(t("hint.cancelEdit") as string) || "Cancels editing."} onPress={() => setEditing(null)} variant="link" />
                 </>
               ) : (
                 <>
-                  <Text style={{ flex: 1 }}>{item.displayName}</Text>
-                  <Button title={(t("edit") as string) || "Edit"} onPress={() => { setEditing(item.id); setEditName(item.displayName); }} />
-                  <Button title={(t("delete") as string) || "Delete"} onPress={async () => { if (!householdId) return; await deleteChild(householdId, item.id); load(); }} />
+                  <Text style={{ flex: 1, color: theme.colors.text }}>{item.displayName}</Text>
+      <Button title={(t("edit") as string) || "Edit"} onPress={() => { setEditing(item.id); setEditName(item.displayName); }} />
+  <Button title={(t("delete") as string) || "Delete"} accessibilityLabel={(t("delete") as string) || "Delete"} accessibilityHint={(t("hint.deleteChild") as string) || "Deletes this child profile."} onPress={async () => { if (!householdId) return; await deleteChild(householdId, item.id); load(); }} variant="outline" />
                 </>
               )}
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={{ color: "#999" }}>{(t("noKidsYet") as string) || "No kids yet."}</Text>}
+        ListEmptyComponent={<Text style={{ color: theme.colors.muted }}>{(t("noKidsYet") as string) || "No kids yet."}</Text>}
       />
-    </View>
+    </ScreenContainer>
   );
 }

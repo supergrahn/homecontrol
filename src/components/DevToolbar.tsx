@@ -1,16 +1,19 @@
 import React from "react";
-import { View, Button, Alert } from "react-native";
+import { View, Alert } from "react-native";
+import Button from "./Button";
 import { httpsCallable, getFunctions } from "firebase/functions";
 import { firebaseApp } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeMode } from "../design/theme";
 import { refreshNextUpWidget } from "../services/widgets";
 
 export default function DevToolbar() {
   const { i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const { householdId } = useHousehold();
+  const { mode, setMode } = useThemeMode();
 
   const toggleLang = () => {
     const next = i18n.language === "no" ? "en" : "no";
@@ -103,7 +106,7 @@ export default function DevToolbar() {
         return;
       }
       const fn = httpsCallable(getFunctions(firebaseApp), "checkHeatmapParity");
-      const combos: Array<{ rangeDays: number; types: string[] }> = [
+  const combos: { rangeDays: number; types: string[] }[] = [
         { rangeDays: 7, types: ["upcoming"] },
         { rangeDays: 7, types: ["blocked"] },
         { rangeDays: 7, types: ["upcoming", "blocked"] },
@@ -167,9 +170,9 @@ export default function DevToolbar() {
         }}
       >
         <Button
-          title={`Lang: ${i18n.language.toUpperCase()}`}
-          onPress={toggleLang}
-          color="#fff"
+          title={`Theme: ${mode}`}
+          onPress={() => setMode(mode === "system" ? "dark" : mode === "dark" ? "light" : "system")}
+          variant="outline"
         />
       </View>
       <View
@@ -179,7 +182,11 @@ export default function DevToolbar() {
           overflow: "hidden",
         }}
       >
-        <Button title="Reload i18n" onPress={reloadI18n} color="#fff" />
+        <Button
+          title={`Lang: ${i18n.language.toUpperCase()}`}
+          onPress={toggleLang}
+          variant="outline"
+        />
       </View>
       <View
         style={{
@@ -188,7 +195,7 @@ export default function DevToolbar() {
           overflow: "hidden",
         }}
       >
-        <Button title="Run digest" onPress={runDigestNow} color="#fff" />
+  <Button title="Reload i18n" onPress={reloadI18n} variant="outline" />
       </View>
       <View
         style={{
@@ -197,7 +204,7 @@ export default function DevToolbar() {
           overflow: "hidden",
         }}
       >
-        <Button title="Night-before" onPress={runNightBeforeNow} color="#fff" />
+  <Button title="Run digest" onPress={runDigestNow} variant="outline" />
       </View>
       <View
         style={{
@@ -206,7 +213,7 @@ export default function DevToolbar() {
           overflow: "hidden",
         }}
       >
-        <Button title="Refresh widget" onPress={refreshWidget} color="#fff" />
+  <Button title="Night-before" onPress={runNightBeforeNow} variant="outline" />
       </View>
       <View
         style={{
@@ -215,7 +222,16 @@ export default function DevToolbar() {
           overflow: "hidden",
         }}
       >
-        <Button title="Health" onPress={runHealthCheck} color="#fff" />
+  <Button title="Refresh widget" onPress={refreshWidget} variant="outline" />
+      </View>
+      <View
+        style={{
+          backgroundColor: "#0009",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+  <Button title="Health" onPress={runHealthCheck} variant="outline" />
       </View>
       <View
         style={{
@@ -227,7 +243,7 @@ export default function DevToolbar() {
         <Button
           title="Heatmap parity"
           onPress={runHeatmapParity}
-          color="#fff"
+          variant="outline"
         />
       </View>
       <View
@@ -240,7 +256,7 @@ export default function DevToolbar() {
         <Button
           title="Heatmap parity: all"
           onPress={runHeatmapParityAll}
-          color="#fff"
+          variant="outline"
         />
       </View>
     </View>

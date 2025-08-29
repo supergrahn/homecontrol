@@ -1,5 +1,7 @@
 import React from "react";
-import { View, Text, Button, FlatList, TouchableOpacity, TextInput } from "react-native";
+import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { listChildren, type Child } from "../services/children";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
@@ -15,6 +17,8 @@ import { useNavigation } from "@react-navigation/native";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 // merged tasks service imports above
+import Input from "../components/Input";
+import Button from "../components/Button";
 
  dayjs.extend(localizedFormat);
 dayjs.extend(utc);
@@ -37,6 +41,7 @@ export default function CalendarScreen() {
   useDayjsLocale(t);
   const { householdId } = useHousehold();
   const navigation = useNavigation<any>();
+  const theme = useTheme();
   const [view, setView] = React.useState<"agenda" | "week" | "month" | "custom" | "timeline">("agenda");
   const [tz, setTz] = React.useState<string | null>(null);
   const [start, setStart] = React.useState<Date>(dayjs().startOf("day").toDate());
@@ -208,18 +213,18 @@ export default function CalendarScreen() {
   const rangeLabel = `${fmt(start).format("LL")} — ${fmt(end).format("LL")}`;
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
       <View style={{ gap: 8, marginBottom: 12 }}>
         <View style={{ flexDirection: "row", gap: 8 }}>
-          <Button title={(t("agenda") as string) || "Agenda"} onPress={() => setView("agenda")} />
-          <Button title={(t("week") as string) || "Week"} onPress={() => setView("week")} />
-          <Button title={(t("month") as string) || "Month"} onPress={() => setView("month")} />
-          <Button title={(t("custom") as string) || "Custom"} onPress={() => setView("custom")} />
-          <Button title={(t("timeline") as string) || "Timeline"} onPress={() => setView("timeline")} />
+          <Button title={(t("agenda") as string) || "Agenda"} onPress={() => setView("agenda")} variant={view === "agenda" ? "primary" : "outline"} />
+          <Button title={(t("week") as string) || "Week"} onPress={() => setView("week")} variant={view === "week" ? "primary" : "outline"} />
+          <Button title={(t("month") as string) || "Month"} onPress={() => setView("month")} variant={view === "month" ? "primary" : "outline"} />
+          <Button title={(t("custom") as string) || "Custom"} onPress={() => setView("custom")} variant={view === "custom" ? "primary" : "outline"} />
+          <Button title={(t("timeline") as string) || "Timeline"} onPress={() => setView("timeline")} variant={view === "timeline" ? "primary" : "outline"} />
           <View style={{ flex: 1 }} />
           <Button title={(t("refresh") as string) || "Refresh"} onPress={load} />
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Button
             title="◀"
             onPress={() => {
@@ -227,8 +232,10 @@ export default function CalendarScreen() {
               else if (view === "week") setStart(dayjs(start).add(-7, "day").startOf("day").toDate());
               else setStart(dayjs(start).add(-Math.max(1, agendaDays), "day").startOf("day").toDate());
             }}
+            variant="outline"
+            accessibilityLabel={(t("previousRange") as string) || "Previous range"}
           />
-          <Text style={{ fontWeight: "600" }}>{rangeLabel}</Text>
+          <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{rangeLabel}</Text>
           <Button
             title="▶"
             onPress={() => {
@@ -236,12 +243,14 @@ export default function CalendarScreen() {
               else if (view === "week") setStart(dayjs(start).add(7, "day").startOf("day").toDate());
               else setStart(dayjs(start).add(Math.max(1, agendaDays), "day").startOf("day").toDate());
             }}
+            variant="outline"
+            accessibilityLabel={(t("nextRange") as string) || "Next range"}
           />
         </View>
       </View>
       {/* Filters (tags + priority) */}
       <View style={{ marginBottom: 8 }}>
-        <Text style={{ fontWeight: "600", marginBottom: 6 }}>{(t("filters") as string) || "Filters"}</Text>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>{(t("filters") as string) || "Filters"}</Text>
         {/* Kid chips */}
         {kids.length > 0 ? (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
@@ -253,12 +262,12 @@ export default function CalendarScreen() {
                   const next = active ? kidIds.filter((x) => x !== k.id) : [...kidIds, k.id];
                   setKidIds(next);
                 }}>
-                  <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? "#111" : "#E5E7EB", backgroundColor: active ? "#EEF2FF" : "#F9FAFB" }}>
+                  <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? theme.colors.text : theme.colors.border, backgroundColor: theme.colors.card }}>
                     <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
-                    <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>{k.displayName}</Text>
                     {count > 0 ? (
-                      <View style={{ marginLeft: 4, backgroundColor: "#111", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: "#fff", fontSize: 10 }}>{count}</Text>
+                      <View style={{ marginLeft: 4, backgroundColor: theme.colors.text, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: theme.colors.onEmphasis, fontSize: 10 }}>{count}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -268,24 +277,24 @@ export default function CalendarScreen() {
           </View>
         ) : null}
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          <TextInput
+          <Input
             placeholder={(t("tagsFilter") as string) || "Filter by tags (comma-separated)"}
             value={tagInput}
             onChangeText={setTagInput}
             autoCapitalize="none"
-            style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }}
+            containerStyle={{ flex: 1 }}
           />
         </View>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
           <Button
             title={(t("sortByPriorityHighFirst") as string) || "High priority first"}
             onPress={() => setPrioritySort("high")}
-            color={prioritySort === "high" ? "#111" : undefined}
+            variant={prioritySort === "high" ? "primary" : "outline"}
           />
           <Button
             title={(t("sortByPriorityLowFirst") as string) || "Low priority first"}
             onPress={() => setPrioritySort("low")}
-            color={prioritySort === "low" ? "#111" : undefined}
+            variant={prioritySort === "low" ? "primary" : "outline"}
           />
           <Button
             title={(t("clearFilters") as string) || "Clear"}
@@ -330,14 +339,14 @@ export default function CalendarScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={{
-                    backgroundColor: active ? "#111" : "#EEF2FF",
+                    backgroundColor: theme.colors.surfaceVariant,
                     borderRadius: 999,
                     paddingHorizontal: 10,
                     paddingVertical: 4,
                     borderWidth: 1,
-                    borderColor: active ? "#111" : "#E0E7FF",
+                    borderColor: active ? theme.colors.onSurface : theme.colors.outline,
                   }}>
-                    <Text style={{ color: active ? "#fff" : "#3730A3", fontSize: 12 }}>#{tg}</Text>
+                    <Text style={{ color: theme.colors.onSurface, fontSize: 12 }}>#{tg}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -346,14 +355,14 @@ export default function CalendarScreen() {
               chips.push(
                 <TouchableOpacity key="more" onPress={() => setShowAllTags(true)} activeOpacity={0.8}>
                   <View style={{
-                    backgroundColor: "#F3F4F6",
+                    backgroundColor: theme.colors.surfaceVariant,
                     borderRadius: 999,
                     paddingHorizontal: 10,
                     paddingVertical: 4,
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
+                    borderColor: theme.colors.outline,
                   }}>
-                    <Text style={{ color: "#374151", fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
+                    <Text style={{ color: theme.colors.onSurface, fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
                   </View>
                 </TouchableOpacity>,
               );
@@ -361,14 +370,14 @@ export default function CalendarScreen() {
               chips.push(
                 <TouchableOpacity key="less" onPress={() => setShowAllTags(false)} activeOpacity={0.8}>
                   <View style={{
-                    backgroundColor: "#F3F4F6",
+                    backgroundColor: theme.colors.surfaceVariant,
                     borderRadius: 999,
                     paddingHorizontal: 10,
                     paddingVertical: 4,
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
+                    borderColor: theme.colors.outline,
                   }}>
-                    <Text style={{ color: "#374151", fontSize: 12 }}>{t("showLess")}</Text>
+                    <Text style={{ color: theme.colors.onSurface, fontSize: 12 }}>{t("showLess")}</Text>
                   </View>
                 </TouchableOpacity>,
               );
@@ -383,7 +392,7 @@ export default function CalendarScreen() {
           keyExtractor={(g) => g.date}
           renderItem={({ item: group }) => (
             <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+              <Text style={{ fontWeight: "700", marginBottom: 6, color: theme.colors.text }}>
                 {(tz ? dayjs(group.date).tz(tz) : dayjs(group.date)).format("LL")}
               </Text>
               {group.items
@@ -394,9 +403,9 @@ export default function CalendarScreen() {
                 })
                 .map((it) => (
                 <TouchableOpacity key={it.id} activeOpacity={0.7} onPress={() => navigation.navigate("TaskDetail", { id: it.id })}>
-                  <View style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#eee" }}>
-                    <Text style={{ fontWeight: "500" }}>{it.title || it.id}</Text>
-                    <Text style={{ color: "#666" }}>
+                  <View style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+                    <Text style={{ fontWeight: "500", color: theme.colors.text }}>{it.title || it.id}</Text>
+                    <Text style={{ color: theme.colors.muted }}>
                       {(() => {
                         const eff: Date | null = it.nextOccurrenceAt || it.dueAt || null;
                         return eff ? (tz ? dayjs(eff).tz(tz) : dayjs(eff)).format("LT") : "";
@@ -445,11 +454,12 @@ export default function CalendarScreen() {
       ) : (
         <TimelineView tz={tz} t={t} date={start} setDate={setStart} items={displayData} />
       )}
-    </View>
+  </ScreenContainer>
   );
 }
 
 function WeekView({ start, setStart, items, t, tz, onDayPress }: { start: Date; setStart: (d: Date) => void; items: any[]; t: any; tz: string | null; onDayPress: (d: Date) => void }) {
+  const theme = useTheme();
   const begin = dayjs(start).startOf("week");
   const days = new Array(7).fill(0).map((_, i) => begin.add(i, "day"));
   const buckets: Record<string, any[]> = {};
@@ -463,9 +473,9 @@ function WeekView({ start, setStart, items, t, tz, onDayPress }: { start: Date; 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Button title="◀" onPress={() => setStart(dayjs(begin).add(-7, "day").toDate())} />
-        <Text style={{ fontWeight: "700" }}>{begin.format("LL")} — {begin.add(6, "day").format("LL")}</Text>
-        <Button title="▶" onPress={() => setStart(dayjs(begin).add(7, "day").toDate())} />
+        <Button title="◀" onPress={() => setStart(dayjs(begin).add(-7, "day").toDate())} variant="outline" accessibilityLabel={(t("previousWeek") as string) || "Previous week"} />
+  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{begin.format("LL")} — {begin.add(6, "day").format("LL")}</Text>
+        <Button title="▶" onPress={() => setStart(dayjs(begin).add(7, "day").toDate())} variant="outline" accessibilityLabel={(t("nextWeek") as string) || "Next week"} />
       </View>
       <View style={{ flexDirection: "row", gap: 6 }}>
         {days.map((d) => {
@@ -473,13 +483,13 @@ function WeekView({ start, setStart, items, t, tz, onDayPress }: { start: Date; 
           const list = buckets[key] || [];
           return (
             <TouchableOpacity key={key} onPress={() => onDayPress(d.toDate())} style={{ flex: 1 }}>
-              <View style={{ flex: 1, padding: 6, borderWidth: 1, borderColor: "#eee", borderRadius: 8 }}>
-                <Text style={{ fontWeight: "600", marginBottom: 6 }}>{d.format("ddd D")}</Text>
+              <View style={{ flex: 1, padding: 6, borderWidth: 1, borderColor: theme.colors.outline, borderRadius: 8 }}>
+                <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>{d.format("ddd D")}</Text>
                 {list.slice(0, 5).map((it: any) => (
-                  <Text key={it.id} numberOfLines={1} style={{ fontSize: 12, color: "#333" }}>• {it.title || it.id}</Text>
+                  <Text key={it.id} numberOfLines={1} style={{ fontSize: 12, color: theme.colors.onSurface }}>• {it.title || it.id}</Text>
                 ))}
                 {list.length > 5 ? (
-                  <Text style={{ fontSize: 12, color: "#666" }}>+{list.length - 5}</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.muted }}>+{list.length - 5}</Text>
                 ) : null}
               </View>
             </TouchableOpacity>
@@ -491,6 +501,7 @@ function WeekView({ start, setStart, items, t, tz, onDayPress }: { start: Date; 
 }
 
 function MonthView({ anchor, setAnchor, items, tz, t, onDayPress }: { anchor: Date; setAnchor: (d: Date) => void; items: any[]; tz: string | null; t: any; onDayPress: (d: Date) => void }) {
+  const theme = useTheme();
   const mStart = dayjs(anchor).startOf("month");
   const firstGridDay = mStart.startOf("week");
   const weeks = 6;
@@ -512,9 +523,9 @@ function MonthView({ anchor, setAnchor, items, tz, t, onDayPress }: { anchor: Da
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Button title="◀" onPress={() => setAnchor(mStart.add(-1, "month").toDate())} />
-        <Text style={{ fontWeight: "700" }}>{mStart.format("MMMM YYYY")}</Text>
-        <Button title="▶" onPress={() => setAnchor(mStart.add(1, "month").toDate())} />
+        <Button title="◀" onPress={() => setAnchor(mStart.add(-1, "month").toDate())} variant="outline" accessibilityLabel={(t("previousMonth") as string) || "Previous month"} />
+  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{mStart.format("MMMM YYYY")}</Text>
+        <Button title="▶" onPress={() => setAnchor(mStart.add(1, "month").toDate())} variant="outline" accessibilityLabel={(t("nextMonth") as string) || "Next month"} />
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
         {days.map((d) => {
@@ -523,13 +534,13 @@ function MonthView({ anchor, setAnchor, items, tz, t, onDayPress }: { anchor: Da
           const list = buckets[key] || [];
           return (
             <TouchableOpacity key={key} onPress={() => onDayPress(d.toDate())} style={{ width: `${100 / 7}%` }}>
-              <View style={{ padding: 6, borderWidth: 1, borderColor: "#eee", backgroundColor: inMonth ? "#fff" : "#fafafa" }}>
-                <Text style={{ fontWeight: "600", color: inMonth ? "#111" : "#999" }}>{d.format("D")}</Text>
+              <View style={{ padding: 6, borderWidth: 1, borderColor: theme.colors.outline, backgroundColor: inMonth ? theme.colors.surfaceVariant : theme.colors.background }}>
+                <Text style={{ ...theme.typography.body, color: inMonth ? theme.colors.onSurface : theme.colors.muted }}>{d.format("D")}</Text>
                 {list.slice(0, 3).map((it: any) => (
-                  <Text key={it.id} numberOfLines={1} style={{ fontSize: 11, color: "#333" }}>• {it.title || it.id}</Text>
+                  <Text key={it.id} numberOfLines={1} style={{ fontSize: 11, color: theme.colors.onSurface }}>• {it.title || it.id}</Text>
                 ))}
                 {list.length > 3 ? (
-                  <Text style={{ fontSize: 11, color: "#666" }}>+{list.length - 3}</Text>
+                  <Text style={{ fontSize: 11, color: theme.colors.muted }}>+{list.length - 3}</Text>
                 ) : null}
               </View>
             </TouchableOpacity>
@@ -541,6 +552,7 @@ function MonthView({ anchor, setAnchor, items, tz, t, onDayPress }: { anchor: Da
 }
 
 function CustomRangeView({ tz, t, householdId, anchor, setAnchor, customStart, setCustomStart, customEnd, setCustomEnd, savedRanges, setSavedRanges, savingName, setSavingName, onApply }: any) {
+  const theme = useTheme();
   const a = dayjs(anchor);
   const first = a.startOf("month");
   const firstGrid = first.startOf("week");
@@ -582,9 +594,9 @@ function CustomRangeView({ tz, t, householdId, anchor, setAnchor, customStart, s
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Button title="◀" onPress={() => setAnchor(a.add(-1, "month").toDate())} />
-        <Text style={{ fontWeight: "700" }}>{a.format("MMMM YYYY")}</Text>
-        <Button title="▶" onPress={() => setAnchor(a.add(1, "month").toDate())} />
+        <Button title="◀" onPress={() => setAnchor(a.add(-1, "month").toDate())} variant="outline" accessibilityLabel={(t("previousMonth") as string) || "Previous month"} />
+  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{a.format("MMMM YYYY")}</Text>
+        <Button title="▶" onPress={() => setAnchor(a.add(1, "month").toDate())} variant="outline" accessibilityLabel={(t("nextMonth") as string) || "Next month"} />
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
         {days.map((d) => {
@@ -592,18 +604,18 @@ function CustomRangeView({ tz, t, householdId, anchor, setAnchor, customStart, s
           const active = isSel(d);
           return (
             <TouchableOpacity key={key} onPress={() => pick(d)} style={{ width: `${100 / 7}%` }}>
-              <View style={{ padding: 8, borderWidth: 1, borderColor: active ? "#111" : "#eee", backgroundColor: active ? "#EEF2FF" : "#fff" }}>
-                <Text style={{ fontWeight: "600", color: "#111" }}>{d.format("D")}</Text>
+              <View style={{ padding: 8, borderWidth: 1, borderColor: active ? theme.colors.onSurface : theme.colors.outline, backgroundColor: active ? theme.colors.surfaceVariant : theme.colors.background }}>
+                <Text style={{ ...theme.typography.body, color: theme.colors.onSurface }}>{d.format("D")}</Text>
               </View>
             </TouchableOpacity>
           );
         })}
       </View>
       <View style={{ marginTop: 12 }}>
-        <Text style={{ marginBottom: 6 }}>{((t("from") as string) || "From") + ": "}{customStart ? dayjs(customStart).format("LL") : "—"}</Text>
-        <Text style={{ marginBottom: 6 }}>{((t("to") as string) || "To") + ": "}{customEnd ? dayjs(customEnd).format("LL") : "—"}</Text>
+  <Text style={{ marginBottom: 6, color: theme.colors.onSurface }}>{((t("from") as string) || "From") + ": "}{customStart ? dayjs(customStart).format("LL") : "—"}</Text>
+  <Text style={{ marginBottom: 6, color: theme.colors.onSurface }}>{((t("to") as string) || "To") + ": "}{customEnd ? dayjs(customEnd).format("LL") : "—"}</Text>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          <TextInput placeholder={(t("name") as string) || "Name"} value={savingName} onChangeText={setSavingName} style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }} />
+          <Input placeholder={(t("name") as string) || "Name"} value={savingName} onChangeText={setSavingName} containerStyle={{ flex: 1 }} />
           <Button title={(t("saveRange") as string) || "Save range"} onPress={save} />
           <Button title={(t("apply") as string) || "Apply"} onPress={onApply} />
           <Button title={(t("clearRange") as string) || "Clear"} onPress={() => { setCustomStart(null); setCustomEnd(null); }} />
@@ -612,8 +624,8 @@ function CustomRangeView({ tz, t, householdId, anchor, setAnchor, customStart, s
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
             {savedRanges.map((r: any) => (
               <TouchableOpacity key={r.name} onPress={() => { setCustomStart(dayjs(r.start).toDate()); setCustomEnd(dayjs(r.end).toDate()); }}>
-                <View style={{ backgroundColor: "#F3F4F6", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                  <Text style={{ fontSize: 12, color: "#374151" }}>{r.name}</Text>
+                <View style={{ backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.colors.border }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.text }}>{r.name}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -660,9 +672,9 @@ function TimelineView({ tz, t, date, setDate, items }: any) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Button title="◀" onPress={() => setDate(dayjs(date).add(-1, "day").toDate())} />
+        <Button title="◀" onPress={() => setDate(dayjs(date).add(-1, "day").toDate())} variant="outline" accessibilityLabel={(t("previousDay") as string) || "Previous day"} />
         <Text style={{ fontWeight: "700" }}>{d0.format("LL")}</Text>
-        <Button title="▶" onPress={() => setDate(dayjs(date).add(1, "day").toDate())} />
+        <Button title="▶" onPress={() => setDate(dayjs(date).add(1, "day").toDate())} variant="outline" accessibilityLabel={(t("nextDay") as string) || "Next day"} />
       </View>
       <Text style={{ fontWeight: "600", marginBottom: 6 }}>{(t("freeSlots") as string) || "Free slots"}</Text>
       {free.length === 0 ? (

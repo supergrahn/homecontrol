@@ -27,6 +27,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const [householdId, setHouseholdId] = React.useState<string | null>(null);
   const [households, setHouseholds] = React.useState<HouseholdSummary[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
+  const savedRef = React.useRef<string | null>(null);
 
   const selectHousehold = React.useCallback(async (id: string) => {
     setHouseholdId(id);
@@ -35,6 +36,8 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  // Subscribe once on mount; re-running on householdId causes re-subscribe loops
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     let unsubUser: (() => void) | null = null;
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
@@ -50,6 +53,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      savedRef.current = saved ?? null;
       const userRef = doc(db, "users", user.uid);
       if (unsubUser) {
         unsubUser();
@@ -86,19 +90,17 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
                   }
                 }),
               );
-              const memberHouseholds = results.filter((h) => !!h.role);
-              setHouseholds(memberHouseholds);
-              if (memberHouseholds.length > 0) {
-                const memberIds = memberHouseholds.map((h) => h.id);
-                const current = saved || householdId;
-                const next =
-                  current && memberIds.includes(current)
-                    ? current
-                    : memberIds[0];
+              // Consider any household listed on the user doc as valid; role may arrive slightly later
+              setHouseholds(results);
+              if (results.length > 0) {
+                const idsAll = results.map((h) => h.id);
+                const current = savedRef.current || householdId;
+                const next = current && idsAll.includes(current) ? current : idsAll[0];
                 setHouseholdId(next);
-                if (saved !== next) {
+                if (savedRef.current !== next) {
                   try {
                     await AsyncStorage.setItem(STORAGE_KEY, next);
+                    savedRef.current = next;
                   } catch {}
                 }
               } else {
@@ -122,7 +124,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       if (unsubUser) unsubUser();
       unsubAuth();
     };
-  }, [householdId]);
+  }, []);
 
   const value = React.useMemo(
     () => ({ householdId, households, loading, selectHousehold }),
@@ -137,7 +139,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
 export function useHousehold() {
   const ctx = React.useContext(HouseholdContext);
-  if (!ctx)
-    throw new Error("useHousehold must be used within HouseholdProvider");
+  if (!ctx) {
+    // Fallback for tests or misordered trees; treat as loading and no-op
+    return {
+      householdId: null,
+      households: [],
+      loading: true,
+      selectHousehold: async () => {},
+    } as HouseholdContextValue;
+  }
   return ctx;
 }

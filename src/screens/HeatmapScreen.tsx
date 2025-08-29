@@ -1,11 +1,7 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { listMembers, type Member } from "../services/members";
 import { getWorkloadHeatmap, type Heatmap } from "../services/workload";
@@ -14,6 +10,7 @@ import { useNavigation } from "@react-navigation/native";
 export default function HeatmapScreen() {
   const { householdId } = useHousehold();
   const navigation = useNavigation<any>();
+  const theme = useTheme();
   const [members, setMembers] = React.useState<Member[]>([]);
   const [heatmap, setHeatmap] = React.useState<Heatmap | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -77,12 +74,10 @@ export default function HeatmapScreen() {
   const ranges: (7 | 14 | 30)[] = [7, 14, 30];
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
       {/* Filters */}
       <View style={{ marginBottom: 12 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 6 }}>
-          Filters
-        </Text>
+        <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>Filters</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -94,18 +89,18 @@ export default function HeatmapScreen() {
               <TouchableOpacity
                 key={u.userId}
                 onPress={() => setSelectedUserId(u.userId as any)}
-                style={{
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  backgroundColor: active ? "#0a84ff" : "#eef2ff",
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${u.display}`}
+                accessibilityState={{ selected: active }}
+                 style={{
+                   paddingHorizontal: 10,
+                   paddingVertical: 6,
+                  backgroundColor: active ? theme.colors.primary : theme.colors.card,
                   borderRadius: 16,
                   marginRight: 8,
                 }}
               >
-                <Text
-                  style={{ color: active ? "#fff" : "#222" }}
-                  numberOfLines={1}
-                >
+                <Text style={{ color: active ? theme.colors.onPrimary : theme.colors.text }} numberOfLines={1}>
                   {u.display}
                 </Text>
               </TouchableOpacity>
@@ -125,15 +120,18 @@ export default function HeatmapScreen() {
               <TouchableOpacity
                 key={d}
                 onPress={() => setRange(d)}
-                style={{
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  backgroundColor: active ? "#0a84ff" : "#eef2ff",
+                accessibilityRole="button"
+                accessibilityLabel={`Range ${d} days`}
+                accessibilityState={{ selected: active }}
+                 style={{
+                   paddingHorizontal: 10,
+                   paddingVertical: 6,
+                  backgroundColor: active ? theme.colors.primary : theme.colors.card,
                   borderRadius: 16,
                   marginRight: 8,
                 }}
               >
-                <Text style={{ color: active ? "#fff" : "#222" }}>{d}d</Text>
+                <Text style={{ color: active ? theme.colors.onPrimary : theme.colors.text }}>{d}d</Text>
               </TouchableOpacity>
             );
           })}
@@ -156,21 +154,24 @@ export default function HeatmapScreen() {
             <TouchableOpacity
               key={t.key}
               onPress={() => t.setter(!t.value)}
-              style={{
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                backgroundColor: t.value ? "#0a84ff" : "#eef2ff",
+              accessibilityRole="button"
+              accessibilityLabel={`${t.label} ${t.value ? "on" : "off"}`}
+              accessibilityState={{ selected: t.value }}
+               style={{
+                 paddingHorizontal: 10,
+                 paddingVertical: 6,
+                backgroundColor: t.value ? theme.colors.primary : theme.colors.card,
                 borderRadius: 16,
                 marginRight: 8,
               }}
             >
-              <Text style={{ color: t.value ? "#fff" : "#222" }}>
+              <Text style={{ color: t.value ? "#fff" : theme.colors.text }}>
                 {t.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={{ color: "#888", marginTop: 4, fontSize: 12 }}>
+        <Text style={{ color: theme.colors.muted, marginTop: 4, fontSize: 12 }}>
           Toggle members, types, and 7/14/30-day ranges to explore workload.
         </Text>
       </View>
@@ -186,15 +187,7 @@ export default function HeatmapScreen() {
           <View style={{ flexDirection: "row", marginBottom: 6 }}>
             <View style={{ width: 120 }} />
             {heatmap.days.map((d) => (
-              <Text
-                key={d}
-                style={{
-                  width: 32,
-                  textAlign: "center",
-                  color: "#666",
-                  fontSize: 11,
-                }}
-              >
+              <Text key={d} style={{ width: 32, textAlign: "center", color: theme.colors.muted, fontSize: 11 }}>
                 {d.slice(5)}
               </Text>
             ))}
@@ -211,7 +204,7 @@ export default function HeatmapScreen() {
                 marginBottom: 4,
               }}
             >
-              <Text style={{ width: 120 }} numberOfLines={1}>
+              <Text style={{ width: 120, color: theme.colors.text }} numberOfLines={1}>
                 {uid === "ALL"
                   ? "All"
                   : members.find((m) => m.userId === uid)?.displayName || uid}
@@ -227,7 +220,7 @@ export default function HeatmapScreen() {
                 const intensity = Math.min(1, count / 3);
                 const bg =
                   intensity === 0
-                    ? "#F3F4F6"
+                    ? theme.colors.card
                     : `rgba(99,102,241,${0.2 + 0.6 * intensity})`;
                 return (
                   <View
@@ -242,12 +235,7 @@ export default function HeatmapScreen() {
                       justifyContent: "center",
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        color: intensity === 0 ? "#999" : "#111",
-                      }}
-                    >
+                    <Text style={{ fontSize: 10, color: intensity === 0 ? theme.colors.muted : theme.colors.text }}>
                       {count || ""}
                     </Text>
                   </View>
@@ -258,8 +246,8 @@ export default function HeatmapScreen() {
         </View>
       )}
       {!loading && !heatmap && (
-        <Text style={{ color: "#666" }}>No data yet.</Text>
+        <Text style={{ color: theme.colors.muted }}>No data yet.</Text>
       )}
-    </View>
+    </ScreenContainer>
   );
 }

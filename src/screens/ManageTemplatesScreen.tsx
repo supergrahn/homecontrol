@@ -1,13 +1,18 @@
 import React from "react";
-import { View, Text, TextInput, Button, FlatList, Alert } from "react-native";
+import { View, Text, FlatList, Alert } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { listTemplates, renameTemplate, deleteTemplate, createTemplate } from "../services/templates";
 import { useToast } from "../components/ToastProvider";
+import Input from "../components/Input";
+import Button from "../components/Button";
 
 export default function ManageTemplatesScreen() {
   const { t } = useTranslation();
   const { householdId, households } = useHousehold();
+  const theme = useTheme();
   const toast = useToast();
   const isAdmin = households.find((h) => h.id === householdId)?.role === "admin";
   const [loading, setLoading] = React.useState(false);
@@ -58,8 +63,8 @@ export default function ManageTemplatesScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 12 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 12 }}>
         {t("manageTemplates") || "Manage templates"}
       </Text>
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
@@ -89,7 +94,7 @@ export default function ManageTemplatesScreen() {
           }}
         />
       </View>
-      <FlatList
+  <FlatList
         data={items}
         keyExtractor={(i) => i.id}
         refreshing={loading}
@@ -97,28 +102,28 @@ export default function ManageTemplatesScreen() {
         renderItem={({ item }) => {
           const isEditing = item.id === editingId;
           return (
-            <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#eee" }}>
+    <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
               {isEditing ? (
                 <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                  <TextInput
+                  <Input
                     value={editingName}
                     onChangeText={setEditingName}
-                    style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 8 }}
+                    returnKeyType="done"
+                    style={{ flex: 1 }}
                   />
                   <Button title={t("save") || "Save"} onPress={saveRename} />
-                  <Button title={t("cancel") || "Cancel"} onPress={cancelRename} />
+                  <Button title={t("cancel") || "Cancel"} onPress={cancelRename} variant="outline" />
                 </View>
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <View>
-                    <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-                    <Text style={{ color: "#666" }}>{item.items.length} {t("checklistType") || "checklist"}</Text>
+        <Text style={{ fontWeight: "600", color: theme.colors.text }}>{item.name}</Text>
+        <Text style={{ color: theme.colors.muted }}>{item.items.length} {t("checklistType") || "checklist"}</Text>
                   </View>
                   <View style={{ flexDirection: "row", gap: 8 }}>
                     <Button title={t("rename") || "Rename"} onPress={() => startRename(item.id, item.name)} disabled={!isAdmin} />
                     <Button
                       title={t("delete") || "Delete"}
-                      color="#b00020"
                       disabled={!isAdmin}
                       onPress={() => {
                         if (!householdId) return;
@@ -150,8 +155,8 @@ export default function ManageTemplatesScreen() {
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={{ color: "#666" }}>{t("nothingYet") || "Nothing yet."}</Text>}
+        ListEmptyComponent={<Text style={{ color: theme.colors.muted }}>{t("nothingYet") || "Nothing yet."}</Text>}
       />
-    </View>
+    </ScreenContainer>
   );
 }

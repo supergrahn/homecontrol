@@ -1,5 +1,5 @@
 {
-  "title": "Linda har kontroll",
+  "title": "Logg inn",
   "email": "E-post",
   "password": "Passord",
   "signInFailed": "Innlogging mislyktes — prøv å opprette en konto.",
@@ -176,6 +176,19 @@
   "agenda": "Agenda",
   "week": "Uke"
   ,"month": "Måned"
+  ,"custom": "Egendefinert"
+  ,"timeline": "Tidslinje"
+  ,"from": "Fra"
+  ,"to": "Til"
+  ,"name": "Navn"
+  ,"saveRange": "Lagre område"
+  ,"apply": "Bruk"
+  ,"clearRange": "Tøm område"
+  ,"freeSlots": "Ledige tider"
+  ,"noFreeSlots": "Ingen ledige tider mellom 06:00–22:00"
+  ,"skipToday": "Hopp over i dag"
+  ,"shift30": "+30m"
+  ,"pause7": "Pause 7d"
   ,"kids": "Barn"
   ,"noKidsYet": "Ingen barn ennå."
   ,"assignToKids": "Tildel til barn"
@@ -186,4 +199,19 @@
   ,"rotationHint": "Velg medlemmer/barn som roterer oppgaver. Neste tildeling settes automatisk."
   ,"nextAssignee": "Neste tildeling"
   ,"fairness": "Rettferdighet"
+  ,"language": "Språk"
+  ,"appearance": "Utseende"
+  ,"account": "Konto"
+  ,"insights": "Innsikt"
+  ,"syncPendingActions": "Synkroniser ventende handlinger"
+  ,"pendingCount": "Ventende"
+  ,"retrySync": "Prøv synk på nytt"
+  ,"nightBefore": "Kvelden før-varsel"
+  ,"nightBeforeHint": "Send et forhåndsvarsel for i morgen rundt 20:00."
+  ,"workloadHeatmap": "Arbeidsbelastning varmekart"
+  ,"themeMode": "Tema"
+  ,"newEvent": "Ny hendelse"
+  ,"newBirthday": "Ny bursdag"
+  ,"confirmDeletePhoto": "Slette dette bildet?"
+  ,"notAllowed": "Ikke tillatt"
 }

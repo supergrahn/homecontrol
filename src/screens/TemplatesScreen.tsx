@@ -1,6 +1,9 @@
 import React from "react";
-import { View, Text, Button, Alert } from "react-native";
+import { View, Text, Alert } from "react-native";
+import Button from "../components/Button";
 import { useTranslation } from "react-i18next";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { createTask } from "../services/tasks";
 import { auth } from "../firebase";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
@@ -39,6 +42,7 @@ export default function TemplatesScreen() {
   const { t } = useTranslation();
   const { householdId } = useHousehold();
   const navigation = useNavigation<any>();
+  const theme = useTheme();
   const addTemplate = async (name: string) => {
     if (!householdId) return;
     const createdBy = auth.currentUser?.uid || "unknown";
@@ -57,8 +61,8 @@ export default function TemplatesScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 12 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 12 }}>
         {t("templates")}
       </Text>
       <View style={{ marginBottom: 8 }}>
@@ -69,7 +73,7 @@ export default function TemplatesScreen() {
       </View>
       {Object.keys(templates).map((k) => (
         <View key={k} style={{ marginBottom: 16 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 6 }}>{k}</Text>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>{k}</Text>
           <Button
             title={t("add")}
             onPress={() => addTemplate(k)}
@@ -77,6 +81,6 @@ export default function TemplatesScreen() {
           />
         </View>
       ))}
-    </View>
+    </ScreenContainer>
   );
 }

@@ -1,15 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Button,
-  TextInput,
-  Alert,
-  Share,
-  Switch,
-  Image,
-} from "react-native";
+import { View, Text, TouchableOpacity, Alert, Share, Switch, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { useNavigation } from "@react-navigation/native";
@@ -36,6 +26,7 @@ import {
 import { auth, db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import * as Notifications from "expo-notifications";
+import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createCalendarShare,
@@ -45,12 +36,18 @@ import {
 } from "../services/calendar";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { flushOutbox } from "../services/outbox";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme, useThemeMode } from "../design/theme";
+import Input from "../components/Input";
+import Button from "../components/Button";
 // AsyncStorage imported above; avoid duplicate import
 
 export default function SettingsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<any>();
   const { householdId, households, selectHousehold } = useHousehold();
+  const theme = useTheme();
+  const { mode, setMode } = useThemeMode();
   const [name, setName] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState("");
@@ -173,10 +170,76 @@ export default function SettingsScreen() {
     return () => unsub();
   }, [householdId]);
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScreenContainer>
+      {/* Account */}
+      <View style={{ marginTop: 8, paddingVertical: 8 }}>
+        <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+          {t("account") || "Account"}
+        </Text>
+        <Button
+          title={(t("logOut") as string) || "Log out"}
+          accessibilityLabel={(t("logOut") as string) || "Log out"}
+          accessibilityHint={(t("hint.logOut") as string) || "Signs you out of this device."}
+          variant="outline"
+          onPress={async () => {
+            try {
+              await AsyncStorage.removeItem("@hc:selected_household");
+            } catch {}
+            try {
+              await signOut(auth);
+            } catch {}
+          }}
+        />
+      </View>
+      {/* Language (above Appearance) */}
+      <View style={{ marginTop: 8, paddingVertical: 8 }}>
+        <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+          {t("language") || "Language"}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Button
+            title="English"
+            variant={i18n.language?.startsWith("en") ? "primary" : "outline"}
+            onPress={() => {
+              if (!i18n.language?.startsWith("en")) void i18n.changeLanguage("en");
+            }}
+          />
+          <Button
+            title="Norsk"
+            variant={i18n.language?.startsWith("no") ? "primary" : "outline"}
+            onPress={() => {
+              if (!i18n.language?.startsWith("no")) void i18n.changeLanguage("no");
+            }}
+          />
+        </View>
+      </View>
+      {/* Appearance */}
+      <View style={{ marginTop: 8, paddingVertical: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+          {t("appearance") || "Appearance"}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ flex: 1, color: theme.colors.muted }}>
+            {(t("themeMode") as string) || "Theme"}
+          </Text>
+          <Button
+            title={`Theme: ${mode}`}
+            onPress={() =>
+              setMode(
+                mode === "system"
+                  ? "dark"
+                  : mode === "dark"
+                  ? "light"
+                  : "system"
+              )
+            }
+          />
+        </View>
+      </View>
+
       {/* Insights */}
       <View style={{ marginTop: 8, paddingVertical: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
           {t("insights") || "Insights"}
         </Text>
         <Button
@@ -186,10 +249,10 @@ export default function SettingsScreen() {
       </View>
       {/* Outbox */}
       <View style={{ marginTop: 16, paddingVertical: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
           {t("syncPendingActions") || "Sync pending actions"}
         </Text>
-        <Text style={{ color: "#666", marginBottom: 8 }}>
+        <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
           {t("pendingCount") || "Pending"}: {outboxCount}
         </Text>
         <Button
@@ -209,11 +272,11 @@ export default function SettingsScreen() {
       </View>
       {/* Night-before reminder */}
       <View style={{ marginTop: 16, paddingVertical: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
           {t("nightBefore") || "Night-before reminder"}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Text style={{ flex: 1 }}>
+          <Text style={{ flex: 1, color: theme.colors.text }}>
             {t("nightBeforeHint") || "Send a preview of tomorrow around 20:00."}
           </Text>
           <Switch
@@ -229,15 +292,19 @@ export default function SettingsScreen() {
       </View>
       {/* Widgets dev preview */}
       <View style={{ marginTop: 16, paddingVertical: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            marginBottom: 8,
+            color: theme.colors.text,
+          }}
+        >
           Widget Preview
         </Text>
-        <Button
-          title="Open preview"
-          onPress={() => navigation.navigate("WidgetPreview" as never)}
-        />
+  <Button title="Open preview" onPress={() => navigation.navigate("WidgetPreview" as never)} />
       </View>
-      <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 12 }}>
         {t("selectHousehold")}
       </Text>
       {households.map((h) => (
@@ -246,11 +313,16 @@ export default function SettingsScreen() {
           style={{
             paddingVertical: 10,
             borderBottomWidth: 1,
-            borderBottomColor: "#eee",
+            borderBottomColor: theme.colors.border,
           }}
         >
-          <TouchableOpacity onPress={() => selectHousehold(h.id)}>
-            <Text style={{ fontWeight: h.id === householdId ? "700" : "400" }}>
+          <TouchableOpacity onPress={() => selectHousehold(h.id)} accessibilityRole="button" accessibilityLabel={`Switch to household ${h.name || h.id}`}>
+            <Text
+              style={{
+                fontWeight: h.id === householdId ? "700" : "400",
+                color: theme.colors.text,
+              }}
+            >
               {h.name || h.id} {h.role ? `· ${t(`role.${h.role}`)}` : ""}
             </Text>
           </TouchableOpacity>
@@ -258,7 +330,9 @@ export default function SettingsScreen() {
             {h.role === "admin" ? (
               <Button
                 title={t("delete")}
-                color="#b00020"
+                accessibilityLabel={t("delete")}
+                // Destructive action hint
+                accessibilityHint={(t("hint.deleteHousehold") as string) || "Deletes this household and its data."}
                 onPress={() => {
                   Alert.alert(
                     t("deleteHouseholdTitle"),
@@ -287,7 +361,8 @@ export default function SettingsScreen() {
             ) : (
               <Button
                 title={t("leave")}
-                color="#b00020"
+                accessibilityLabel={t("leave")}
+                accessibilityHint={(t("hint.leaveHousehold") as string) || "Leaves this household."}
                 onPress={() => {
                   Alert.alert(
                     t("leaveHouseholdTitle"),
@@ -318,7 +393,7 @@ export default function SettingsScreen() {
       <View style={{ height: 16 }} />
       {!!householdId ? (
         <View style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             {t("showHouseholdQr") || "Show Household QR"}
           </Text>
           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -419,7 +494,7 @@ export default function SettingsScreen() {
                   ? (s.revokedAt as any).toDate()
                   : s.revokedAt;
                 return (
-                  <View
+          <View
                     key={s.id}
                     style={{
                       flexDirection: "row",
@@ -427,17 +502,17 @@ export default function SettingsScreen() {
                       justifyContent: "space-between",
                       paddingVertical: 6,
                       borderBottomWidth: 1,
-                      borderBottomColor: "#eee",
+            borderBottomColor: theme.colors.border,
                     }}
                   >
                     <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={{ fontSize: 12, color: "#666" }}>
+            <Text style={{ fontSize: 12, color: theme.colors.muted }}>
                         {String(s.id).slice(0, 8)}…
                       </Text>
                       <Text
                         style={{
                           fontSize: 12,
-                          color: s.active ? "#2a7" : "#b00020",
+              color: s.active ? theme.colors.text : theme.colors.primary,
                         }}
                       >
                         {s.active ? "Active" : "Revoked"}
@@ -452,7 +527,11 @@ export default function SettingsScreen() {
                     {s.active ? (
                       <Button
                         title={t("revoke") || "Revoke"}
-                        color="#b00020"
+                        variant="outline"
+                        textStyle={{ color: theme.colors.error }}
+                        style={{ borderColor: theme.colors.error }}
+                        accessibilityLabel={t("revoke") || "Revoke"}
+                        accessibilityHint={(t("hint.revokeCalendarShare") as string) || "Revokes this calendar share."}
                         onPress={async () => {
                           if (!householdId) return;
                           Alert.alert(
@@ -488,7 +567,7 @@ export default function SettingsScreen() {
               })}
             </View>
           ) : loadingShares ? (
-            <Text style={{ color: "#666", marginTop: 4 }}>
+            <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
               Loading calendar shares…
             </Text>
           ) : null}
@@ -498,7 +577,7 @@ export default function SettingsScreen() {
       {/* Templates shortcuts */}
       {!!householdId ? (
         <View style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             {t("templates") || "Templates"}
           </Text>
           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -517,21 +596,10 @@ export default function SettingsScreen() {
       ) : null}
 
       <View style={{ height: 16 }} />
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("createHousehold")}
       </Text>
-      <TextInput
-        placeholder={t("householdName")}
-        value={name}
-        onChangeText={setName}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ddd",
-          borderRadius: 8,
-          padding: 10,
-          marginBottom: 8,
-        }}
-      />
+  <Input placeholder={t("householdName")} value={name} onChangeText={setName} containerStyle={{ marginBottom: 8 }} />
       <Button
         title={saving ? "…" : t("createHousehold")}
         disabled={!name.trim() || saving}
@@ -550,7 +618,7 @@ export default function SettingsScreen() {
       />
       {/* Quiet hours */}
       <View style={{ height: 24 }} />
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+  <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("quietHours") || "Quiet hours"}
       </Text>
       <View style={{ marginBottom: 8 }}>
@@ -574,19 +642,12 @@ export default function SettingsScreen() {
               if (!householdId) return;
               const fn = httpsCallable(getFunctions(), "runDigestDryRun");
               const res: any = await fn({ householdId });
-              const counts = res?.data?.summary?.counts || {
-                today: 0,
-                overdue: 0,
-              };
+              const counts = res?.data?.summary?.counts || { today: 0, overdue: 0 };
               await Notifications.scheduleNotificationAsync({
                 content: {
                   title: "Daily summary (dry-run)",
                   body: `Today ${counts.today} · Overdue ${counts.overdue}`,
-                  data: {
-                    type: "digest.daily.dryrun",
-                    hid: householdId,
-                    counts,
-                  },
+                  data: { type: "digest.daily.dryrun", hid: householdId, counts },
                 },
                 trigger: null,
               });
@@ -599,7 +660,7 @@ export default function SettingsScreen() {
       {/* Digest preferences */}
       {!!householdId ? (
         <View style={{ marginBottom: 8, marginTop: 16 }}>
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             Digest
           </Text>
           <View
@@ -609,7 +670,9 @@ export default function SettingsScreen() {
               marginBottom: 8,
             }}
           >
-            <Text style={{ flex: 1 }}>Include overdue</Text>
+            <Text style={{ flex: 1, color: theme.colors.text }}>
+              Include overdue
+            </Text>
             <Switch value={digestOverdue} onValueChange={setDigestOverdue} />
           </View>
           <View
@@ -619,7 +682,9 @@ export default function SettingsScreen() {
               marginBottom: 8,
             }}
           >
-            <Text style={{ flex: 1 }}>Include today/upcoming</Text>
+            <Text style={{ flex: 1, color: theme.colors.text }}>
+              Include today/upcoming
+            </Text>
             <Switch value={digestUpcoming} onValueChange={setDigestUpcoming} />
           </View>
           <View
@@ -629,38 +694,22 @@ export default function SettingsScreen() {
               marginBottom: 8,
             }}
           >
-            <Text style={{ flex: 1 }}>Include wins</Text>
+            <Text style={{ flex: 1, color: theme.colors.text }}>
+              Include wins
+            </Text>
             <Switch value={digestWins} onValueChange={setDigestWins} />
           </View>
-          <TextInput
-            placeholder="07:00"
-            value={digestTime}
-            onChangeText={setDigestTime}
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              borderRadius: 8,
-              padding: 10,
-              marginBottom: 8,
-            }}
-          />
+          <Input placeholder="07:00" value={digestTime} onChangeText={setDigestTime} containerStyle={{ marginBottom: 8 }} />
           <Button
             title="Save digest preferences"
             onPress={async () => {
               try {
                 if (!householdId) return;
-                const fn = httpsCallable(
-                  getFunctions(),
-                  "setDigestPreferences"
-                );
+                const fn = httpsCallable(getFunctions(), "setDigestPreferences");
                 await fn({
                   householdId,
                   prefs: {
-                    sections: {
-                      overdue: digestOverdue,
-                      upcoming: digestUpcoming,
-                      wins: digestWins,
-                    },
+                    sections: { overdue: digestOverdue, upcoming: digestUpcoming, wins: digestWins },
                     schedule: { time: digestTime },
                   },
                 });
@@ -675,7 +724,7 @@ export default function SettingsScreen() {
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >
-        <Text style={{ marginRight: 8 }}>
+        <Text style={{ marginRight: 8, color: theme.colors.text }}>
           {t("notifications") || "Notifications"}
         </Text>
         <Switch
@@ -695,30 +744,8 @@ export default function SettingsScreen() {
         />
       </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <TextInput
-          placeholder="21:00"
-          value={qhStart}
-          onChangeText={setQhStart}
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#ddd",
-            borderRadius: 8,
-            padding: 10,
-          }}
-        />
-        <TextInput
-          placeholder="07:00"
-          value={qhEnd}
-          onChangeText={setQhEnd}
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#ddd",
-            borderRadius: 8,
-            padding: 10,
-          }}
-        />
+  <Input placeholder="21:00" value={qhStart} onChangeText={setQhStart} containerStyle={{ flex: 1 }} />
+  <Input placeholder="07:00" value={qhEnd} onChangeText={setQhEnd} containerStyle={{ flex: 1 }} />
       </View>
       {/* Quiet-hours mode */}
       <View
@@ -729,24 +756,20 @@ export default function SettingsScreen() {
           marginBottom: 8,
         }}
       >
-        <Text style={{ marginRight: 8 }}>Quiet-hours mode</Text>
+        <Text style={{ marginRight: 8, color: theme.colors.text }}>
+          Quiet-hours mode
+        </Text>
         <Button
           title={qhMode === "hard" ? "Hard (delay)" : "Soft (silent)"}
           onPress={() => setQhMode(qhMode === "hard" ? "soft" : "hard")}
         />
       </View>
-      <TextInput
+      <Input
         placeholder={t("timezoneOptional") || "Europe/Oslo (optional)"}
         value={qhTz || ""}
         onChangeText={setQhTz}
         autoCapitalize="none"
-        style={{
-          borderWidth: 1,
-          borderColor: "#ddd",
-          borderRadius: 8,
-          padding: 10,
-          marginTop: 8,
-        }}
+        containerStyle={{ marginTop: 8 }}
       />
       <View style={{ marginTop: 8 }}>
         <Button
@@ -790,16 +813,16 @@ export default function SettingsScreen() {
       {!!householdId ? (
         <>
           <View style={{ height: 24 }} />
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             {t("members") || "Members"}
           </Text>
           {members.length === 0 ? (
-            <Text style={{ color: "#666", marginBottom: 8 }}>
+            <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
               {t("noMembers") || "No members yet"}
             </Text>
           ) : null}
           {members.map((m) => (
-            <View
+        <View
               key={m.userId}
               style={{
                 flexDirection: "row",
@@ -807,19 +830,19 @@ export default function SettingsScreen() {
                 alignItems: "center",
                 paddingVertical: 8,
                 borderBottomWidth: 1,
-                borderBottomColor: "#eee",
+          borderBottomColor: theme.colors.border,
               }}
             >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
               >
                 {/* avatar circle */}
-                <View
+        <View
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: 18,
-                    backgroundColor: "#ddd",
+          backgroundColor: theme.colors.card,
                     alignItems: "center",
                     justifyContent: "center",
                     overflow: "hidden",
@@ -831,15 +854,15 @@ export default function SettingsScreen() {
                       style={{ width: 36, height: 36 }}
                     />
                   ) : (
-                    <Text style={{ fontWeight: "700", color: "#444" }}>
+          <Text style={{ fontWeight: "700", color: theme.colors.text }}>
                       {(m.displayName || m.userId).slice(0, 1).toUpperCase()}
                     </Text>
                   )}
                 </View>
-                <Text style={{ fontWeight: "500" }}>
+                <Text style={{ fontWeight: "500", color: theme.colors.text }}>
                   {m.displayName || m.userId}
                 </Text>
-                <Text style={{ color: "#666" }}>
+        <Text style={{ color: theme.colors.muted }}>
                   {t(`role.${m.role || "adult"}`) || m.role || "adult"}
                 </Text>
               </View>
@@ -847,6 +870,8 @@ export default function SettingsScreen() {
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Button
                     title={t("makeAdmin") || "Make admin"}
+                    accessibilityLabel={t("makeAdmin") || "Make admin"}
+                    accessibilityHint={(t("hint.makeAdmin") as string) || "Grants admin permissions to this member."}
                     onPress={() => {
                       if (!householdId) return;
                       Alert.alert(
@@ -875,6 +900,8 @@ export default function SettingsScreen() {
                   {m.role === "admin" ? (
                     <Button
                       title={t("demoteToAdult") || "Demote to adult"}
+                      accessibilityLabel={t("demoteToAdult") || "Demote to adult"}
+                      accessibilityHint={(t("hint.demote") as string) || "Removes admin permissions from this member."}
                       onPress={() => {
                         if (!householdId) return;
                         Alert.alert(
@@ -903,7 +930,8 @@ export default function SettingsScreen() {
                   ) : null}
                   <Button
                     title={t("remove") || "Remove"}
-                    color="#b00020"
+                    accessibilityLabel={t("remove") || "Remove"}
+                    accessibilityHint={(t("hint.removeMember") as string) || "Removes this member from the household."}
                     onPress={() => {
                       if (!householdId) return;
                       const adminCount = members.filter(
@@ -946,7 +974,7 @@ export default function SettingsScreen() {
       {!!householdId && isAdmin ? (
         <>
           <View style={{ height: 24 }} />
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             {t("householdSettings") || "Household settings"}
           </Text>
           {/* Escalation toggle */}
@@ -957,37 +985,25 @@ export default function SettingsScreen() {
               marginBottom: 8,
             }}
           >
-            <Text style={{ marginRight: 8 }}>
+            <Text style={{ marginRight: 8, color: theme.colors.text }}>
               {t("escalationEnabled") || "Escalation (due-soon ping)"}
             </Text>
             <Switch value={escalation} onValueChange={setEscalation} />
           </View>
 
-          <TextInput
+          <Input
             placeholder={t("timezoneOptional") || "Europe/Oslo (optional)"}
             value={hhTz}
             onChangeText={setHhTz}
             autoCapitalize="none"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              borderRadius: 8,
-              padding: 10,
-              marginBottom: 8,
-            }}
+            containerStyle={{ marginBottom: 8 }}
           />
-          <TextInput
+          <Input
             placeholder={t("digestHour") || "Digest hour (0-23)"}
             value={hhHour}
             onChangeText={setHhHour}
             keyboardType="number-pad"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              borderRadius: 8,
-              padding: 10,
-              marginBottom: 8,
-            }}
+            containerStyle={{ marginBottom: 8 }}
           />
           <Button
             title={t("save") || "Save"}
@@ -1027,28 +1043,21 @@ export default function SettingsScreen() {
       households.find((h) => h.id === householdId)?.role === "admin" ? (
         <>
           <View style={{ height: 24 }} />
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
             {t("invites") || "Invites"}
           </Text>
-          <TextInput
+          <Input
             placeholder={t("email")}
             value={inviteEmail}
             onChangeText={setInviteEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              borderRadius: 8,
-              padding: 10,
-              marginBottom: 8,
-            }}
+            containerStyle={{ marginBottom: 8 }}
           />
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
             <Button
               title={(t("role.adult") as string) || "adult"}
               onPress={() => setInviteRole("adult")}
-              color={"#111"}
             />
           </View>
           <Button
@@ -1087,9 +1096,9 @@ export default function SettingsScreen() {
           />
 
           {/* Existing invites */}
-          <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: 16 }}>
             {invites.length === 0 ? (
-              <Text style={{ color: "#666" }}>
+              <Text style={{ color: theme.colors.muted }}>
                 {t("noInvites") || "No invites yet."}
               </Text>
             ) : (
@@ -1099,7 +1108,7 @@ export default function SettingsScreen() {
                   style={{
                     paddingVertical: 8,
                     borderBottomWidth: 1,
-                    borderBottomColor: "#eee",
+                    borderBottomColor: theme.colors.border,
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
@@ -1128,6 +1137,6 @@ export default function SettingsScreen() {
           </View>
         </>
       ) : null}
-    </View>
+    </ScreenContainer>
   );
 }

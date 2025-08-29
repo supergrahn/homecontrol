@@ -1,16 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Alert,
-  Platform,
-  KeyboardAvoidingView,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from "react-native";
+import { View, Text, Alert, Platform, SafeAreaView, ScrollView, TouchableWithoutFeedback, Keyboard, TouchableOpacity, Image } from "react-native";
 import { auth, db } from "../firebase";
 import { FirebaseError } from "firebase/app";
 import {
@@ -20,20 +9,36 @@ import {
   signOut,
 } from "firebase/auth";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "../design/theme";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import KeyboardAvoidingWrapper from "../components/KeyboardAvoidingWrapper";
+import { mark, measureFrom } from "../utils/perf";
 import { getDocs, collection } from "firebase/firestore";
 
 export default function SignInScreen({ navigation }: any) {
+  React.useEffect(() => {
+    mark("auth:screen:mount");
+  }, []);
+  const theme = useTheme();
   const [email, setEmail] = React.useState("");
   const [pass, setPass] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [showPass, setShowPass] = React.useState(false);
+  const passRef = React.useRef<any>(null);
   const { t } = useTranslation();
 
   const signIn = async () => {
+    if (loading) return;
     setError(null);
+    setLoading(true);
     if (!email.trim()) return setError("auth.invalidEmail");
     if (!pass) return setError("auth.weakPassword");
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), pass);
+  await signInWithEmailAndPassword(auth, email.trim(), pass);
+  measureFrom("auth:screen:mount", "auth:signInToMainTabs");
+  // Let NavigationProvider gating decide, but provide a fast path hint for fresh accounts
   navigation.replace("MainTabs");
     } catch (e) {
       const err = e as FirebaseError;
@@ -63,11 +68,15 @@ export default function SignInScreen({ navigation }: any) {
         default:
           setError("signInFailed");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   const signUp = async () => {
+    if (loading) return;
     setError(null);
+    setLoading(true);
     if (!email.trim()) return setError("auth.invalidEmail");
     if (!pass || pass.length < 6) return setError("auth.weakPassword");
     try {
@@ -83,7 +92,8 @@ export default function SignInScreen({ navigation }: any) {
           break;
         }
       }
-      navigation.replace(hasMembership ? "MainTabs" : "CreateHousehold");
+  measureFrom("auth:screen:mount", "auth:signUpToNext");
+  navigation.replace(hasMembership ? "MainTabs" : "CreateHousehold");
     } catch (e) {
       const err = e as FirebaseError;
       const code = err.code;
@@ -114,6 +124,8 @@ export default function SignInScreen({ navigation }: any) {
         default:
           setError("signUpFailed");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -138,49 +150,104 @@ export default function SignInScreen({ navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            padding: 24,
-            justifyContent: "center",
-            gap: 12,
-          }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={{ fontSize: 24, fontWeight: "600" }}>{t("title")}</Text>
-          <TextInput
-            placeholder={t("email")}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-            returnKeyType="next"
-          />
-          <TextInput
-            placeholder={t("password")}
-            secureTextEntry
-            value={pass}
-            onChangeText={setPass}
-            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-            returnKeyType="done"
-            onSubmitEditing={signIn}
-          />
-          {error ? <Text style={{ color: "crimson" }}>{t(error)}</Text> : null}
-          <Button title={t("signIn")} onPress={signIn} />
-          <Button title={t("createAccount")} onPress={signUp} />
-          <View style={{ height: 8 }} />
-          <Button title={t("forgotPassword")} onPress={forgot} />
-          <View style={{ height: 8 }} />
-          <Button title={t("signOut")} onPress={doSignOut} />
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+  <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+  <KeyboardAvoidingWrapper>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={{
+              flexGrow: 1,
+              padding: 24,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Brand header */}
+            <View style={{ width: "100%", maxWidth: 480, alignItems: "flex-start", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Image source={require("../../assets/icon.png")} style={{ width: 40, height: 40, borderRadius: 8, marginRight: 8 }} />
+                <Text style={{ fontSize: 28, fontWeight: "800", color: theme.colors.text }}>{t("title")}</Text>
+              </View>
+              <Text style={{ color: theme.colors.muted, marginTop: 6 }}>
+                {t("signInSubtitle") || "Welcome back. Please sign in."}
+              </Text>
+            </View>
+
+            {/* Form */}
+            <View style={{ width: "100%", maxWidth: 480 }}>
+              <Input
+                placeholder={t("email")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                value={email}
+                onChangeText={setEmail}
+                returnKeyType="next"
+                onSubmitEditing={() => passRef.current?.focus?.()}
+                accessibilityLabel={t("email") || "Email"}
+                testID="emailInput"
+              />
+
+              <View style={{ position: "relative" }}>
+                <Input
+                  ref={passRef}
+                  placeholder={t("password")}
+                  secureTextEntry={!showPass}
+                  value={pass}
+                  onChangeText={setPass}
+                  textContentType="password"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="go"
+                  onSubmitEditing={signIn}
+                  accessibilityLabel={t("password") || "Password"}
+                  testID="passwordInput"
+                  right={
+                    <TouchableOpacity
+                      onPress={() => setShowPass((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={showPass ? (t("hidePassword") || "Hide password") : (t("showPassword") || "Show password")}
+                    >
+                      <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
+                        {showPass ? (t("hide") || "Hide") : (t("show") || "Show")}
+                      </Text>
+                    </TouchableOpacity>
+                  }
+                />
+                <TouchableOpacity
+                  onPress={forgot}
+                  style={{ position: "absolute", right: 8, bottom: -30, padding: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("forgotPassword")}
+                >
+                  <Text style={{ color: theme.colors.primary }}>{t("forgotPassword")}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {error ? (
+                <Text style={{ color: theme.colors.muted, marginTop: 8 }}>{t(error)}</Text>
+              ) : null}
+
+              <View style={{ height: 12 }} />
+              <Button testID="signInButton" title={loading ? "…" : (t("signIn") as string)} onPress={signIn} disabled={loading || !email.trim() || !pass} />
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
+                <TouchableOpacity onPress={signUp} accessibilityRole="button">
+                  <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
+                    {t("createAccount")}
+                  </Text>
+                </TouchableOpacity>
+                {/* Forgot link moved near password field */}
+              </View>
+
+              {/* Optional sign out for debugging */}
+              <View style={{ height: 16 }} />
+              <Button title={t("signOut")} onPress={doSignOut} variant="outline" />
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingWrapper>
+    </SafeAreaView>
   );
 }

@@ -1,14 +1,8 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  Alert,
-} from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Image, Alert, TextInput as RNTextInput } from "react-native";
+import Button from "../components/Button";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -49,9 +43,11 @@ import { useToast } from "../components/ToastProvider";
 import { auth } from "../firebase";
 import { listMembers, type Member } from "../services/members";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
+import Input from "../components/Input";
 
 export default function TaskDetailScreen({ route }: any) {
   const { t } = useTranslation();
+  const theme = useTheme();
   // Configure dayjs locale to match current i18n language
   React.useMemo(() => {
     dayjs.extend(localizedFormat);
@@ -202,7 +198,7 @@ export default function TaskDetailScreen({ route }: any) {
     setMentionSuggestions(sugg);
   }, [newComment, members]);
 
-  const inputRef = React.useRef<TextInput | null>(null);
+  const inputRef = React.useRef<RNTextInput | null>(null);
 
   const add = async () => {
     if (!newItem.trim()) return;
@@ -266,18 +262,18 @@ export default function TaskDetailScreen({ route }: any) {
   }, [taskId, householdId]);
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
       {/* Auto-reschedule info */}
       {lastAutoShift?.at ? (
         <View
           style={{
             marginBottom: 10,
             padding: 8,
-            backgroundColor: "#F9FAFB",
+            backgroundColor: theme.colors.card,
             borderRadius: 6,
           }}
         >
-          <Text style={{ color: "#374151" }}>
+          <Text style={{ color: theme.colors.text }}>
             {(() => {
               const at = lastAutoShift?.at
                 ? dayjs(lastAutoShift.at).format("lll")
@@ -296,10 +292,10 @@ export default function TaskDetailScreen({ route }: any) {
       ) : null}
       {/* Rotation settings */}
       <View style={{ marginBottom: 12 }}>
-        <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+        <Text style={{ fontWeight: "700", marginBottom: 6, color: theme.colors.text }}>
           {(t("rotation") as string) || "Rotation"}
         </Text>
-        <Text style={{ color: "#666", marginBottom: 8 }}>
+        <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
           {(t("rotationHint") as string) ||
             "Pick members/children to rotate assignments. Next assignee cycles automatically when scheduling occurs."}
         </Text>
@@ -312,7 +308,7 @@ export default function TaskDetailScreen({ route }: any) {
               gap: 8,
               marginBottom: 8,
             }}
-          >
+         >
             {members.map((m) => {
               const active = rotationPool.includes(m.userId);
               return (
@@ -338,11 +334,11 @@ export default function TaskDetailScreen({ route }: any) {
                       paddingVertical: 6,
                       borderRadius: 999,
                       borderWidth: 1,
-                      borderColor: active ? "#111" : "#E5E7EB",
-                      backgroundColor: active ? "#EEF2FF" : "#F9FAFB",
+                      borderColor: active ? theme.colors.text : theme.colors.border,
+                      backgroundColor: theme.colors.card,
                     }}
                   >
-                    <Text style={{ fontSize: 12 }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>
                       {m.displayName || m.userId}
                     </Text>
                   </View>
@@ -360,7 +356,7 @@ export default function TaskDetailScreen({ route }: any) {
               gap: 8,
               marginBottom: 8,
             }}
-          >
+         >
             {kids.map((k) => {
               const active = rotationPool.includes(k.id);
               return (
@@ -386,12 +382,14 @@ export default function TaskDetailScreen({ route }: any) {
                       paddingVertical: 6,
                       borderRadius: 999,
                       borderWidth: 1,
-                      borderColor: active ? "#111" : "#E5E7EB",
-                      backgroundColor: active ? "#EEF2FF" : "#F9FAFB",
+                      borderColor: active ? theme.colors.text : theme.colors.border,
+                      backgroundColor: theme.colors.card,
                     }}
                   >
                     <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
-                    <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>
+                      {k.displayName}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -401,9 +399,8 @@ export default function TaskDetailScreen({ route }: any) {
         {/* Next assignee and fairness */}
         {rotationPool.length > 0 ? (
           <View style={{ marginTop: 6 }}>
-            <Text style={{ marginBottom: 6 }}>
-              {(t("nextAssignee") as string) || "Next assignee"}:{" "}
-              {(() => {
+            <Text style={{ marginBottom: 6, color: theme.colors.text }}>
+              {(t("nextAssignee") as string) || "Next assignee"}: {(() => {
                 const idx = Math.min(
                   Math.max(0, rotationIndex),
                   Math.max(0, rotationPool.length - 1)
@@ -414,7 +411,7 @@ export default function TaskDetailScreen({ route }: any) {
                 return m?.displayName || kid?.displayName || id || "";
               })()}
             </Text>
-            <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+            <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 4 }}>
               {(t("fairness") as string) || "Fairness"}
             </Text>
             <View style={{ gap: 4 }}>
@@ -423,10 +420,10 @@ export default function TaskDetailScreen({ route }: any) {
                   members.find((m) => m.userId === id)?.displayName ||
                   kids.find((k) => k.id === id)?.displayName ||
                   id;
-                // Basic fairness: count of completed tasks in recent activity for this task and id would require a query; fallback: acceptances count
+                // Placeholder for fairness metric
                 const count = 0;
                 return (
-                  <Text key={id} style={{ color: "#444" }}>
+                  <Text key={id} style={{ color: theme.colors.muted }}>
                     • {name}: {count}
                   </Text>
                 );
@@ -438,7 +435,7 @@ export default function TaskDetailScreen({ route }: any) {
       {/* Kid assignment */}
       {kids.length > 0 ? (
         <View style={{ marginBottom: 12 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 6 }}>
+          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>
             {(t("assignToKids") as string) || "Assign to kids"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -527,6 +524,8 @@ export default function TaskDetailScreen({ route }: any) {
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
           <Button
             title={(t("approve") as string) || "Approve"}
+            accessibilityLabel={(t("approve") as string) || "Approve"}
+            accessibilityHint={(t("hint.approveTask") as string) || "Marks this completed task as verified."}
             onPress={async () => {
               if (!householdId) return;
               try {
@@ -542,6 +541,8 @@ export default function TaskDetailScreen({ route }: any) {
           />
           <Button
             title={(t("reject") as string) || "Reject"}
+            accessibilityLabel={(t("reject") as string) || "Reject"}
+            accessibilityHint={(t("hint.rejectTask") as string) || "Sends the task back to open."}
             onPress={async () => {
               if (!householdId) return;
               try {
@@ -557,13 +558,13 @@ export default function TaskDetailScreen({ route }: any) {
           />
         </View>
       ) : null}
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>{t("task")}</Text>
+  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{t("task")}</Text>
       <Text style={{ marginBottom: 12, color: "#666" }}>
         {t("id")}: {taskId}
       </Text>
       {/* Dependencies */}
       <View style={{ marginBottom: 12 }}>
-        <Text style={{ fontWeight: "700", marginBottom: 6 }}>
+        <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>
           {(t("dependencies") as string) || "Dependencies"}
         </Text>
         {dependsOn.length === 0 ? (
@@ -582,6 +583,8 @@ export default function TaskDetailScreen({ route }: any) {
                 </Text>
                 <Button
                   title={(t("remove") as string) || "Remove"}
+                  accessibilityLabel={(t("remove") as string) || "Remove"}
+                  accessibilityHint={(t("hint.removeDependency") as string) || "Removes this dependency from the task."}
                   onPress={async () => {
                     if (!householdId) return;
                     await removeDependency(householdId, taskId, dep);
@@ -758,7 +761,7 @@ export default function TaskDetailScreen({ route }: any) {
         </Text>
       ) : null}
 
-      <Text style={{ fontWeight: "600", marginBottom: 8 }}>
+      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("checklist")}
       </Text>
       <FlatList
@@ -802,17 +805,7 @@ export default function TaskDetailScreen({ route }: any) {
 
               {isEditing ? (
                 <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                  <TextInput
-                    value={editingText}
-                    onChangeText={setEditingText}
-                    style={{
-                      flex: 1,
-                      borderWidth: 1,
-                      borderColor: "#ddd",
-                      borderRadius: 8,
-                      padding: 8,
-                    }}
-                  />
+                  <Input value={editingText} onChangeText={setEditingText} containerStyle={{ flex: 1 }} />
                   <Button title={t("save")} onPress={saveEdit} />
                   <Button title={t("cancel")} onPress={cancelEdit} />
                 </View>
@@ -842,28 +835,20 @@ export default function TaskDetailScreen({ route }: any) {
       />
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-        <TextInput
-          ref={(r) => {
-            inputRef.current = r;
-          }}
+        <Input
+          ref={inputRef}
           placeholder={t("addChecklist")}
           value={newItem}
           onChangeText={setNewItem}
           onSubmitEditing={add}
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#ddd",
-            borderRadius: 8,
-            padding: 10,
-          }}
+          containerStyle={{ flex: 1 }}
         />
         <Button title={t("add")} onPress={add} />
       </View>
 
       {/* Photos */}
       <View style={{ height: 24 }} />
-      <Text style={{ fontWeight: "600", marginBottom: 8 }}>
+      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("photos") || "Photos"}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
@@ -921,7 +906,7 @@ export default function TaskDetailScreen({ route }: any) {
 
       {/* Comments */}
       <View style={{ height: 24 }} />
-      <Text style={{ fontWeight: "600", marginBottom: 8 }}>
+      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("comments") || "Comments"}
       </Text>
       {comments.length === 0 ? (
@@ -950,7 +935,7 @@ export default function TaskDetailScreen({ route }: any) {
         );
       })}
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-        <TextInput
+        <Input
           placeholder={(t("add") as string) + " comment"}
           value={newComment}
           onChangeText={setNewComment}
@@ -967,13 +952,7 @@ export default function TaskDetailScreen({ route }: any) {
               setComments(await listComments(householdId, taskId));
             } catch {}
           }}
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#ddd",
-            borderRadius: 8,
-            padding: 10,
-          }}
+          containerStyle={{ flex: 1 }}
         />
         <Button
           title={t("add")}
@@ -1029,7 +1008,7 @@ export default function TaskDetailScreen({ route }: any) {
           ))}
         </View>
       ) : null}
-    </View>
+  </ScreenContainer>
   );
 }
 

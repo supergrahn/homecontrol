@@ -1,14 +1,18 @@
 import React from "react";
-import { View, Text, TextInput, FlatList, TouchableOpacity } from "react-native";
+import { Text, FlatList, TouchableOpacity } from "react-native";
+import ScreenContainer from "../components/ScreenContainer";
+import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { listTemplates, touchTemplateLastUsed } from "../services/templates";
+import Input from "../components/Input";
 
 export default function TemplatePickerScreen({ route }: any) {
   const { t } = useTranslation();
   const nav = useNavigation<any>();
   const { householdId } = useHousehold();
+  const theme = useTheme();
   const [q, setQ] = React.useState("");
   const [items, setItems] = React.useState<{ id: string; name: string; items: string[]; usageCount?: number | null }[]>([]);
 
@@ -32,22 +36,22 @@ export default function TemplatePickerScreen({ route }: any) {
   }, [items, q]);
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>
+    <ScreenContainer style={{ paddingHorizontal: 16 }}>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface, marginBottom: 8 }}>
         {t("templates") || "Templates"}
       </Text>
-      <TextInput
+      <Input
         placeholder={t("search") || "Search"}
         value={q}
         onChangeText={setQ}
-        style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        returnKeyType="search"
       />
       <FlatList
         data={filtered}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" }}
+            style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}
             onPress={async () => {
               nav.goBack();
               const cb = route?.params?.onPick as undefined | ((name: string, items: string[]) => void);
@@ -57,9 +61,11 @@ export default function TemplatePickerScreen({ route }: any) {
               } catch {}
               if (cb) cb(item.name, item.items);
             }}
+            accessibilityRole="button"
+            accessibilityLabel={`Use template ${item.name}`}
           >
-            <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-            <Text style={{ color: "#666" }}>
+            <Text style={{ fontWeight: "600", color: theme.colors.text }}>{item.name}</Text>
+            <Text style={{ color: theme.colors.muted }}>
               {item.items.length} {t("checklistType") || "checklist"}
               {typeof item.usageCount === "number" && item.usageCount > 0
                 ? ` · ${t("usedTimes", { count: item.usageCount }) || `used ${item.usageCount}`}`
@@ -67,8 +73,8 @@ export default function TemplatePickerScreen({ route }: any) {
             </Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={{ color: "#666" }}>{t("nothingYet") || "Nothing yet."}</Text>}
+        ListEmptyComponent={<Text style={{ color: theme.colors.muted }}>{t("nothingYet") || "Nothing yet."}</Text>}
       />
-    </View>
+    </ScreenContainer>
   );
 }
