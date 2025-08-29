@@ -25,7 +25,17 @@
         "backgroundColor": "#ffffff"
       }
     },
-    "plugins": ["expo-notifications", "expo-localization"],
+    "plugins": [
+      "expo-notifications",
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "ios": { "useFrameworks": "static" },
+          "android": {}
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "de4fa559-a42f-4575-acdb-020bf5a1e620"

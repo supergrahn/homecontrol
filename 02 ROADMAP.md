@@ -11,7 +11,7 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
   - [x] Expand RRULE edge cases (EXDATE/COUNT/UNTIL, BYDAY/BYMONTHDAY, DST) with tests
   - [x] Quiet-hours-aware push queue with retries/backoff + daily digest and escalation
   - [x] Finalize invite email via SMTP + Dynamic Links
-    - Config via env or functions:config (smtp.*, dynamiclinks.*); long DL builder; docs added; unit test added
+    - Config via env or functions:config (smtp._, dynamiclinks._); long DL builder; docs added; unit test added
 - [x] Add icons, create an eas.json and wire a basic invite flow in the app UI.
 - [x] Deploy Firestore/Storage rules, Cloud Functions, and Firestore indexes; smoke-test Activity feed and invite flow.
 
@@ -33,20 +33,20 @@ I’ll be optimistic but suspicious on your behalf, so we don’t ship a nag-bot
 ```
 
 ## DONE
+
 Next steps
 
 All sub-items are done; the parent “Strengthen Functions” box can be checked.
 
 - Sprint 1 (Foundations)
-
   - Auth screens; create household flow; Today/Overdue/Upcoming lists
   - Add Task screen + Task Detail (edit, checklist, complete)
   - Activity feed UI
   - Basic local notifications
   - QA/accessibility
   - Analytics/crash (Sentry + minimal PostHog)
-- Sprint 2 (Multi-user, invites, digests)
 
+- Sprint 2 (Multi-user, invites, digests)
   - Member list UI + admin badge
   - Permissions in UI (hide admin-only actions)
   - Quiet hours UI + validation
@@ -55,8 +55,8 @@ All sub-items are done; the parent “Strengthen Functions” box can be checked
   - Child profiles & measurements UI
   - Storage upload UI for task photos
   - Index tuning/perf pass
-- Sprint 3 (Smart lists & polish)
 
+- Sprint 3 (Smart lists & polish)
   - Smart Lists/filters (by kid/context/energy)
   - Seasonal views (gear gaps)
   - RRULE exceptions UI
@@ -354,7 +354,7 @@ export const onHouseholdCreate = functions.firestore
       {
         householdIds: FieldValue.arrayUnion(ctx.params.hid),
       },
-      { merge: true },
+      { merge: true }
     );
   });
 ```
@@ -441,13 +441,15 @@ Tiny steps, visible value, no yak-shaving.
 7. **Checklist templates (Birthday, Day Trip, Season Change)**: one-tap generate.
 
 > Shipped along the way (app polish):
+>
 > - Quick accept/release and complete on TaskCard, with badges (Mine / accepted count)
 > - Photo upload + delete in Task Detail
 > - Checklist inline rename and fast entry (submit + refocus)
 > - Clone checklist as template (labels only)
-8. **Child profiles & measurements** UI; record foot length; history chart (client-side).
-9. **Storage upload UI** for task photos (evidence, receipts).
-10. **Index tuning** & perf pass for task lists.
+>
+> 8. **Child profiles & measurements** UI; record foot length; history chart (client-side).
+> 9. **Storage upload UI** for task photos (evidence, receipts).
+> 10. **Index tuning** & perf pass for task lists.
 
 **Definition of Done:** Household invites work; people get **one** helpful morning summary, not 17 pings; templates save time.
 
@@ -495,7 +497,7 @@ export function useTodayTasks(hid: string) {
         where("status", "in", ["open", "in_progress", "blocked"]),
         where("nextOccurrenceAt", ">=", start),
         where("nextOccurrenceAt", "<=", end),
-        orderBy("nextOccurrenceAt", "asc"),
+        orderBy("nextOccurrenceAt", "asc")
       );
       const snap = await getDocs(q);
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));

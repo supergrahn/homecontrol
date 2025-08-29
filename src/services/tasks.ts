@@ -13,10 +13,16 @@ import {
 } from "firebase/firestore";
 import dayjs from "dayjs";
 import { Task } from "../models/task";
+import { refreshNextUpWidget } from "./widgets";
+import {
+  startTaskLiveActivity,
+  endTaskLiveActivity,
+  cancelTaskLiveActivity,
+} from "./liveActivity";
 
 export async function fetchTodayTasks(
   hid: string,
-  opts?: { priorityOrder?: "asc" | "desc" },
+  opts?: { priorityOrder?: "asc" | "desc" }
 ): Promise<Task[]> {
   const start = dayjs().startOf("day").toDate();
   const end = dayjs().endOf("day").toDate();
@@ -48,7 +54,7 @@ export async function createTask(hid: string, input: Partial<Task>) {
 export async function updateTask(
   hid: string,
   id: string,
-  patch: Partial<Task>,
+  patch: Partial<Task>
 ) {
   const ref = doc(db, `households/${hid}/tasks/${id}`);
   await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
@@ -57,13 +63,12 @@ export async function updateTask(
 // Mark a task occurrence as complete; default to status 'done'
 export async function completeTask(hid: string, id: string) {
   await updateTask(hid, id, { status: "done" });
+  try {
+    await Promise.all([refreshNextUpWidget(hid), endTaskLiveActivity(hid, id)]);
+  } catch {}
 }
 
-export async function snoozeTask(
-  hid: string,
-  id: string,
-  minutes: number,
-) {
+export async function snoozeTask(hid: string, id: string, minutes: number) {
   const task = await getTask(hid, id);
   const addMin = (d: Date, m: number) => new Date(d.getTime() + m * 60 * 1000);
   let patch: any = {};
@@ -75,6 +80,9 @@ export async function snoozeTask(
     patch.dueAt = addMin(new Date(), minutes) as any;
   }
   await updateTask(hid, id, patch);
+  try {
+    await refreshNextUpWidget(hid);
+  } catch {}
 }
 
 export async function acceptTask(hid: string, id: string) {
@@ -86,6 +94,23 @@ export async function acceptTask(hid: string, id: string) {
     acceptedBy: arrayUnion(uid) as any,
     updatedAt: serverTimestamp(),
   });
+  try {
+    // Best-effort fetch of title for Live Activity and include a start timestamp
+    let title: string | undefined;
+    try {
+      const t = await getTask(hid, id);
+      if (t?.title) title = String(t.title);
+    } catch {}
+    await Promise.all([
+      refreshNextUpWidget(hid),
+      startTaskLiveActivity({
+        hid,
+        taskId: id,
+        title,
+        startedAt: new Date().toISOString(),
+      }),
+    ]);
+  } catch {}
 }
 
 export async function releaseTask(hid: string, id: string) {
@@ -97,11 +122,17 @@ export async function releaseTask(hid: string, id: string) {
     acceptedBy: arrayRemove(uid) as any,
     updatedAt: serverTimestamp(),
   });
+  try {
+    await Promise.all([
+      refreshNextUpWidget(hid),
+      cancelTaskLiveActivity(hid, id),
+    ]);
+  } catch {}
 }
 
 export async function fetchOverdueTasks(
   hid: string,
-  opts?: { priorityOrder?: "asc" | "desc" },
+  opts?: { priorityOrder?: "asc" | "desc" }
 ): Promise<Task[]> {
   const now = dayjs().toDate();
   const ref = collection(db, `households/${hid}/tasks`);
@@ -118,7 +149,7 @@ export async function fetchOverdueTasks(
 
 export async function fetchUpcomingTasks(
   hid: string,
-  opts?: { priorityOrder?: "asc" | "desc" },
+  opts?: { priorityOrder?: "asc" | "desc" }
 ): Promise<Task[]> {
   const start = dayjs().add(1, "day").startOf("day").toDate();
   const end = dayjs().add(7, "day").endOf("day").toDate();
@@ -147,12 +178,26 @@ export async function fetchTasksInRange(
   hid: string,
   start: Date,
   end: Date,
-  opts?: { priorityOrder?: "asc" | "desc" },
+  opts?: { priorityOrder?: "asc" | "desc" }
 ): Promise<Task[]> {
   const ref = collection(db, `households/${hid}/tasks`);
-  const statusFilter = where("status", "in", ["open", "in_progress", "blocked"]);
-  const q1Parts: any[] = [statusFilter, where("nextOccurrenceAt", ">=", start), where("nextOccurrenceAt", "<=", end), orderBy("nextOccurrenceAt", "asc")];
-  const q2Parts: any[] = [statusFilter, where("dueAt", ">=", start), where("dueAt", "<=", end), orderBy("dueAt", "asc")];
+  const statusFilter = where("status", "in", [
+    "open",
+    "in_progress",
+    "blocked",
+  ]);
+  const q1Parts: any[] = [
+    statusFilter,
+    where("nextOccurrenceAt", ">=", start),
+    where("nextOccurrenceAt", "<=", end),
+    orderBy("nextOccurrenceAt", "asc"),
+  ];
+  const q2Parts: any[] = [
+    statusFilter,
+    where("dueAt", ">=", start),
+    where("dueAt", "<=", end),
+    orderBy("dueAt", "asc"),
+  ];
   if (opts?.priorityOrder) {
     q1Parts.push(orderBy("priority", opts.priorityOrder));
     q2Parts.push(orderBy("priority", opts.priorityOrder));
@@ -165,7 +210,8 @@ export async function fetchTasksInRange(
   const add = (d: any) => {
     const id = d.id;
     const data = convert(d.data());
-    const eff: Date | null = (data as any).nextOccurrenceAt || (data as any).dueAt || null;
+    const eff: Date | null =
+      (data as any).nextOccurrenceAt || (data as any).dueAt || null;
     const existing = map.get(id);
     if (!existing) {
       map.set(id, { id, ...(data as any), __eff: eff });
@@ -183,9 +229,15 @@ export async function fetchTasksInRange(
     const ea = a.__eff?.getTime() ?? 0;
     const eb = b.__eff?.getTime() ?? 0;
     if (ea !== eb) return ea - eb;
-    const pa = typeof (a as any).priority === "number" ? (a as any).priority : 0;
-    const pb = typeof (b as any).priority === "number" ? (b as any).priority : 0;
-    return opts?.priorityOrder === "desc" ? pb - pa : opts?.priorityOrder === "asc" ? pa - pb : 0;
+    const pa =
+      typeof (a as any).priority === "number" ? (a as any).priority : 0;
+    const pb =
+      typeof (b as any).priority === "number" ? (b as any).priority : 0;
+    return opts?.priorityOrder === "desc"
+      ? pb - pa
+      : opts?.priorityOrder === "asc"
+        ? pa - pb
+        : 0;
   });
   return items.map(({ __eff, ...rest }) => rest as Task);
 }
@@ -202,25 +254,80 @@ function convert(raw: any): any {
     acceptedBy: Array.isArray(raw.acceptedBy) ? raw.acceptedBy : [],
     pausedUntil: toDate(raw.pausedUntil) ?? null,
     skipDates: Array.isArray(raw.skipDates) ? raw.skipDates : [],
-  exceptionShifts: typeof raw.exceptionShifts === "object" && raw.exceptionShifts ? raw.exceptionShifts : {},
+    exceptionShifts:
+      typeof raw.exceptionShifts === "object" && raw.exceptionShifts
+        ? raw.exceptionShifts
+        : {},
+    dependsOn: Array.isArray(raw.dependsOn) ? raw.dependsOn : [],
+    lastAutoShiftedAt: toDate(raw.lastAutoShiftedAt) ?? null,
+    lastAutoShiftedFrom: toDate(raw.lastAutoShiftedFrom) ?? null,
+    lastAutoShiftedTo: toDate(raw.lastAutoShiftedTo) ?? null,
+    lastAutoShiftReason: raw.lastAutoShiftReason ?? null,
   };
 }
 
 // Exceptions helpers (client-side minimal support)
-export async function addTaskSkipDate(hid: string, id: string, dateKey: string) {
+export async function addTaskSkipDate(
+  hid: string,
+  id: string,
+  dateKey: string
+) {
   const ref = doc(db, `households/${hid}/tasks/${id}`);
   const { arrayUnion } = await import("firebase/firestore");
-  await updateDoc(ref, { skipDates: arrayUnion(dateKey) as any, updatedAt: serverTimestamp() });
+  await updateDoc(ref, {
+    skipDates: arrayUnion(dateKey) as any,
+    updatedAt: serverTimestamp(),
+  });
 }
 
-export async function setTaskPausedUntil(hid: string, id: string, until: Date | null) {
+export async function setTaskPausedUntil(
+  hid: string,
+  id: string,
+  until: Date | null
+) {
   const ref = doc(db, `households/${hid}/tasks/${id}`);
-  await updateDoc(ref, { pausedUntil: until as any, updatedAt: serverTimestamp() });
+  await updateDoc(ref, {
+    pausedUntil: until as any,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Set a per-instance shift in minutes for the occurrence on a given day key (YYYY-MM-DD in household tz)
-export async function addTaskShiftDate(hid: string, id: string, dateKey: string, minutes: number) {
+export async function addTaskShiftDate(
+  hid: string,
+  id: string,
+  dateKey: string,
+  minutes: number
+) {
   const ref = doc(db, `households/${hid}/tasks/${id}`);
   const fieldPath = `exceptionShifts.${dateKey}` as any;
   await updateDoc(ref, { [fieldPath]: minutes } as any);
+}
+
+// Dependencies helpers
+export async function addDependency(hid: string, id: string, depId: string) {
+  if (id === depId) throw new Error("A task cannot depend on itself");
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  const { arrayUnion } = await import("firebase/firestore");
+  await updateDoc(ref, {
+    dependsOn: arrayUnion(depId) as any,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function removeDependency(hid: string, id: string, depId: string) {
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  const { arrayRemove } = await import("firebase/firestore");
+  await updateDoc(ref, {
+    dependsOn: arrayRemove(depId) as any,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function setDependencies(hid: string, id: string, deps: string[]) {
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  await updateDoc(ref, {
+    dependsOn: deps as any,
+    updatedAt: serverTimestamp(),
+  });
 }

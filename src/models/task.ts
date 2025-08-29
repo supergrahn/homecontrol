@@ -27,9 +27,19 @@ export interface Task {
   pausedUntil?: Date | null;
   skipDates?: string[];
   exceptionShifts?: Record<string, number>;
+  // Dependencies: this task can't start until these tasks are completed
+  dependsOn?: string[];
   approvalRequired?: boolean;
   rotationPool?: string[]; // memberIds or childIds (v1: memberIds)
+  rotationWeights?: Record<string, number>; // optional weights per uid
   rotationIndex?: number; // server-maintained
+  // Server-set metadata for auto-rescheduling
+  lastAutoShiftedAt?: Date | null;
+  lastAutoShiftedFrom?: Date | null;
+  lastAutoShiftedTo?: Date | null;
+  lastAutoShiftReason?: "past_due" | "unblocked_past" | string | null;
+  // Client-set flag to disable auto reschedule behavior
+  autoRescheduleDisabled?: boolean;
   createdBy: string;
   createdAt?: Date;
   updatedAt?: Date;

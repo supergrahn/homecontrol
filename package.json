@@ -5,6 +5,7 @@
   "main": "expo/AppEntry",
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --tunnel",
     "start:dev": "expo start --dev-client --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -19,10 +20,10 @@
     "fb:version": "firebase --version",
     "fb:login": "firebase login",
     "fb:whoami": "firebase login:list",
-    "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project $FIREBASE_PROJECT",
-    "deploy:functions": "firebase deploy --only functions --project $FIREBASE_PROJECT",
-    "deploy:rules": "firebase deploy --only firestore:rules,storage --project $FIREBASE_PROJECT",
-    "deploy:indexes": "firebase deploy --only firestore:indexes --project $FIREBASE_PROJECT",
+    "deploy": "dotenv -e .env -- sh -c 'firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project \"$FIREBASE_PROJECT\"'",
+    "deploy:functions": "dotenv -e .env -- sh -c 'firebase deploy --only functions --project \"$FIREBASE_PROJECT\"'",
+    "deploy:rules": "dotenv -e .env -- sh -c 'firebase deploy --only firestore:rules,storage --project \"$FIREBASE_PROJECT\"'",
+    "deploy:indexes": "dotenv -e .env -- sh -c 'firebase deploy --only firestore:indexes --project \"$FIREBASE_PROJECT\"'",
     "emulators": "firebase emulators:start --project demo-homecontrol --only functions,firestore,auth",
     "smoke:invites": "node scripts/smoke-invites.js",
     "smoke:invites:exec": "firebase emulators:exec --project demo-homecontrol --only functions,firestore,auth 'node scripts/smoke-invites.js'"
@@ -70,8 +71,10 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "dotenv-cli": "^7.4.2",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
+    "expo-build-properties": "^0.14.8",
     "expo-dev-client": "^5.2.4",
     "firebase-tools": "^13.7.2",
     "prettier": "^3.3.3",

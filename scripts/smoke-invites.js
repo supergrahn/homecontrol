@@ -12,10 +12,14 @@ const PORTS = {
 };
 
 // Point admin SDK to emulator
-process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || `${HOST}:${PORTS.firestore}`;
-process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || `${HOST}:${PORTS.auth}`;
+process.env.FIRESTORE_EMULATOR_HOST =
+  process.env.FIRESTORE_EMULATOR_HOST || `${HOST}:${PORTS.firestore}`;
+process.env.FIREBASE_AUTH_EMULATOR_HOST =
+  process.env.FIREBASE_AUTH_EMULATOR_HOST || `${HOST}:${PORTS.auth}`;
 
 const BASE_FN = `http://${HOST}:${PORTS.functions}/${PROJECT_ID}/${REGION}`;
+// Node Buffer for base64 encoding (lint fix)
+const { Buffer } = require("node:buffer");
 
 // Lazy load firebase-admin (installed in root dev deps)
 let admin;
@@ -25,7 +29,9 @@ try {
   try {
     admin = require("../functions/node_modules/firebase-admin");
   } catch (e2) {
-    console.error("Missing firebase-admin in root or functions. Run npm --prefix functions i");
+    console.error(
+      "Missing firebase-admin in root or functions. Run npm --prefix functions i"
+    );
     process.exit(1);
   }
 }
@@ -68,14 +74,18 @@ async function http(method, url, body, headers = {}) {
   return json;
 }
 
-async function seedHousehold({ hid = "h1", createdBy = "admin1", timezone = "UTC" } = {}) {
+async function seedHousehold({
+  hid = "h1",
+  createdBy = "admin1",
+  timezone = "UTC",
+} = {}) {
   await db.doc(`households/${hid}`).set(
     {
       createdBy,
       name: "Smoke Test Household",
       timezone,
     },
-    { merge: true },
+    { merge: true }
   );
   // Seed admin membership explicitly (bypass crashing trigger during smoke)
   await db.doc(`households/${hid}/members/${createdBy}`).set(
@@ -84,13 +94,13 @@ async function seedHousehold({ hid = "h1", createdBy = "admin1", timezone = "UTC
       role: "admin",
       joinedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
-    { merge: true },
+    { merge: true }
   );
   await db.doc(`users/${createdBy}`).set(
     {
       householdIds: admin.firestore.FieldValue.arrayUnion(hid),
     },
-    { merge: true },
+    { merge: true }
   );
   return hid;
 }
@@ -103,8 +113,17 @@ async function getDoc(path) {
 
 // Firebase client SDK for auth + functions
 const { initializeApp } = require("firebase/app");
-const { getAuth, connectAuthEmulator, signInWithCustomToken, signOut } = require("firebase/auth");
-const { getFunctions, connectFunctionsEmulator, httpsCallable } = require("firebase/functions");
+const {
+  getAuth,
+  connectAuthEmulator,
+  signInWithCustomToken,
+  signOut,
+} = require("firebase/auth");
+const {
+  getFunctions,
+  connectFunctionsEmulator,
+  httpsCallable,
+} = require("firebase/functions");
 
 function initClient() {
   const app = initializeApp({
@@ -147,7 +166,7 @@ async function main() {
   let ready = false;
   for (let i = 0; i < 20 && !ready; i++) {
     try {
-      await http("GET", `${BASE_FS}/__health__/probe`);
+      await http("GET", `${BASE_FN}/__health__/probe`);
       ready = true;
       break;
     } catch (e) {
@@ -165,13 +184,14 @@ async function main() {
     { householdId: hid, email: "invitee@example.com", role: "adult" },
     "admin1",
     auth,
-    funcs,
+    funcs
   );
   console.log("createInvite ->", createRes);
 
   const inviteId = createRes.inviteId;
   const token = createRes.token;
-  if (!inviteId || !token) throw new Error("Missing inviteId/token from createInvite");
+  if (!inviteId || !token)
+    throw new Error("Missing inviteId/token from createInvite");
 
   // 2) Invitee accepts
   const acceptRes = await callCallable(
@@ -179,7 +199,7 @@ async function main() {
     { householdId: hid, inviteId, token },
     "user2",
     auth,
-    funcs,
+    funcs
   );
   console.log("acceptInvite ->", acceptRes);
 

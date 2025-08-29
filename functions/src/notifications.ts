@@ -10,13 +10,13 @@ dayjs.extend(timezone);
 const expo = new Expo();
 
 export type QuietHours =
-  | { start: string; end: string; tz?: string }
+  | { start: string; end: string; tz?: string; mode?: "hard" | "soft" }
   | undefined;
 
 export function isWithinQuietHours(
   now: Date,
   quiet: QuietHours,
-  tzFallback: string,
+  tzFallback: string
 ): boolean {
   if (!quiet) return false;
   const tz = quiet.tz || tzFallback || "UTC";
@@ -38,7 +38,7 @@ export function isWithinQuietHours(
 export function nextAllowedTime(
   now: Date,
   quiet: QuietHours,
-  tzFallback: string,
+  tzFallback: string
 ): Date {
   if (!quiet) return now;
   const tz = quiet.tz || tzFallback || "UTC";
@@ -73,6 +73,8 @@ type PushMessage = {
   body: string;
   data?: Record<string, any>;
   categoryId?: string;
+  silent?: boolean; // deliver without sound/alert tone; client should define a silent channel
+  androidChannelId?: string; // optional explicit channel id
 };
 
 export async function sendExpoPush(messages: PushMessage[]): Promise<void> {
@@ -86,6 +88,9 @@ export async function sendExpoPush(messages: PushMessage[]): Promise<void> {
       body: msg.body,
       data: msg.data,
       categoryId: msg.categoryId,
+      sound: msg.silent ? null : undefined,
+      // For Android, use a low-importance channel for silent delivery if provided
+      channelId: msg.androidChannelId,
     }));
     chunks.push(...expo.chunkPushNotifications(payloads));
   }
@@ -125,18 +130,15 @@ export async function enqueueExpoPush(options: {
     dedupTo.push(tok);
     if (Array.isArray(uids)) dedupUids.push(uids[i]);
   });
-  const ref = admin
-    .firestore()
-    .collection(`households/${hid}/pushQueue`)
-    .doc();
+  const ref = admin.firestore().collection(`households/${hid}/pushQueue`).doc();
   await ref.set({
-  hid,
+    hid,
     to: dedupTo,
     uids: Array.isArray(uids) ? dedupUids : [],
     title,
     body,
     data: data || null,
-  categoryId: categoryId || null,
+    categoryId: categoryId || null,
     scheduledAt: admin.firestore.Timestamp.fromDate(scheduledAt),
     createdAt: serverTimestamp(),
     attempts: 0,
@@ -144,8 +146,8 @@ export async function enqueueExpoPush(options: {
 }
 
 // Run every 5 minutes to deliver queued push notifications
-export const processPushQueue = require("firebase-functions").pubsub
-  .schedule("*/5 * * * *")
+export const processPushQueue = require("firebase-functions")
+  .pubsub.schedule("*/5 * * * *")
   .timeZone("Etc/UTC")
   .onRun(async () => {
     const now = new Date();
@@ -193,7 +195,8 @@ export const processPushQueue = require("firebase-functions").pubsub
           tickets.forEach((t, i) => {
             if (t.status === "error") {
               const token = (arr[i] as any)?.to as string;
-              const code = (t as any).details?.error || (t as any).message || "unknown";
+              const code =
+                (t as any).details?.error || (t as any).message || "unknown";
               // Treat rate limits and unknown as transient
               if (
                 code === "MessageRateExceeded" ||
@@ -209,9 +212,16 @@ export const processPushQueue = require("firebase-functions").pubsub
                 (async () => {
                   try {
                     if (uid) {
-                      await db.collection("users").doc(uid).set({ pushToken: null }, { merge: true });
+                      await db
+                        .collection("users")
+                        .doc(uid)
+                        .set({ pushToken: null }, { merge: true });
                     } else {
-                      const q = await db.collection("users").where("pushToken", "==", token).limit(5).get();
+                      const q = await db
+                        .collection("users")
+                        .where("pushToken", "==", token)
+                        .limit(5)
+                        .get();
                       for (const u of q.docs) {
                         await u.ref.set({ pushToken: null }, { merge: true });
                       }
@@ -248,11 +258,17 @@ export const processPushQueue = require("firebase-functions").pubsub
             const hid: string | undefined = (x as any)?.hid;
             const dlq = hid
               ? db.collection(`households/${hid}/pushDLQ`).doc(d.id)
-              : db.collection("system").doc("pushDLQ").collection("items").doc(d.id);
+              : db
+                  .collection("system")
+                  .doc("pushDLQ")
+                  .collection("items")
+                  .doc(d.id);
             await dlq.set({
               ...x,
               at: serverTimestamp(),
-              reason: transientError ? "transient_max_attempts" : "max_attempts",
+              reason: transientError
+                ? "transient_max_attempts"
+                : "max_attempts",
             });
           } catch (e) {
             console.warn("[pushQueue] DLQ write failed", e);
@@ -264,13 +280,18 @@ export const processPushQueue = require("firebase-functions").pubsub
     // Log basic run metrics
     try {
       const runId = new Date().toISOString().replace(/[:.]/g, "-");
-      await db.collection("system").doc("pushRuns").collection("runs").doc(runId).set({
-        at: serverTimestamp(),
-        checked: snap.size,
-        sent,
-        dropped,
-        retried: retriedCount,
-      });
+      await db
+        .collection("system")
+        .doc("pushRuns")
+        .collection("runs")
+        .doc(runId)
+        .set({
+          at: serverTimestamp(),
+          checked: snap.size,
+          sent,
+          dropped,
+          retried: retriedCount,
+        });
     } catch (e) {
       console.warn("[pushQueue] metrics log failed", e);
     }

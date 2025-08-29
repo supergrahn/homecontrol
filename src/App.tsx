@@ -6,7 +6,11 @@ import NavigationProvider, {
   navRef,
 } from "./firebase/providers/NavigationProvider";
 import DevToolbar from "./components/DevToolbar";
-import { HouseholdProvider } from "./firebase/providers/HouseholdProvider";
+import LiveActivityOverlay from "./components/LiveActivityOverlay";
+import {
+  HouseholdProvider,
+  useHousehold,
+} from "./firebase/providers/HouseholdProvider";
 import { ToastProvider, useToast } from "./components/ToastProvider";
 import DeepLinkHandler from "./components/DeepLinkHandler";
 import {
@@ -16,22 +20,57 @@ import {
   configureNotificationCategories,
 } from "./services/push";
 import * as Notifications from "expo-notifications";
-import { EventEmitter } from "expo-modules-core";
+import { appEvents } from "./events";
 import { useTranslation } from "react-i18next";
+import { maybeShowMorningBrief } from "./services/morningBrief";
+import { flushOutbox } from "./services/outbox";
+import { refreshNextUpWidget } from "./services/widgets";
 // Minimal event bus; type as any to avoid strict typing for quick integration
-export const appEvents: any = new EventEmitter();
+// appEvents is provided by src/events
+
+// module-scoped interval handle for connectivity watcher
+let outboxNetInterval: any | undefined;
 
 export default function App() {
   React.useEffect(() => {
     (async () => {
       try {
-  await configureNotificationCategories();
+        await configureNotificationCategories();
         const token = await registerForPushNotificationsAsync();
         if (token) await savePushToken(token);
+        // refresh widget payload when push arrives while app is in foreground
+        const { registerNotificationReceivedHandler } = await import(
+          "./services/push"
+        );
+        registerNotificationReceivedHandler();
+        // attempt to flush any queued offline actions shortly after launch
+        setTimeout(() => {
+          flushOutbox().catch(() => {});
+        }, 1000);
+        // simple connectivity watcher: ping and flush when back online
+        let lastOnline = true;
+        outboxNetInterval = setInterval(async () => {
+          try {
+            // HEAD to a lightweight endpoint; fall back to navigator.onLine
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 2000);
+            await fetch("https://www.google.com/generate_204", {
+              method: "GET",
+              signal: ctrl.signal,
+            });
+            clearTimeout(t);
+            if (!lastOnline) {
+              lastOnline = true;
+              flushOutbox().catch(() => {});
+            }
+          } catch {
+            lastOnline = false;
+          }
+        }, 5000);
       } catch {}
     })();
-  // Handle escalation tap navigation
-  registerNotificationResponseHandler();
+    // Handle escalation tap navigation
+    registerNotificationResponseHandler();
     const sub = Notifications.addNotificationResponseReceivedListener(
       (resp) => {
         const data = resp.notification.request.content.data as any;
@@ -45,10 +84,16 @@ export default function App() {
             }
           }
         } catch {}
-      },
+      }
     );
     return () => {
       sub.remove();
+      try {
+        if (outboxNetInterval) {
+          clearInterval(outboxNetInterval);
+          outboxNetInterval = undefined;
+        }
+      } catch {}
     };
   }, []);
   return (
@@ -59,6 +104,8 @@ export default function App() {
             <NavigationProvider />
             <GlobalToasts />
             <DeepLinkHandler />
+            <LiveActivityOverlay />
+            <HouseholdEffects />
             {__DEV__ ? <DevToolbar /> : null}
           </ToastProvider>
         </HouseholdProvider>
@@ -73,7 +120,9 @@ function GlobalToasts() {
   React.useEffect(() => {
     const sub = appEvents.addListener("toast", (payload: any) => {
       try {
-        const msg = payload?.key ? (t(payload.key) as string) : String(payload?.message || "");
+        const msg = payload?.key
+          ? (t(payload.key) as string)
+          : String(payload?.message || "");
         const type = (payload?.type as any) || "success";
         if (msg) toast.show(msg, { type });
       } catch {}
@@ -82,5 +131,25 @@ function GlobalToasts() {
       sub.remove();
     };
   }, [toast, t]);
+  return null;
+}
+
+function HouseholdEffects() {
+  const { householdId } = useHousehold() as any;
+  React.useEffect(() => {
+    (async () => {
+      try {
+        if (householdId) await maybeShowMorningBrief(householdId);
+        // also try flushing outbox when household context is ready
+        await flushOutbox();
+        // seed/refresh Next up widget payload
+        if (householdId) {
+          try {
+            await refreshNextUpWidget(householdId);
+          } catch {}
+        }
+      } catch {}
+    })();
+  }, [householdId]);
   return null;
 }

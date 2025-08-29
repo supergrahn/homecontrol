@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, Button, Alert } from "react-native";
+import { View, Text, Button, Alert, Platform } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { BarCodeScanner } from "expo-barcode-scanner";
 import { parseInviteFromUrl } from "../services/inviteLinks";
 import { acceptInvite } from "../services/invites";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
@@ -9,13 +9,33 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 export default function ScanInviteScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { selectHousehold } = useHousehold();
-  const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
+  const [hasPermission, setHasPermission] = React.useState<boolean | null>(
+    null
+  );
   const [scanned, setScanned] = React.useState(false);
+  const [Scanner, setScanner] = React.useState<any | null>(null);
+  const [scannerError, setScannerError] = React.useState<string | null>(null);
+  const [pasting, setPasting] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
-      setHasPermission(status === "granted");
+      try {
+        const mod = await import("expo-barcode-scanner");
+        const BarCodeScanner = (mod as any)?.BarCodeScanner;
+        if (!BarCodeScanner) throw new Error("Scanner module unavailable");
+        setScanner(() => BarCodeScanner);
+        const { status } = await BarCodeScanner.requestPermissionsAsync();
+        setHasPermission(status === "granted");
+      } catch (e) {
+        setScannerError(
+          Platform.OS === "ios"
+            ? (t("scannerUnavailableUseDevClient") as string) ||
+                "QR scanner isn’t available in Expo Go on iOS. Use a development build to scan invites."
+            : (t("scannerUnavailable") as string) ||
+                "QR scanner module isn’t available on this build."
+        );
+        setHasPermission(false);
+      }
     })();
   }, []);
 
@@ -38,6 +58,29 @@ export default function ScanInviteScreen({ navigation }: any) {
     }
   };
 
+  const handlePasteInvite = async () => {
+    try {
+      setPasting(true);
+      const data = await Clipboard.getStringAsync();
+      if (!data) {
+        Alert.alert(t("noClipboardData") || "Clipboard is empty.");
+        return;
+      }
+      const parsed = parseInviteFromUrl(data);
+      if (!parsed) {
+        Alert.alert(t("scannedInvalidInvite") || "Not a valid invite link");
+        return;
+      }
+      await acceptInvite(parsed.householdId, parsed.inviteId, parsed.token);
+      await selectHousehold(parsed.householdId);
+      navigation.replace("MainTabs");
+    } catch (e) {
+      Alert.alert(t("actionFailed") || "Something went wrong.", String(e));
+    } finally {
+      setPasting(false);
+    }
+  };
+
   if (hasPermission === null) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -46,17 +89,64 @@ export default function ScanInviteScreen({ navigation }: any) {
     );
   }
 
+  if (!Scanner) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <Text style={{ textAlign: "center", marginBottom: 12 }}>
+          {scannerError ||
+            (t("scannerUnavailableUseDevClient") as string) ||
+            "QR scanner isn’t available. Use a development build to scan invites, or paste an invite link instead."}
+        </Text>
+        <View style={{ gap: 12, width: "100%" }}>
+          <Button
+            title={
+              pasting
+                ? t("pasting") || "Pasting…"
+                : t("pasteInviteLink") || "Paste invite link"
+            }
+            onPress={handlePasteInvite}
+            disabled={pasting}
+          />
+          <Button
+            title={t("goBack") || "Go back"}
+            onPress={() => navigation.goBack?.()}
+          />
+        </View>
+      </View>
+    );
+  }
+
   if (hasPermission === false) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
         <Text style={{ textAlign: "center", marginBottom: 12 }}>
-          {t("cameraPermissionDenied") || "Camera permission denied. Enable camera in settings."}
+          {t("cameraPermissionDenied") ||
+            "Camera permission denied. Enable camera in settings."}
         </Text>
         <Button
           title={t("requestPermission") || "Request permission"}
           onPress={async () => {
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
-            setHasPermission(status === "granted");
+            try {
+              const mod = await import("expo-barcode-scanner");
+              const { status } = await (
+                mod as any
+              ).BarCodeScanner.requestPermissionsAsync();
+              setHasPermission(status === "granted");
+            } catch {}
           }}
         />
       </View>
@@ -65,13 +155,13 @@ export default function ScanInviteScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1 }}>
-      <BarCodeScanner
-        style={{ flex: 1 }}
-        onBarCodeScanned={handleScan as any}
-      />
+      <Scanner style={{ flex: 1 }} onBarCodeScanned={handleScan as any} />
       {scanned ? (
         <View style={{ position: "absolute", bottom: 32, left: 16, right: 16 }}>
-          <Button title={t("scanInvite") || "Scan invite"} onPress={() => setScanned(false)} />
+          <Button
+            title={t("scanInvite") || "Scan invite"}
+            onPress={() => setScanned(false)}
+          />
         </View>
       ) : null}
     </View>

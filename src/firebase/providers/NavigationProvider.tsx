@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -24,6 +25,10 @@ import ShowHouseholdQRScreen from "../../screens/ShowHouseholdQRScreen";
 import TemplatePickerScreen from "../../screens/TemplatePickerScreen";
 import ManageTemplatesScreen from "../../screens/ManageTemplatesScreen";
 import CalendarScreen from "../../screens/CalendarScreen";
+import HeatmapScreen from "../../screens/HeatmapScreen";
+import WidgetPreviewScreen from "../../screens/WidgetPreviewScreen";
+import { appEvents } from "../../events";
+import { getOutboxCount } from "../../services/outbox";
 
 export type RootStackParamList = {
   SignIn: undefined;
@@ -35,11 +40,15 @@ export type RootStackParamList = {
   AddTask: { preset?: string } | undefined;
   TaskDetail: { id: string };
   Templates: undefined;
-  TemplatePicker: { onPick?: (name: string, items: string[]) => void } | undefined;
+  TemplatePicker:
+    | { onPick?: (name: string, items: string[]) => void }
+    | undefined;
   ManageTemplates: undefined;
   Settings: undefined;
   Activity: undefined;
   Calendar: undefined;
+  Heatmap: undefined;
+  WidgetPreview: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,7 +56,50 @@ const Tab = createBottomTabNavigator();
 
 export const navRef = createNavigationContainerRef<RootStackParamList>();
 
+const linking: any = {
+  prefixes: ["homecontrol://"] as string[],
+  config: {
+    screens: {
+      MainTabs: {
+        screens: {
+          Today: "today",
+          Activity: "activity",
+          Members: "members",
+          Kids: "kids",
+          Search: "search",
+        },
+      },
+      TaskDetail: "task/:id",
+      Settings: "settings",
+      Heatmap: "heatmap",
+      Calendar: "calendar",
+      QuickActions: "quick",
+      WidgetPreview: "widget/preview",
+    },
+  },
+} as const;
+
 function MainTabs() {
+  const [outboxCount, setOutboxCount] = React.useState<number>(0);
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const n = await getOutboxCount();
+        if (active) setOutboxCount(n);
+      } catch {}
+    })();
+    const sub = appEvents.addListener("outbox:count", (e: any) => {
+      try {
+        const n = Number((e && e.count) || 0);
+        setOutboxCount(n);
+      } catch {}
+    });
+    return () => {
+      active = false;
+      sub.remove();
+    };
+  }, []);
   return (
     <Tab.Navigator
       screenOptions={({ route, navigation }) => ({
@@ -63,13 +115,33 @@ function MainTabs() {
           />
         ),
         headerRight: () => (
-          <Ionicons
-            name="settings-outline"
-            size={22}
-            color="#333"
-            onPress={() => navigation.navigate("Settings" as never)}
-            style={{ marginRight: 12 }}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {__DEV__ && route.name === "Today" && (
+              <Ionicons
+                name="apps-outline"
+                size={22}
+                color="#333"
+                onPress={() => navigation.navigate("WidgetPreview" as never)}
+                style={{ marginRight: 16 }}
+              />
+            )}
+            {route.name === "Members" && (
+              <Ionicons
+                name="grid-outline"
+                size={22}
+                color="#333"
+                onPress={() => navigation.navigate("Heatmap" as never)}
+                style={{ marginRight: 16 }}
+              />
+            )}
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color="#333"
+              onPress={() => navigation.navigate("Settings" as never)}
+              style={{ marginRight: 12 }}
+            />
+          </View>
         ),
         tabBarShowLabel: false,
         tabBarIcon: ({ color, size, focused }) => {
@@ -83,7 +155,7 @@ function MainTabs() {
                 ? focused
                   ? "notifications"
                   : "notifications-outline"
-                  : name === "Members"
+                : name === "Members"
                   ? focused
                     ? "people"
                     : "people-outline"
@@ -91,16 +163,18 @@ function MainTabs() {
                     ? focused
                       ? "happy"
                       : "happy-outline"
-                  : name === "Search"
-                    ? focused
-                      ? "search"
-                      : "search-outline"
-                    : name === "Add"
-                      ? "add-circle"
-                      : "ellipse-outline";
+                    : name === "Search"
+                      ? focused
+                        ? "search"
+                        : "search-outline"
+                      : name === "Add"
+                        ? "add-circle"
+                        : "ellipse-outline";
           const iconSize = name === "Add" ? 36 : size;
           const iconColor = name === "Add" ? "#0a84ff" : color;
-          return <Ionicons name={icon as any} size={iconSize} color={iconColor} />;
+          return (
+            <Ionicons name={icon as any} size={iconSize} color={iconColor} />
+          );
         },
       })}
     >
@@ -116,8 +190,19 @@ function MainTabs() {
           },
         })}
       />
-  <Tab.Screen name="Members" component={MembersScreen} />
-  <Tab.Screen name="Kids" component={KidsScreen} />
+      <Tab.Screen
+        name="Members"
+        component={MembersScreen}
+        options={{
+          tabBarBadge:
+            outboxCount > 0
+              ? outboxCount > 9
+                ? "9+"
+                : String(outboxCount)
+              : undefined,
+        }}
+      />
+      <Tab.Screen name="Kids" component={KidsScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
     </Tab.Navigator>
   );
@@ -125,7 +210,7 @@ function MainTabs() {
 
 export default function NavigationProvider() {
   return (
-    <NavigationContainer theme={DefaultTheme} ref={navRef}>
+    <NavigationContainer theme={DefaultTheme} ref={navRef} linking={linking}>
       <Stack.Navigator initialRouteName="SignIn">
         <Stack.Screen
           name="SignIn"
@@ -196,6 +281,16 @@ export default function NavigationProvider() {
           name="Calendar"
           component={CalendarScreen}
           options={{ title: "Calendar" }}
+        />
+        <Stack.Screen
+          name="Heatmap"
+          component={HeatmapScreen}
+          options={{ title: "Workload heatmap" }}
+        />
+        <Stack.Screen
+          name="WidgetPreview"
+          component={WidgetPreviewScreen}
+          options={{ title: "Widget Preview" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

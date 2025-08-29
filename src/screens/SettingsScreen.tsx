@@ -35,9 +35,17 @@ import {
 } from "../services/push";
 import { auth, db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  createCalendarShare,
+  revokeCalendarShare,
+  listCalendarShares,
+  type CalendarShare,
+} from "../services/calendar";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { flushOutbox } from "../services/outbox";
+// AsyncStorage imported above; avoid duplicate import
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -51,6 +59,7 @@ export default function SettingsScreen() {
   const [qhStart, setQhStart] = React.useState("21:00");
   const [qhEnd, setQhEnd] = React.useState("07:00");
   const [qhTz, setQhTz] = React.useState<string | undefined>(undefined);
+  const [qhMode, setQhMode] = React.useState<"hard" | "soft">("hard");
   const [notifEnabled, setNotifEnabled] = React.useState<boolean>(true);
   const toast = useToast();
   const currentHousehold = households.find((h) => h.id === householdId);
@@ -59,6 +68,14 @@ export default function SettingsScreen() {
   const [hhHour, setHhHour] = React.useState<string>("7");
   const [escalation, setEscalation] = React.useState<boolean>(false);
   const [members, setMembers] = React.useState<Member[]>([]);
+  const [digestOverdue, setDigestOverdue] = React.useState(true);
+  const [digestUpcoming, setDigestUpcoming] = React.useState(true);
+  const [digestWins, setDigestWins] = React.useState(false);
+  const [digestTime, setDigestTime] = React.useState("07:00");
+  const [shares, setShares] = React.useState<CalendarShare[]>([]);
+  const [loadingShares, setLoadingShares] = React.useState(false);
+  const [outboxCount, setOutboxCount] = React.useState<number>(0);
+  const [nightBefore, setNightBefore] = React.useState<boolean>(false);
   React.useEffect(() => {
     (async () => {
       try {
@@ -71,23 +88,60 @@ export default function SettingsScreen() {
           setInvites([]);
         }
       } catch {}
-      // Load quiet hours
+      // Load outbox count
+      try {
+        const s = await AsyncStorage.getItem("outbox.v1");
+        const arr = s ? JSON.parse(s) : [];
+        setOutboxCount(Array.isArray(arr) ? arr.length : 0);
+      } catch {}
+      // Load quiet hours & night-before
       try {
         const s = await getUserSettings();
         if (s.quietHours?.start) setQhStart(s.quietHours.start);
         if (s.quietHours?.end) setQhEnd(s.quietHours.end);
         if (s.quietHours?.tz) setQhTz(s.quietHours.tz);
+        if (s.quietHours?.mode === "soft") setQhMode("soft");
         if (typeof s.notificationsEnabled === "boolean")
           setNotifEnabled(s.notificationsEnabled);
+        if (typeof s.nightBeforeReminder === "boolean")
+          setNightBefore(!!s.nightBeforeReminder);
       } catch {}
       // Prefill household settings from Firestore
+      // Load digest prefs (per-user per-household)
       try {
         if (householdId) {
-          const snap = await (await import("firebase/firestore")).getDoc(
+          const fn = httpsCallable(getFunctions(), "getDigestPreferences");
+          const res: any = await fn({ householdId });
+          const p = res?.data?.prefs || {};
+          const sec = p.sections || {};
+          setDigestOverdue(sec.overdue !== false);
+          setDigestUpcoming(sec.upcoming !== false);
+          setDigestWins(sec.wins === true);
+          const sch = p.schedule || {};
+          if (typeof sch.time === "string") setDigestTime(sch.time);
+        }
+      } catch {}
+      // Load calendar shares
+      try {
+        if (householdId) {
+          setLoadingShares(true);
+          setShares(await listCalendarShares(householdId));
+        } else {
+          setShares([]);
+        }
+      } catch {
+      } finally {
+        setLoadingShares(false);
+      }
+      try {
+        if (householdId) {
+          const snap = await (
+            await import("firebase/firestore")
+          ).getDoc(
             (await import("firebase/firestore")).doc(
               (await import("../firebase")).db,
-              `households/${householdId}`,
-            ),
+              `households/${householdId}`
+            )
           );
           const data = snap.data() as any;
           if (data?.timezone) setHhTz(String(data.timezone));
@@ -114,12 +168,75 @@ export default function SettingsScreen() {
           setMembers(await listMembers(householdId));
         } catch {}
       },
-      () => {},
+      () => {}
     );
     return () => unsub();
   }, [householdId]);
   return (
     <View style={{ flex: 1, padding: 16 }}>
+      {/* Insights */}
+      <View style={{ marginTop: 8, paddingVertical: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          {t("insights") || "Insights"}
+        </Text>
+        <Button
+          title={(t("workloadHeatmap") as string) || "Workload heatmap"}
+          onPress={() => navigation.navigate("Heatmap" as never)}
+        />
+      </View>
+      {/* Outbox */}
+      <View style={{ marginTop: 16, paddingVertical: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          {t("syncPendingActions") || "Sync pending actions"}
+        </Text>
+        <Text style={{ color: "#666", marginBottom: 8 }}>
+          {t("pendingCount") || "Pending"}: {outboxCount}
+        </Text>
+        <Button
+          title={(t("retrySync") as string) || "Retry sync"}
+          onPress={async () => {
+            try {
+              await flushOutbox();
+            } finally {
+              try {
+                const s = await AsyncStorage.getItem("outbox.v1");
+                const arr = s ? JSON.parse(s) : [];
+                setOutboxCount(Array.isArray(arr) ? arr.length : 0);
+              } catch {}
+            }
+          }}
+        />
+      </View>
+      {/* Night-before reminder */}
+      <View style={{ marginTop: 16, paddingVertical: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          {t("nightBefore") || "Night-before reminder"}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ flex: 1 }}>
+            {t("nightBeforeHint") || "Send a preview of tomorrow around 20:00."}
+          </Text>
+          <Switch
+            value={nightBefore}
+            onValueChange={async (v) => {
+              setNightBefore(v);
+              try {
+                await updateUserSettings({ nightBeforeReminder: v });
+              } catch {}
+            }}
+          />
+        </View>
+      </View>
+      {/* Widgets dev preview */}
+      <View style={{ marginTop: 16, paddingVertical: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+          Widget Preview
+        </Text>
+        <Button
+          title="Open preview"
+          onPress={() => navigation.navigate("WidgetPreview" as never)}
+        />
+      </View>
       <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
         {t("selectHousehold")}
       </Text>
@@ -163,7 +280,7 @@ export default function SettingsScreen() {
                           }
                         },
                       },
-                    ],
+                    ]
                   );
                 }}
               />
@@ -190,7 +307,7 @@ export default function SettingsScreen() {
                           }
                         },
                       },
-                    ],
+                    ]
                   );
                 }}
               />
@@ -223,14 +340,41 @@ export default function SettingsScreen() {
                   if (link) {
                     await Share.share({ message: link });
                   } else {
-                    Alert.alert(t("inviteLinkUnavailable") || "Invite link unavailable");
+                    Alert.alert(
+                      t("inviteLinkUnavailable") || "Invite link unavailable"
+                    );
                   }
                 } catch (e: any) {
                   const code = String(e?.code || e?.message || "");
                   const msg = code.includes("resource-exhausted")
-                    ? (t("tooManyInvites") as string) || "Too many invites; try again later"
+                    ? (t("tooManyInvites") as string) ||
+                      "Too many invites; try again later"
                     : (t("actionFailed") as string) || "Something went wrong.";
                   Alert.alert(msg);
+                }
+              }}
+            />
+            <Button
+              title={t("shareCalendar") || "Share calendar (ICS)"}
+              onPress={async () => {
+                try {
+                  if (!householdId) return;
+                  const { url } = await createCalendarShare(householdId);
+                  await Share.share({ message: url });
+                } catch (e) {
+                  Alert.alert("Error", String(e));
+                }
+              }}
+            />
+            <Button
+              title={t("revokeCalendarShare") || "Revoke calendar shares"}
+              onPress={async () => {
+                try {
+                  if (!householdId) return;
+                  setLoadingShares(true);
+                  setShares(await listCalendarShares(householdId));
+                } finally {
+                  setLoadingShares(false);
                 }
               }}
             />
@@ -251,7 +395,9 @@ export default function SettingsScreen() {
                     `@hc:filters:${householdId}:overdue`,
                     `@hc:filters:${householdId}:upcoming`,
                   ]);
-                  toast.show((t("filtersReset") as string) || "Filters reset", { type: "success" });
+                  toast.show((t("filtersReset") as string) || "Filters reset", {
+                    type: "success",
+                  });
                 } catch (e) {
                   console.error(e);
                   toast.show(t("actionFailed"), { type: "error" });
@@ -259,6 +405,93 @@ export default function SettingsScreen() {
               }}
             />
           </View>
+          {/* Existing calendar shares */}
+          {shares.length > 0 ? (
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+                Calendar shares
+              </Text>
+              {shares.map((s) => {
+                const created = (s.createdAt as any)?.toDate
+                  ? (s.createdAt as any).toDate()
+                  : s.createdAt;
+                const revoked = (s.revokedAt as any)?.toDate
+                  ? (s.revokedAt as any).toDate()
+                  : s.revokedAt;
+                return (
+                  <View
+                    key={s.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingVertical: 6,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#eee",
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={{ fontSize: 12, color: "#666" }}>
+                        {String(s.id).slice(0, 8)}…
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: s.active ? "#2a7" : "#b00020",
+                        }}
+                      >
+                        {s.active ? "Active" : "Revoked"}
+                        {created
+                          ? ` · created ${new Date(created).toLocaleString()}`
+                          : ""}
+                        {revoked
+                          ? ` · revoked ${new Date(revoked).toLocaleString()}`
+                          : ""}
+                      </Text>
+                    </View>
+                    {s.active ? (
+                      <Button
+                        title={t("revoke") || "Revoke"}
+                        color="#b00020"
+                        onPress={async () => {
+                          if (!householdId) return;
+                          Alert.alert(
+                            t("confirm") || "Confirm",
+                            (t("revokeCalendarConfirm") as string) ||
+                              "Revoke this calendar share?",
+                            [
+                              { text: t("cancel"), style: "cancel" },
+                              {
+                                text: t("revoke") || "Revoke",
+                                style: "destructive",
+                                onPress: async () => {
+                                  try {
+                                    await revokeCalendarShare(
+                                      householdId,
+                                      s.id
+                                    );
+                                    setShares(
+                                      await listCalendarShares(householdId)
+                                    );
+                                  } catch (e) {
+                                    Alert.alert("Error", String(e));
+                                  }
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : loadingShares ? (
+            <Text style={{ color: "#666", marginTop: 4 }}>
+              Loading calendar shares…
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -274,13 +507,15 @@ export default function SettingsScreen() {
               onPress={() => navigation.navigate("ManageTemplates")}
             />
             <Button
-              title={(t("insertFromTemplate") as string) || "Insert from template"}
+              title={
+                (t("insertFromTemplate") as string) || "Insert from template"
+              }
               onPress={() => navigation.navigate("TemplatePicker")}
             />
           </View>
         </View>
       ) : null}
-      
+
       <View style={{ height: 16 }} />
       <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
         {t("createHousehold")}
@@ -339,12 +574,19 @@ export default function SettingsScreen() {
               if (!householdId) return;
               const fn = httpsCallable(getFunctions(), "runDigestDryRun");
               const res: any = await fn({ householdId });
-              const counts = res?.data?.summary?.counts || { today: 0, overdue: 0 };
+              const counts = res?.data?.summary?.counts || {
+                today: 0,
+                overdue: 0,
+              };
               await Notifications.scheduleNotificationAsync({
                 content: {
                   title: "Daily summary (dry-run)",
                   body: `Today ${counts.today} · Overdue ${counts.overdue}`,
-                  data: { type: "digest.daily.dryrun", hid: householdId, counts },
+                  data: {
+                    type: "digest.daily.dryrun",
+                    hid: householdId,
+                    counts,
+                  },
                 },
                 trigger: null,
               });
@@ -354,6 +596,82 @@ export default function SettingsScreen() {
           }}
         />
       </View>
+      {/* Digest preferences */}
+      {!!householdId ? (
+        <View style={{ marginBottom: 8, marginTop: 16 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+            Digest
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ flex: 1 }}>Include overdue</Text>
+            <Switch value={digestOverdue} onValueChange={setDigestOverdue} />
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ flex: 1 }}>Include today/upcoming</Text>
+            <Switch value={digestUpcoming} onValueChange={setDigestUpcoming} />
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ flex: 1 }}>Include wins</Text>
+            <Switch value={digestWins} onValueChange={setDigestWins} />
+          </View>
+          <TextInput
+            placeholder="07:00"
+            value={digestTime}
+            onChangeText={setDigestTime}
+            style={{
+              borderWidth: 1,
+              borderColor: "#ddd",
+              borderRadius: 8,
+              padding: 10,
+              marginBottom: 8,
+            }}
+          />
+          <Button
+            title="Save digest preferences"
+            onPress={async () => {
+              try {
+                if (!householdId) return;
+                const fn = httpsCallable(
+                  getFunctions(),
+                  "setDigestPreferences"
+                );
+                await fn({
+                  householdId,
+                  prefs: {
+                    sections: {
+                      overdue: digestOverdue,
+                      upcoming: digestUpcoming,
+                      wins: digestWins,
+                    },
+                    schedule: { time: digestTime },
+                  },
+                });
+                toast.show("Saved", { type: "success" });
+              } catch (e) {
+                Alert.alert("Error", String(e));
+              }
+            }}
+          />
+        </View>
+      ) : null}
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >
@@ -402,6 +720,21 @@ export default function SettingsScreen() {
           }}
         />
       </View>
+      {/* Quiet-hours mode */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginTop: 8,
+          marginBottom: 8,
+        }}
+      >
+        <Text style={{ marginRight: 8 }}>Quiet-hours mode</Text>
+        <Button
+          title={qhMode === "hard" ? "Hard (delay)" : "Soft (silent)"}
+          onPress={() => setQhMode(qhMode === "hard" ? "soft" : "hard")}
+        />
+      </View>
       <TextInput
         placeholder={t("timezoneOptional") || "Europe/Oslo (optional)"}
         value={qhTz || ""}
@@ -424,7 +757,7 @@ export default function SettingsScreen() {
               if (!timeRe.test(qhStart) || !timeRe.test(qhEnd)) {
                 toast.show(
                   t("invalidTime") || "Enter time as HH:mm (00-23:59).",
-                  { type: "error" },
+                  { type: "error" }
                 );
                 return;
               }
@@ -432,12 +765,17 @@ export default function SettingsScreen() {
                 toast.show(
                   t("invalidTimezone") ||
                     "Enter a valid IANA timezone like Europe/Oslo.",
-                  { type: "error" },
+                  { type: "error" }
                 );
                 return;
               }
               await updateUserSettings({
-                quietHours: { start: qhStart, end: qhEnd, tz: qhTz },
+                quietHours: {
+                  start: qhStart,
+                  end: qhEnd,
+                  tz: qhTz,
+                  mode: qhMode,
+                },
               });
               toast.show(t("saved") || "Saved", { type: "success" });
             } catch (e) {
@@ -472,7 +810,9 @@ export default function SettingsScreen() {
                 borderBottomColor: "#eee",
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
                 {/* avatar circle */}
                 <View
                   style={{
@@ -522,13 +862,13 @@ export default function SettingsScreen() {
                                 await setMemberRole(
                                   householdId,
                                   m.userId,
-                                  "admin",
+                                  "admin"
                                 );
                                 setMembers(await listMembers(householdId));
                               } catch {}
                             },
                           },
-                        ],
+                        ]
                       );
                     }}
                   />
@@ -550,13 +890,13 @@ export default function SettingsScreen() {
                                   await setMemberRole(
                                     householdId,
                                     m.userId,
-                                    "adult",
+                                    "adult"
                                   );
                                   setMembers(await listMembers(householdId));
                                 } catch {}
                               },
                             },
-                          ],
+                          ]
                         );
                       }}
                     />
@@ -566,12 +906,14 @@ export default function SettingsScreen() {
                     color="#b00020"
                     onPress={() => {
                       if (!householdId) return;
-                      const adminCount = members.filter((x) => x.role === "admin").length;
+                      const adminCount = members.filter(
+                        (x) => x.role === "admin"
+                      ).length;
                       if (m.role === "admin" && adminCount <= 1) {
                         Alert.alert(
                           t("notAllowed") || "Not allowed",
                           (t("cannotRemoveLastAdmin") as string) ||
-                            "You can’t remove the last admin.",
+                            "You can’t remove the last admin."
                         );
                         return;
                       }
@@ -591,7 +933,7 @@ export default function SettingsScreen() {
                               } catch {}
                             },
                           },
-                        ],
+                        ]
                       );
                     }}
                   />
@@ -608,12 +950,17 @@ export default function SettingsScreen() {
             {t("householdSettings") || "Household settings"}
           </Text>
           {/* Escalation toggle */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-            <Text style={{ marginRight: 8 }}>{t("escalationEnabled") || "Escalation (due-soon ping)"}</Text>
-            <Switch
-              value={escalation}
-              onValueChange={setEscalation}
-            />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ marginRight: 8 }}>
+              {t("escalationEnabled") || "Escalation (due-soon ping)"}
+            </Text>
+            <Switch value={escalation} onValueChange={setEscalation} />
           </View>
 
           <TextInput
@@ -650,7 +997,7 @@ export default function SettingsScreen() {
                   toast.show(
                     t("invalidTimezone") ||
                       "Enter a valid IANA timezone like Europe/Oslo.",
-                    { type: "error" },
+                    { type: "error" }
                   );
                   return;
                 }
@@ -712,7 +1059,7 @@ export default function SettingsScreen() {
                 const res = await createInviteFn(
                   householdId,
                   inviteEmail.trim(),
-                  inviteRole,
+                  inviteRole
                 );
                 setInviteEmail("");
                 setInviteRole("adult");

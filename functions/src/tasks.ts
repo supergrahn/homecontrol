@@ -4,7 +4,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { computeNextOccurrence } from "./utils/rrule";
-import { isWithinQuietHours, nextAllowedTime, sendExpoPush, enqueueExpoPush } from "./notifications";
+import {
+  isWithinQuietHours,
+  nextAllowedTime,
+  sendExpoPush,
+  enqueueExpoPush,
+} from "./notifications";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -14,17 +19,19 @@ export const onHouseholdCreate = functions.firestore
   .onCreate(
     async (
       snap: functions.firestore.DocumentSnapshot,
-      ctx: functions.EventContext,
+      ctx: functions.EventContext
     ) => {
       const { createdBy } = snap.data() as any;
       if (!createdBy) return;
       const fv: any = (admin.firestore as any)?.FieldValue ?? {};
-      const joinedAt = typeof fv.serverTimestamp === "function"
-        ? fv.serverTimestamp()
-        : new Date();
-      const unionHid = typeof fv.arrayUnion === "function"
-        ? fv.arrayUnion(ctx.params.hid)
-        : [ctx.params.hid];
+      const joinedAt =
+        typeof fv.serverTimestamp === "function"
+          ? fv.serverTimestamp()
+          : new Date();
+      const unionHid =
+        typeof fv.arrayUnion === "function"
+          ? fv.arrayUnion(ctx.params.hid)
+          : [ctx.params.hid];
 
       await db.doc(`households/${ctx.params.hid}/members/${createdBy}`).set(
         {
@@ -32,16 +39,16 @@ export const onHouseholdCreate = functions.firestore
           role: "admin",
           joinedAt,
         },
-        { merge: true },
+        { merge: true }
       );
 
       await db.doc(`users/${createdBy}`).set(
         {
           householdIds: unionHid,
         },
-        { merge: true },
+        { merge: true }
       );
-    },
+    }
   );
 
 /**
@@ -54,176 +61,305 @@ export const onHouseholdCreate = functions.firestore
  */
 export const onTaskWrite = functions.firestore
   .document("households/{hid}/tasks/{taskId}")
-  .onWrite(
-    async (
-      change: functions.Change<functions.firestore.DocumentSnapshot>,
-      ctx: functions.EventContext,
-    ) => {
-      const after = change.after.exists ? change.after.data() : null;
-      const before = change.before.exists ? change.before.data() : null;
-      const hid = ctx.params.hid as string;
-      const taskId = ctx.params.taskId as string;
-      if (!after) return;
+  .onWrite(async (change, ctx) => {
+    const after = change.after.exists ? (change.after.data() as any) : null;
+    const before = change.before.exists ? (change.before.data() as any) : null;
+    const hid = ctx.params.hid as string;
+    const taskId = ctx.params.taskId as string;
+    if (!after) return;
 
-  const startAt = asDate(after.startAt);
-  const dueAt = asDate(after.dueAt);
-  const prepHours = Number((after as any)?.prepWindowHours ?? 0);
-  let nextOccurrence: Date | null = null; // the actual event/due time in UTC
+    const startAt = asDate(after.startAt);
+    const dueAt = asDate(after.dueAt);
+    const prepHours = Number(after?.prepWindowHours ?? 0);
 
-      const tz = await getHouseholdTimezone(hid);
-    const { occurrenceAt, nextOccurrenceAt } = await computeNextOccurrence(
-        tz,
-        {
-          rrule: (after as any)?.rrule ?? null,
-          startAt,
-          dueAt,
+    const tz = await getHouseholdTimezone(hid);
+    const { occurrenceAt, nextOccurrenceAt } = await computeNextOccurrence(tz, {
+      rrule: after?.rrule ?? null,
+      startAt,
+      dueAt,
       prepWindowHours: prepHours,
-      pausedUntil: asDate((after as any)?.pausedUntil) ?? null,
-      skipDates: Array.isArray((after as any)?.skipDates) ? (after as any)?.skipDates : [],
-      exceptionShifts: (after as any)?.exceptionShifts ?? {},
-        },
-      );
-      nextOccurrence = occurrenceAt;
+      pausedUntil: asDate(after?.pausedUntil) ?? null,
+      skipDates: Array.isArray(after?.skipDates) ? after.skipDates : [],
+      exceptionShifts: after?.exceptionShifts ?? {},
+    });
 
-      // only write if changed, to avoid loops
-      // Apply prep window if present: notify/show earlier than the actual occurrence
-  const showAt = nextOccurrenceAt;
-
-      const prevNext = asDate(after.nextOccurrenceAt);
-      if ((prevNext?.getTime() || 0) !== (showAt?.getTime() || 0)) {
-        await change.after.ref.update({
-          nextOccurrenceAt: showAt
-            ? admin.firestore.Timestamp.fromDate(showAt)
-            : null,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Dependencies: block if any unresolved
+    try {
+      const deps: string[] = Array.isArray(after?.dependsOn)
+        ? after.dependsOn
+        : [];
+      if (deps.length) {
+        // Prevent self-dependency and normalize
+        const filtered = deps.filter((d) => d && d !== taskId);
+        if (filtered.length !== deps.length) {
+          await change.after.ref.update({ dependsOn: filtered });
+        }
+        const toCheck = filtered;
+        if (!toCheck.length) return;
+        const depRefs = toCheck.map((id) =>
+          db.doc(`households/${hid}/tasks/${id}`)
+        );
+        const depSnaps = await db.getAll(...depRefs);
+        const unresolved = depSnaps.some((s: any) => {
+          const st: string = (s.data() as any)?.status || "open";
+          return st !== "done" && st !== "verified";
         });
-      }
-
-      // Rotation MVP: on create (no before) or if nextOccurrenceAt advanced from null -> value, assign next from rotationPool
-      if (!before || (!asDate(before?.nextOccurrenceAt) && showAt)) {
-        const pool = Array.isArray((after as any)?.rotationPool) ? (after as any).rotationPool as string[] : [];
-        if (pool.length) {
-          const idx = Number((after as any)?.rotationIndex ?? 0);
-          const nextIdx = (idx + 1) % pool.length;
-          const assignee = pool[idx];
-          await change.after.ref.set({
-            assigneeIds: [assignee],
-            rotationIndex: nextIdx,
+        // Simple 2-node cycle detect: if any dependency depends back on this task, ignore block
+        const cycle = depSnaps.some((s: any) => {
+          const data = s.data() as any;
+          const arr: string[] = Array.isArray(data?.dependsOn)
+            ? data.dependsOn
+            : [];
+          return arr.includes(taskId);
+        });
+        const currentStatus: string = after?.status || "open";
+        if (unresolved && !cycle) {
+          const prevNext = asDate(after?.nextOccurrenceAt);
+          const needsNextClear = !!prevNext;
+          if (currentStatus !== "blocked" || needsNextClear) {
+            await change.after.ref.update({
+              status: "blocked",
+              nextOccurrenceAt: null,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+          return; // stop further processing while blocked
+        } else if (currentStatus === "blocked") {
+          await change.after.ref.update({
+            status: "open",
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          }, { merge: true });
+          });
         }
       }
+    } catch (e) {
+      console.warn("[tasks.onWrite] dependency check failed", e);
+    }
 
-      // Activity: creation and completion
-      if (!before) {
-        // Creation
+    // Update nextOccurrenceAt if changed
+    let showAt = nextOccurrenceAt;
+    const prevNext = asDate(after.nextOccurrenceAt);
+    if ((prevNext?.getTime() || 0) !== (showAt?.getTime() || 0)) {
+      await change.after.ref.update({
+        nextOccurrenceAt: showAt
+          ? admin.firestore.Timestamp.fromDate(showAt)
+          : null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Auto-reschedule policy: if task is open, has no RRULE, and dueAt is in the past,
+    // shift to the next future slot (today at the original time if still ahead, otherwise tomorrow) in household TZ.
+    try {
+      const now = new Date();
+      const statusNow: string = (after?.status as string) || "open";
+      const hasRule = !!after?.rrule;
+      const wasBlocked = before?.status === "blocked" && statusNow === "open";
+      const disabled = !!after?.autoRescheduleDisabled;
+      if (statusNow === "open" && !hasRule && !disabled) {
+        const due = asDate(after?.dueAt);
+        if (due && due.getTime() < now.getTime()) {
+          // Compute next future slot at same local time in household TZ
+          const tzNow = dayjs(now).tz(tz);
+          const orig = dayjs(due).tz(tz);
+          const todayAtOrig = tzNow
+            .hour(orig.hour())
+            .minute(orig.minute())
+            .second(orig.second())
+            .millisecond(0);
+          const shiftedLocal = todayAtOrig.isAfter(tzNow)
+            ? todayAtOrig
+            : todayAtOrig.add(1, "day");
+          const shiftedDue = shiftedLocal.toDate();
+          const shiftedNext =
+            prepHours && prepHours > 0
+              ? new Date(shiftedDue.getTime() - prepHours * 3600 * 1000)
+              : shiftedDue;
+          await change.after.ref.update({
+            dueAt: admin.firestore.Timestamp.fromDate(shiftedDue),
+            nextOccurrenceAt: admin.firestore.Timestamp.fromDate(shiftedNext),
+            lastAutoShiftedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastAutoShiftedFrom: admin.firestore.Timestamp.fromDate(due),
+            lastAutoShiftedTo: admin.firestore.Timestamp.fromDate(shiftedDue),
+            lastAutoShiftReason: wasBlocked ? "unblocked_past" : "past_due",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          showAt = shiftedNext;
+        }
+      }
+    } catch (e) {
+      console.warn("[tasks.onWrite] auto-reschedule failed", e);
+    }
+
+    // Rotation assignment on create/advance
+    {
+      const prevShow = before ? asDate(before?.nextOccurrenceAt) : null;
+      const isInitial = !before || (!prevShow && !!showAt);
+      const didAdvance = !!(
+        prevShow &&
+        showAt &&
+        showAt.getTime() !== prevShow.getTime()
+      );
+      const pool = Array.isArray(after?.rotationPool)
+        ? (after.rotationPool as string[])
+        : [];
+      if ((isInitial || didAdvance) && pool.length) {
+        const weights = after?.rotationWeights ?? {};
+        const expanded: string[] = [];
+        for (const uid of pool) {
+          const w = Math.max(1, Number((weights as any)?.[uid] ?? 1));
+          for (let i = 0; i < w; i++) expanded.push(uid);
+        }
+        const expLen = expanded.length;
+        if (expLen > 0) {
+          const idxRaw = Number(after?.rotationIndex ?? 0);
+          const idx = ((idxRaw % expLen) + expLen) % expLen;
+          const assignee = expanded[idx];
+          const nextIdx = (idx + 1) % expLen;
+          await change.after.ref.set(
+            {
+              assigneeIds: [assignee],
+              rotationIndex: nextIdx,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      }
+    }
+
+    // Activity and notifications
+    if (!before) {
+      await db.collection(`households/${hid}/activity`).add({
+        actorId: after.createdBy ?? null,
+        action: "task.create",
+        taskId,
+        payload: { title: after.title, type: after.type },
+        at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      try {
+        const createdBy: string | undefined = after?.createdBy;
+        const membersSnap = await db
+          .collection(`households/${hid}/members`)
+          .get();
+        const memberIds = membersSnap.docs
+          .map((d) => d.id)
+          .filter((id) => id && id !== createdBy);
+        if (memberIds.length) {
+          const usersSnap = await db.getAll(
+            ...memberIds.map((uid) => db.doc(`users/${uid}`))
+          );
+          const now = new Date();
+          const title = String(after?.title || taskId);
+          const messages: {
+            to: string[];
+            title: string;
+            body: string;
+            data?: Record<string, any>;
+            categoryId?: string;
+          }[] = [];
+          for (const u of usersSnap) {
+            const data = u.data() as any;
+            if (data?.notificationsEnabled === false) continue;
+            const token: string | undefined = data?.pushToken;
+            if (!token) continue;
+            const quiet = data?.quietHours as
+              | { start: string; end: string; tz?: string }
+              | undefined;
+            if (
+              isWithinQuietHours(now, quiet, await getHouseholdTimezone(hid))
+            ) {
+              const scheduledAt = nextAllowedTime(
+                now,
+                quiet,
+                await getHouseholdTimezone(hid)
+              );
+              await enqueueExpoPush({
+                hid,
+                to: [token],
+                uids: [u.id],
+                title: "New task",
+                body: title,
+                data: { type: "task.create", hid, taskId },
+                categoryId: "task_actions",
+                scheduledAt,
+              });
+            } else {
+              messages.push({
+                to: [token],
+                title: "New task",
+                body: title,
+                data: { type: "task.create", hid, taskId },
+                categoryId: "task_actions",
+              });
+            }
+          }
+          if (messages.length) await sendExpoPush(messages);
+        }
+      } catch (e) {
+        console.warn("[tasks.onWrite] push on create failed", e);
+      }
+    } else {
+      const beforeStatus = before.status;
+      const afterStatus = after.status;
+      if (beforeStatus !== "done" && afterStatus === "done") {
         await db.collection(`households/${hid}/activity`).add({
-          actorId: (after as any).createdBy ?? null,
-          action: "task.create",
+          actorId: after.updatedBy ?? after.createdBy ?? null,
+          action: "task.complete",
           taskId,
-          payload: { title: (after as any).title, type: (after as any).type },
+          payload: { title: after.title },
           at: admin.firestore.FieldValue.serverTimestamp(),
         });
-
-        // Push notification to household members (excluding creator), respecting user settings and quiet hours
+        // Nudge dependents to re-evaluate blocked status
         try {
-          const createdBy: string | undefined = (after as any)?.createdBy;
-          const membersSnap = await db.collection(`households/${hid}/members`).get();
-          const memberIds = membersSnap.docs.map((d) => d.id).filter((id) => id && id !== createdBy);
-          if (memberIds.length) {
-            const usersSnap = await db.getAll(...memberIds.map((uid) => db.doc(`users/${uid}`)));
-            const now = new Date();
-            const title = String((after as any)?.title || taskId);
-            const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
-            for (const u of usersSnap) {
-              const data = u.data() as any;
-              if (data?.notificationsEnabled === false) continue;
-              const token: string | undefined = data?.pushToken;
-              if (!token) continue;
-              const quiet = data?.quietHours as { start: string; end: string; tz?: string } | undefined;
-              if (isWithinQuietHours(now, quiet, await getHouseholdTimezone(hid))) {
-                const scheduledAt = nextAllowedTime(now, quiet, await getHouseholdTimezone(hid));
-                await enqueueExpoPush({
-                  hid,
-                  to: [token],
-                  uids: [u.id],
-                  title: "New task",
-                  body: title,
-                  data: { type: "task.create", hid, taskId },
-                  categoryId: "task_actions",
-                  scheduledAt,
-                });
-              } else {
-                messages.push({
-                  to: [token],
-                  title: "New task",
-                  body: title,
-                  data: { type: "task.create", hid, taskId },
-                  categoryId: "task_actions",
-                });
-              }
+          const dependentsSnap = await db
+            .collection(`households/${hid}/tasks`)
+            .where("dependsOn", "array-contains", taskId)
+            .get();
+          if (!dependentsSnap.empty) {
+            const batch = db.batch();
+            for (const d of dependentsSnap.docs) {
+              batch.update(d.ref, {
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
             }
-            if (messages.length) await sendExpoPush(messages);
+            await batch.commit();
           }
         } catch (e) {
-          console.warn("[tasks.onWrite] push on create failed", e);
+          console.warn("[tasks.onWrite] nudge dependents failed", e);
         }
-      } else {
-        const beforeStatus = (before as any).status;
-        const afterStatus = (after as any).status;
-        if (beforeStatus !== "done" && afterStatus === "done") {
-          await db.collection(`households/${hid}/activity`).add({
-            actorId:
-              (after as any).updatedBy ?? (after as any).createdBy ?? null,
-            action: "task.complete",
-            taskId,
-            payload: { title: (after as any).title },
-            at: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          // Notify adults for approval if required
-          if ((after as any)?.approvalRequired) {
-            try {
-              const membersSnap = await db.collection(`households/${hid}/members`).get();
-              const adultIds = membersSnap.docs.filter((d) => {
+        // Notify adults for approval if required
+        if (after?.approvalRequired) {
+          try {
+            const membersSnap = await db
+              .collection(`households/${hid}/members`)
+              .get();
+            const adultIds = membersSnap.docs
+              .filter((d) => {
                 const role = (d.data() as any)?.role;
                 return role === "adult" || role === "admin";
-              }).map((d) => d.id);
-              if (adultIds.length) {
-                const usersSnap = await db.getAll(...adultIds.map((uid) => db.doc(`users/${uid}`)));
-                const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
-                for (const u of usersSnap) {
-                  const data = u.data() as any;
-                  const token: string | undefined = data?.pushToken;
-                  if (!token) continue;
-                  messages.push({
-                    to: [token],
-                    title: "Needs verification",
-                    body: String((after as any)?.title || taskId),
-                    data: { type: "task.needs_verify", hid, taskId },
-                    categoryId: "task_actions",
-                  });
-                }
-                if (messages.length) await sendExpoPush(messages);
-              }
-            } catch {}
-          }
-        }
-        // Adult verification notification back to assignees
-        if (beforeStatus !== "verified" && afterStatus === "verified") {
-          try {
-            const assignees: string[] = Array.isArray((after as any)?.assigneeIds) ? (after as any).assigneeIds : [];
-            if (assignees.length) {
-              const usersSnap = await db.getAll(...assignees.map((uid) => db.doc(`users/${uid}`)));
-              const messages: { to: string[]; title: string; body: string; data?: Record<string, any>; categoryId?: string }[] = [];
+              })
+              .map((d) => d.id);
+            if (adultIds.length) {
+              const usersSnap = await db.getAll(
+                ...adultIds.map((uid) => db.doc(`users/${uid}`))
+              );
+              const messages: {
+                to: string[];
+                title: string;
+                body: string;
+                data?: Record<string, any>;
+                categoryId?: string;
+              }[] = [];
               for (const u of usersSnap) {
                 const data = u.data() as any;
                 const token: string | undefined = data?.pushToken;
                 if (!token) continue;
                 messages.push({
                   to: [token],
-                  title: "Verified",
-                  body: String((after as any)?.title || taskId),
-                  data: { type: "task.verified", hid, taskId },
+                  title: "Needs verification",
+                  body: String(after?.title || taskId),
+                  data: { type: "task.needs_verify", hid, taskId },
                   categoryId: "task_actions",
                 });
               }
@@ -232,8 +368,41 @@ export const onTaskWrite = functions.firestore
           } catch {}
         }
       }
-    },
-  );
+      // Adult verification notification back to assignees
+      if (beforeStatus !== "verified" && afterStatus === "verified") {
+        try {
+          const assignees: string[] = Array.isArray(after?.assigneeIds)
+            ? after.assigneeIds
+            : [];
+          if (assignees.length) {
+            const usersSnap = await db.getAll(
+              ...assignees.map((uid) => db.doc(`users/${uid}`))
+            );
+            const messages: {
+              to: string[];
+              title: string;
+              body: string;
+              data?: Record<string, any>;
+              categoryId?: string;
+            }[] = [];
+            for (const u of usersSnap) {
+              const data = u.data() as any;
+              const token: string | undefined = data?.pushToken;
+              if (!token) continue;
+              messages.push({
+                to: [token],
+                title: "Verified",
+                body: String(after?.title || taskId),
+                data: { type: "task.verified", hid, taskId },
+                categoryId: "task_actions",
+              });
+            }
+            if (messages.length) await sendExpoPush(messages);
+          }
+        } catch {}
+      }
+    }
+  });
 
 function asDate(v: any): Date | null {
   if (!v) return null;

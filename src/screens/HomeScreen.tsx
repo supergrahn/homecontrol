@@ -1,5 +1,15 @@
 import React from "react";
-import { View, Text, FlatList, Button, TouchableOpacity, Modal, Animated, PanResponder, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  Button,
+  TouchableOpacity,
+  Modal,
+  Animated,
+  PanResponder,
+  TextInput,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -17,7 +27,7 @@ import { fetchRecentActivity } from "../services/activity";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { fetchLatestDigest } from "../services/digest";
 import dayjs from "dayjs";
-import { appEvents } from "../App";
+import { appEvents } from "../events";
 // import { createHousehold } from '../services/households';
 
 // Household id from context
@@ -26,12 +36,14 @@ export default function HomeScreen({ navigation }: any) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [tab, setTab] = React.useState<"today" | "overdue" | "upcoming">(
-    "today",
+    "today"
   );
   const { householdId, households, loading, selectHousehold } = useHousehold();
   const [tagFilter, setTagFilter] = React.useState("");
   const [tagInput, setTagInput] = React.useState("");
-  const [prioritySort, setPrioritySort] = React.useState<"none" | "high" | "low">("none");
+  const [prioritySort, setPrioritySort] = React.useState<
+    "none" | "high" | "low"
+  >("none");
   const [showAllTags, setShowAllTags] = React.useState(false);
   const [kids, setKids] = React.useState<Child[]>([]);
   const [kidIds, setKidIds] = React.useState<string[]>([]);
@@ -67,7 +79,7 @@ export default function HomeScreen({ navigation }: any) {
       onPanResponderTerminate: () => {
         Animated.spring(sheetY, { toValue: 0, useNativeDriver: false }).start();
       },
-    }),
+    })
   ).current;
 
   React.useEffect(() => {
@@ -92,17 +104,41 @@ export default function HomeScreen({ navigation }: any) {
   const enabled = !!householdId;
   const today = useQuery({
     queryKey: ["today", householdId],
-    queryFn: () => fetchTodayTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
+    queryFn: () =>
+      fetchTodayTasks(householdId!, {
+        priorityOrder:
+          prioritySort === "high"
+            ? "desc"
+            : prioritySort === "low"
+              ? "asc"
+              : undefined,
+      } as any),
     enabled,
   });
   const overdue = useQuery({
     queryKey: ["overdue", householdId],
-    queryFn: () => fetchOverdueTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
+    queryFn: () =>
+      fetchOverdueTasks(householdId!, {
+        priorityOrder:
+          prioritySort === "high"
+            ? "desc"
+            : prioritySort === "low"
+              ? "asc"
+              : undefined,
+      } as any),
     enabled,
   });
   const upcoming = useQuery({
     queryKey: ["upcoming", householdId],
-    queryFn: () => fetchUpcomingTasks(householdId!, { priorityOrder: prioritySort === "high" ? "desc" : prioritySort === "low" ? "asc" : undefined } as any),
+    queryFn: () =>
+      fetchUpcomingTasks(householdId!, {
+        priorityOrder:
+          prioritySort === "high"
+            ? "desc"
+            : prioritySort === "low"
+              ? "asc"
+              : undefined,
+      } as any),
     enabled,
   });
   const digest = useQuery({
@@ -133,14 +169,17 @@ export default function HomeScreen({ navigation }: any) {
     (async () => {
       try {
         if (!householdId) return;
-        const raw = await AsyncStorage.getItem(`@hc:filters:${householdId}:${tab}`);
+        const raw = await AsyncStorage.getItem(
+          `@hc:filters:${householdId}:${tab}`
+        );
         if (raw) {
           const parsed = JSON.parse(raw);
           if (typeof parsed?.tagFilter === "string") {
             setTagFilter(parsed.tagFilter);
             setTagInput(parsed.tagFilter);
           }
-          if (["none", "high", "low"].includes(parsed?.prioritySort)) setPrioritySort(parsed.prioritySort);
+          if (["none", "high", "low"].includes(parsed?.prioritySort))
+            setPrioritySort(parsed.prioritySort);
           if (Array.isArray(parsed?.kidIds)) setKidIds(parsed.kidIds);
         } else {
           setTagFilter("");
@@ -158,7 +197,7 @@ export default function HomeScreen({ navigation }: any) {
         if (!householdId) return;
         await AsyncStorage.setItem(
           `@hc:filters:${householdId}:${tab}`,
-          JSON.stringify({ tagFilter, prioritySort, kidIds }),
+          JSON.stringify({ tagFilter, prioritySort, kidIds })
         );
       } catch {}
     })();
@@ -179,10 +218,15 @@ export default function HomeScreen({ navigation }: any) {
   React.useEffect(() => {
     (async () => {
       try {
-        if (!householdId) { setKids([]); return; }
+        if (!householdId) {
+          setKids([]);
+          return;
+        }
         const list = await listChildren(householdId);
         setKids(list);
-      } catch { setKids([]); }
+      } catch {
+        setKids([]);
+      }
     })();
   }, [householdId]);
 
@@ -204,13 +248,17 @@ export default function HomeScreen({ navigation }: any) {
     // Build per-kid counts from tag-filtered set
     const map = new Map<string, number>();
     for (const t of tagFiltered as any[]) {
-      const ids: string[] = Array.isArray((t as any).childIds) ? (t as any).childIds : [];
+      const ids: string[] = Array.isArray((t as any).childIds)
+        ? (t as any).childIds
+        : [];
       for (const id of ids) map.set(id, (map.get(id) || 0) + 1);
     }
     // Apply kid filter
     const byKids = kidIds.length
       ? tagFiltered.filter((t: any) => {
-          const ids: string[] = Array.isArray((t as any).childIds) ? (t as any).childIds : [];
+          const ids: string[] = Array.isArray((t as any).childIds)
+            ? (t as any).childIds
+            : [];
           return ids.some((id) => kidIds.includes(id));
         })
       : tagFiltered;
@@ -222,7 +270,10 @@ export default function HomeScreen({ navigation }: any) {
         return prioritySort === "high" ? pb - pa : pa - pb;
       });
     }
-    return { displayData: byKids, kidCounts: map } as { displayData: any[]; kidCounts: Map<string, number> };
+    return { displayData: byKids, kidCounts: map } as {
+      displayData: any[];
+      kidCounts: Map<string, number>;
+    };
   }, [list.data, householdId, tagFilter, prioritySort, kidIds]);
 
   const refreshAll = React.useCallback(async () => {
@@ -272,7 +323,8 @@ export default function HomeScreen({ navigation }: any) {
             title={t("add")}
             onPress={() => navigation.navigate("AddTask")}
           />
-          <TouchableOpacity onPress={() => navigation.navigate("Activity")}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Activity")}
             accessibilityLabel={t("recentActivity")}
             accessibilityRole="button"
           >
@@ -394,12 +446,12 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-    {enabled && list.isLoading ? (
+      {enabled && list.isLoading ? (
         <Text>{t("loading")}</Text>
       ) : (
         <FlatList
-      // Filtered+sorted client-side for now; can move to server later
-      data={displayData}
+          // Filtered+sorted client-side for now; can move to server later
+          data={displayData}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={refreshAll}
@@ -422,24 +474,60 @@ export default function HomeScreen({ navigation }: any) {
       {/* Filters */}
       {enabled ? (
         <View style={{ marginTop: 12 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 6 }}>{t("filters") || "Filters"}</Text>
+          <Text style={{ fontWeight: "600", marginBottom: 6 }}>
+            {t("filters") || "Filters"}
+          </Text>
           {/* Kid chips */}
           {kids.length > 0 ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
               {kids.map((k) => {
                 const active = kidIds.includes(k.id);
                 const count = kidCounts.get(k.id) || 0;
                 return (
-                  <TouchableOpacity key={k.id} onPress={() => {
-                    const next = active ? kidIds.filter((x) => x !== k.id) : [...kidIds, k.id];
-                    setKidIds(next);
-                  }}>
-                    <View style={{ flexDirection: "row", gap: 6, alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? "#111" : "#E5E7EB", backgroundColor: active ? "#EEF2FF" : "#F9FAFB" }}>
+                  <TouchableOpacity
+                    key={k.id}
+                    onPress={() => {
+                      const next = active
+                        ? kidIds.filter((x) => x !== k.id)
+                        : [...kidIds, k.id];
+                      setKidIds(next);
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: 6,
+                        alignItems: "center",
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: active ? "#111" : "#E5E7EB",
+                        backgroundColor: active ? "#EEF2FF" : "#F9FAFB",
+                      }}
+                    >
                       <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
                       <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
                       {count > 0 ? (
-                        <View style={{ marginLeft: 4, backgroundColor: "#111", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ color: "#fff", fontSize: 10 }}>{count}</Text>
+                        <View
+                          style={{
+                            marginLeft: 4,
+                            backgroundColor: "#111",
+                            borderRadius: 999,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text style={{ color: "#fff", fontSize: 10 }}>
+                            {count}
+                          </Text>
                         </View>
                       ) : null}
                     </View>
@@ -449,24 +537,38 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ) : null}
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-        <TextInput
-              placeholder={(t("tagsFilter") as string) || "Filter by tags (comma-separated)"}
-          value={tagInput}
-          onChangeText={setTagInput}
+            <TextInput
+              placeholder={
+                (t("tagsFilter") as string) ||
+                "Filter by tags (comma-separated)"
+              }
+              value={tagInput}
+              onChangeText={setTagInput}
               autoCapitalize="none"
-              style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 }}
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: "#ddd",
+                borderRadius: 8,
+                padding: 10,
+              }}
             />
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
             <Button
-              title={(t("sortByPriorityHighFirst") as string) || "High priority first"}
+              title={
+                (t("sortByPriorityHighFirst") as string) ||
+                "High priority first"
+              }
               onPress={() => setPrioritySort("high")}
-              color={prioritySort === "high" ? ("#111") : undefined}
+              color={prioritySort === "high" ? "#111" : undefined}
             />
             <Button
-              title={(t("sortByPriorityLowFirst") as string) || "Low priority first"}
+              title={
+                (t("sortByPriorityLowFirst") as string) || "Low priority first"
+              }
               onPress={() => setPrioritySort("low")}
-              color={prioritySort === "low" ? ("#111") : undefined}
+              color={prioritySort === "low" ? "#111" : undefined}
             />
             <Button
               title={(t("clearFilters") as string) || "Clear"}
@@ -478,7 +580,14 @@ export default function HomeScreen({ navigation }: any) {
             />
           </View>
           {/* Quick tag chips from visible tasks (capped with +N more) */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
             {(() => {
               const tagSet = new Set<string>();
               for (const task of displayData as any[]) {
@@ -491,9 +600,11 @@ export default function HomeScreen({ navigation }: any) {
                 tagFilter
                   .split(",")
                   .map((s) => s.trim())
-                  .filter(Boolean),
+                  .filter(Boolean)
               );
-              const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+              const tags = Array.from(tagSet).sort((a, b) =>
+                a.localeCompare(b)
+              );
               const MAX_CHIPS = 12;
               const visibleTags = showAllTags ? tags : tags.slice(0, MAX_CHIPS);
               const hiddenCount = Math.max(0, tags.length - MAX_CHIPS);
@@ -505,21 +616,33 @@ export default function HomeScreen({ navigation }: any) {
                     key={tg}
                     onPress={() => {
                       const next = new Set(current);
-                      if (active) next.delete(tg); else next.add(tg);
+                      if (active) next.delete(tg);
+                      else next.add(tg);
                       const nextList = Array.from(next);
-                      setTagInput(nextList.join(nextList.length > 1 ? ", " : ","));
+                      setTagInput(
+                        nextList.join(nextList.length > 1 ? ", " : ",")
+                      );
                     }}
                     activeOpacity={0.8}
                   >
-                    <View style={{
-                      backgroundColor: active ? "#111" : "#EEF2FF",
-                      borderRadius: 999,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderWidth: 1,
-                      borderColor: active ? "#111" : "#E0E7FF",
-                    }}>
-                      <Text style={{ color: active ? "#fff" : "#3730A3", fontSize: 12 }}>#{tg}</Text>
+                    <View
+                      style={{
+                        backgroundColor: active ? "#111" : "#EEF2FF",
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: active ? "#111" : "#E0E7FF",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: active ? "#fff" : "#3730A3",
+                          fontSize: 12,
+                        }}
+                      >
+                        #{tg}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -527,33 +650,49 @@ export default function HomeScreen({ navigation }: any) {
 
               if (hiddenCount > 0 && !showAllTags) {
                 chips.push(
-                  <TouchableOpacity key="more" onPress={() => setShowAllTags(true)} activeOpacity={0.8}>
-                    <View style={{
-                      backgroundColor: "#F3F4F6",
-                      borderRadius: 999,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                    }}>
-                      <Text style={{ color: "#374151", fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
+                  <TouchableOpacity
+                    key="more"
+                    onPress={() => setShowAllTags(true)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "#F3F4F6",
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                      }}
+                    >
+                      <Text style={{ color: "#374151", fontSize: 12 }}>
+                        {t("moreCount", { count: hiddenCount })}
+                      </Text>
                     </View>
-                  </TouchableOpacity>,
+                  </TouchableOpacity>
                 );
               } else if (showAllTags && tags.length > MAX_CHIPS) {
                 chips.push(
-                  <TouchableOpacity key="less" onPress={() => setShowAllTags(false)} activeOpacity={0.8}>
-                    <View style={{
-                      backgroundColor: "#F3F4F6",
-                      borderRadius: 999,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                    }}>
-                      <Text style={{ color: "#374151", fontSize: 12 }}>{t("showLess")}</Text>
+                  <TouchableOpacity
+                    key="less"
+                    onPress={() => setShowAllTags(false)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "#F3F4F6",
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                      }}
+                    >
+                      <Text style={{ color: "#374151", fontSize: 12 }}>
+                        {t("showLess")}
+                      </Text>
                     </View>
-                  </TouchableOpacity>,
+                  </TouchableOpacity>
                 );
               }
 
@@ -577,7 +716,9 @@ export default function HomeScreen({ navigation }: any) {
       {/* Floating + button */}
       <TouchableOpacity
         onPress={async () => {
-          try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+          try {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          } catch {}
           setTypePickerOpen(true);
         }}
         activeOpacity={0.8}
@@ -704,18 +845,35 @@ export default function HomeScreen({ navigation }: any) {
         onRequestClose={closeSheet}
       >
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "transparent", justifyContent: "flex-end" }}
+          style={{
+            flex: 1,
+            backgroundColor: "transparent",
+            justifyContent: "flex-end",
+          }}
           activeOpacity={1}
           onPress={closeSheet}
         >
           <BlurView
             tint="dark"
             intensity={30}
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
           />
           <Animated.View
             style={{
-              transform: [{ translateY: sheetY.interpolate({ inputRange: [-200, 0, 300], outputRange: [-30, 0, 300] }) }],
+              transform: [
+                {
+                  translateY: sheetY.interpolate({
+                    inputRange: [-200, 0, 300],
+                    outputRange: [-30, 0, 300],
+                  }),
+                },
+              ],
               backgroundColor: "#fff",
               padding: 12,
               paddingBottom: 16,
@@ -725,36 +883,57 @@ export default function HomeScreen({ navigation }: any) {
             {...pan.panHandlers}
           >
             <View style={{ alignItems: "center", paddingVertical: 6 }}>
-              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: "#ddd" }} />
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: "#ddd",
+                }}
+              />
             </View>
-            {(["chore", "event", "deadline", "checklist"] as const).map((tk) => {
-              const iconName =
-                tk === "chore"
-                  ? "construct-outline"
-                  : tk === "event"
-                    ? "calendar-outline"
-                    : tk === "deadline"
-                      ? "time-outline"
-                      : "list-outline";
-              return (
-                <TouchableOpacity
-                  key={tk}
-                  onPress={async () => {
-                    try { await Haptics.selectionAsync(); } catch {}
-                    setTypePickerOpen(false);
-                    navigation.navigate("AddTask", { type: tk });
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ paddingVertical: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    <Ionicons name={iconName as any} size={20} color="#333" />
-                    <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {(["chore", "event", "deadline", "checklist"] as const).map(
+              (tk) => {
+                const iconName =
+                  tk === "chore"
+                    ? "construct-outline"
+                    : tk === "event"
+                      ? "calendar-outline"
+                      : tk === "deadline"
+                        ? "time-outline"
+                        : "list-outline";
+                return (
+                  <TouchableOpacity
+                    key={tk}
+                    onPress={async () => {
+                      try {
+                        await Haptics.selectionAsync();
+                      } catch {}
+                      setTypePickerOpen(false);
+                      navigation.navigate("AddTask", { type: tk });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={{
+                        paddingVertical: 12,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <Ionicons name={iconName as any} size={20} color="#333" />
+                      <Text style={{ fontSize: 16 }}>{t(tk)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+            )}
             <View style={{ marginTop: 8 }}>
-              <Button title={t("cancel")} onPress={() => setTypePickerOpen(false)} />
+              <Button
+                title={t("cancel")}
+                onPress={() => setTypePickerOpen(false)}
+              />
             </View>
           </Animated.View>
         </TouchableOpacity>

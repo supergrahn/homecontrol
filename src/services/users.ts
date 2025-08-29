@@ -1,11 +1,17 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
-export type QuietHours = { start: string; end: string; tz?: string };
+export type QuietHours = {
+  start: string;
+  end: string;
+  tz?: string;
+  mode?: "hard" | "soft";
+};
 
 export type UserSettings = {
   quietHours?: QuietHours;
   notificationsEnabled?: boolean;
+  nightBeforeReminder?: boolean;
 };
 
 export async function getUserSettings(): Promise<UserSettings> {
