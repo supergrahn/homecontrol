@@ -16,15 +16,14 @@ export default function AppBar({ title, left, right }: Props) {
   return (
     <View
       style={{
-        paddingTop: (insets.top || 0),
-        backgroundColor: theme.colors.background,
-        borderBottomWidth: 1,
-        borderColor: theme.colors.border,
+        paddingTop: insets.top || 0,
+        backgroundColor: theme.colors.primary,
+        borderBottomWidth: 0,
       }}
     >
       <View
         style={{
-          height: 48,
+          height: 88,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
@@ -33,8 +32,15 @@ export default function AppBar({ title, left, right }: Props) {
       >
         <View style={{ minWidth: 44, minHeight: 44, justifyContent: "center" }}>
           {typeof left === "string" ? (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={left}>
-              <Text style={{ color: theme.colors.primary }}>{left}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={left}
+            >
+              <Text
+                style={{ color: theme.colors.onPrimary, fontWeight: "700" }}
+              >
+                {left}
+              </Text>
             </TouchableOpacity>
           ) : (
             left || <View />
@@ -44,13 +50,24 @@ export default function AppBar({ title, left, right }: Props) {
           {!!title && (
             <Text
               numberOfLines={1}
-              style={{ fontWeight: "600", color: theme.colors.text }}
+              style={{
+                fontWeight: "800",
+                color: theme.colors.onPrimary,
+                fontSize: 20,
+              }}
             >
               {title}
             </Text>
           )}
         </View>
-        <View style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "flex-end" }}>
+        <View
+          style={{
+            minWidth: 44,
+            minHeight: 44,
+            justifyContent: "center",
+            alignItems: "flex-end",
+          }}
+        >
           {right || <View />}
         </View>
       </View>

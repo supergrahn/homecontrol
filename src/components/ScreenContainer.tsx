@@ -23,7 +23,7 @@ export default function ScreenContainer({
           paddingHorizontal: padding ? theme.spacing(2) : 0,
           // Reduce extra space at the top; keep minimal safe area
           paddingTop: Math.max(4, (insets.top || 0) - 8),
-          paddingBottom: (insets.bottom || 0),
+          paddingBottom: insets.bottom || 0,
         },
         style,
       ]}

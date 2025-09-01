@@ -1,5 +1,11 @@
 import React from "react";
 import { useColorScheme } from "react-native";
+import {
+  colors as TOKENS,
+  radius as RADII,
+  spacing as SP,
+  typography as TYPE,
+} from "./tokens";
 
 export type Theme = {
   colors: {
@@ -14,51 +20,66 @@ export type Theme = {
     surfaceVariant: string;
     outline: string;
     onSurface: string;
-  onPrimary: string;
-  onEmphasis: string;
+    onPrimary: string;
+    onEmphasis: string;
     success: string;
     warning: string;
     error: string;
+    focus: string; // accent gold
+    accentMint: string;
+    accentSeafoam: string;
+    accentCoral: string;
   };
   spacing: (n: number) => number;
-  radius: { sm: number; md: number; lg: number };
+  radius: { sm: number; md: number; lg: number; pill?: number };
   typography: {
-    h1: { fontSize: number; fontWeight: "700" | "600" | "500" };
+    h1: { fontSize: number; fontWeight: "800" | "700" | "600" | "500" };
     h2: { fontSize: number; fontWeight: "700" | "600" | "500" };
     subtitle: { fontSize: number; fontWeight: "600" | "500" };
-    body: { fontSize: number; fontWeight: "400" | "500" };
-    small: { fontSize: number; fontWeight: "400" };
+    body: { fontSize: number; fontWeight: "500" | "400" };
+    small: { fontSize: number; fontWeight: "600" | "400" };
+    // POTY extras for convenience
+    title?: { fontSize: number; fontWeight: any };
   };
 };
 
-const spacing = (n: number) => n * 8;
+const spacing = (n: number) =>
+  SP[Math.max(0, Math.min(SP.length - 1, n))] || n * 8;
 
 const light: Theme = {
   colors: {
-    background: "#ffffff",
-    card: "#f7f7f7",
-    text: "#111111",
-    muted: "#6b7280",
-    primary: "#0a84ff",
-    border: "#e5e7eb",
-    surface: "#ffffff",
-    surfaceVariant: "#f3f4f6",
-    outline: "#e5e7eb",
-    onSurface: "#111111",
-  onPrimary: "#000000",
-  onEmphasis: "#000000",
-    success: "#16a34a",
-    warning: "#ca8a04",
-    error: "#dc2626",
+    background: TOKENS.neutral.ink050,
+    card: TOKENS.neutral.white,
+    text: TOKENS.neutral.ink900,
+    muted: TOKENS.neutral.ink400,
+    primary: TOKENS.semantic.primary,
+    border: TOKENS.neutral.ink100,
+    surface: TOKENS.neutral.white,
+    surfaceVariant: TOKENS.neutral.white,
+    outline: TOKENS.neutral.ink100,
+    onSurface: TOKENS.neutral.ink900,
+    onPrimary: TOKENS.semantic.onPrimary,
+    onEmphasis: TOKENS.neutral.white,
+    success: TOKENS.semantic.success,
+    warning: TOKENS.semantic.warning,
+    error: TOKENS.semantic.danger,
+    focus: TOKENS.accent.gold400,
+    accentMint: TOKENS.accent.mint300,
+    accentSeafoam: TOKENS.accent.seafoam400,
+    accentCoral: TOKENS.accent.coral400,
   },
   spacing,
-  radius: { sm: 6, md: 12, lg: 16 },
+  radius: { sm: RADII.sm, md: RADII.md, lg: RADII.lg, pill: RADII.pill },
   typography: {
-    h1: { fontSize: 22, fontWeight: "700" },
-    h2: { fontSize: 18, fontWeight: "600" },
-    subtitle: { fontSize: 16, fontWeight: "600" },
-    body: { fontSize: 14, fontWeight: "400" },
-    small: { fontSize: 12, fontWeight: "400" },
+    h1: { fontSize: TYPE.scale.title.size, fontWeight: "700" },
+    h2: { fontSize: TYPE.scale.subtitle.size, fontWeight: "600" },
+    subtitle: { fontSize: TYPE.scale.subtitle.size, fontWeight: "600" },
+    body: { fontSize: TYPE.scale.body.size, fontWeight: "500" },
+    small: { fontSize: TYPE.scale.caption.size, fontWeight: "600" },
+    title: {
+      fontSize: TYPE.scale.title.size,
+      fontWeight: TYPE.scale.title.weight,
+    },
   },
 };
 
@@ -66,28 +87,36 @@ const dark: Theme = {
   colors: {
     background: "#0b0b0b",
     card: "#151515",
-    text: "#f5f5f5",
-    muted: "#9ca3af",
-    primary: "#0a84ff",
+    text: TOKENS.neutral.white,
+    muted: TOKENS.neutral.ink400,
+    primary: TOKENS.semantic.primary,
     border: "#27272a",
     surface: "#0b0b0b",
     surfaceVariant: "#111113",
     outline: "#27272a",
-    onSurface: "#f5f5f5",
-  onPrimary: "#000000",
-  onEmphasis: "#ffffff",
-    success: "#22c55e",
-    warning: "#eab308",
-    error: "#ef4444",
+    onSurface: TOKENS.neutral.white,
+    onPrimary: TOKENS.semantic.onPrimary,
+    onEmphasis: TOKENS.neutral.white,
+    success: TOKENS.semantic.success,
+    warning: TOKENS.semantic.warning,
+    error: TOKENS.semantic.danger,
+    focus: TOKENS.accent.gold400,
+    accentMint: TOKENS.accent.mint300,
+    accentSeafoam: TOKENS.accent.seafoam400,
+    accentCoral: TOKENS.accent.coral400,
   },
   spacing,
-  radius: { sm: 6, md: 12, lg: 16 },
+  radius: { sm: RADII.sm, md: RADII.md, lg: RADII.lg, pill: RADII.pill },
   typography: {
-    h1: { fontSize: 22, fontWeight: "700" },
-    h2: { fontSize: 18, fontWeight: "600" },
-    subtitle: { fontSize: 16, fontWeight: "600" },
-    body: { fontSize: 14, fontWeight: "400" },
-    small: { fontSize: 12, fontWeight: "400" },
+    h1: { fontSize: TYPE.scale.title.size, fontWeight: "700" },
+    h2: { fontSize: TYPE.scale.subtitle.size, fontWeight: "600" },
+    subtitle: { fontSize: TYPE.scale.subtitle.size, fontWeight: "600" },
+    body: { fontSize: TYPE.scale.body.size, fontWeight: "500" },
+    small: { fontSize: TYPE.scale.caption.size, fontWeight: "600" },
+    title: {
+      fontSize: TYPE.scale.title.size,
+      fontWeight: TYPE.scale.title.weight,
+    },
   },
 };
 

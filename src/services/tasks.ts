@@ -5,6 +5,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   query,
   where,
@@ -171,6 +172,11 @@ export async function getTask(hid: string, id: string): Promise<Task | null> {
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   return { id: snap.id, ...convert(snap.data()) } as Task;
+}
+
+export async function deleteTask(hid: string, id: string): Promise<void> {
+  const ref = doc(db, `households/${hid}/tasks/${id}`);
+  await deleteDoc(ref);
 }
 
 // Fetch tasks in a time range by nextOccurrenceAt OR dueAt, merge, and sort by effective date

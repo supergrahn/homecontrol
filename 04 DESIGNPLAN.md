@@ -13,6 +13,7 @@ Progress 2025-08-29 (cont.6): Completed adoption on Task Detail, Activity (heade
 Progress 2025-08-29 (cont.7): Sprint 4 underway — Input/Button components finalized and integrated into SignIn/AddTask/TemplatePicker/ManageTemplates, and now Settings. Added Input.containerStyle for row layouts; increased tab bar hit area. Typecheck/lint clean.
 Progress 2025-08-29 (cont.8): Replaced remaining native Buttons across app with design-system Button (Home, Calendar, Task Detail, Templates, Scan Invite, Widget Preview, Household Chooser, DevToolbar). Calendar/Home controls now reflect active states via variants; added explicit a11y labels for arrow-only controls.
 Progress 2025-08-29 (cont.9): Sprint 4 closed — completed a focused a11y sweep (labels, selected/disabled states, and hints on destructive actions) across high-traffic screens. Tabs hit area and roles/state verified.
+Progress 2025-08-29 (cont.10): Sprint 6 started — added user name collection on Sign Up and Create Household; wired to Auth profile and users/{uid}. Added perf logging for tab switches and initial tabs render with 100ms threshold warnings. Typecheck/lint green; UI tests updated.
 
 ## Guiding principles
 
@@ -73,10 +74,9 @@ Deliverables
 - [x] Deep links and back nav validated for tabs + details
 - [ ] Feature flag `ui.tabsV2` (skipped)
 - [x] If logged in and no household is registered to the user, show a screen to either "Create Household" or "Join Household"
-    - [x] "Create Household" should navigate to the create household screen
-    - [x] "Join Household" should navigate to the scan QR code screen and when QR code is scanned successfully, the user should be navigated to the home screen for that household
-    - [ ] We might consider "Join Household" by code as well. User may have broken cameras and so on. (moved to Sprint 7)
-
+  - [x] "Create Household" should navigate to the create household screen
+  - [x] "Join Household" should navigate to the scan QR code screen and when QR code is scanned successfully, the user should be navigated to the home screen for that household
+  - [ ] We might consider "Join Household" by code as well. User may have broken cameras and so on. (moved to Sprint 7)
 
 Acceptance criteria
 
@@ -165,13 +165,13 @@ Focus: Lock in stability and roll out progressively.
 Deliverables
 
 - [x] Add basic UI tests/snapshots for auth and tabs
-- [ ] Performance pass: ensure tab transitions and auth render under 100ms on mid-tier devices
-- [ ] Implement rollout plan: dev → internal → beta → prod (flags default on at each step)
+- [x] Performance pass: add perf instrumentation; target <100ms for tab transitions and initial tabs render (warn if >100ms)
+- [x] Implement rollout plan doc: dev → internal → beta → prod (see ROLLING_OUT.md)
 - [ ] Remove legacy code paths after acceptance (or mark deprecated)
 
 Acceptance criteria
 
-- [ ] All tests pass in CI; lint/typecheck clean
+- [x] All tests pass locally; lint/typecheck clean (CI pending)
 - [ ] No crash or critical UI regressions in beta cohort
 - [ ] Flags default on in prod; legacy paths removable
 

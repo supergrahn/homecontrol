@@ -5,6 +5,7 @@
   "signInFailed": "Innlogging mislyktes — prøv å opprette en konto.",
   "signUpFailed": "Registrering mislyktes. Sjekk e-post og passord.",
   "signIn": "Logg inn",
+  "signInSubtitle": "Velkommen tilbake. Vennligst logg inn.",
   "createAccount": "Opprett konto",
   "today": "I dag",
   "add": "Legg til",
@@ -69,6 +70,8 @@
   "auth.tooManyRequests": "For mange forsøk. Prøv igjen senere.",
   "auth.resetEmailSent": "E-post for tilbakestilling sendt.",
   "forgotPassword": "Glemt passord?",
+  "showPassword": "Vis passord",
+  "hidePassword": "Skjul passord",
   "signOut": "Logg ut",
   "markComplete": "Marker som fullført",
   "selectHousehold": "Velg husstand",
@@ -77,8 +80,12 @@
   "close": "Lukk",
   "createHousehold": "Opprett husstand",
   "householdName": "Navn på husstand",
+  "yourName": "Ditt navn",
+  "yourNameHint": "Vises til husstanden; du kan endre det senere.",
   "settings": "Innstillinger",
   "delete": "Slett",
+  "deleteTaskTitle": "Slett oppgave",
+  "deleteTaskConfirm": "Slette denne oppgaven? Dette kan ikke angres.",
   "leave": "Forlat",
   "cancel": "Avbryt",
   "deleteHouseholdTitle": "Slett husstand",
@@ -116,7 +123,8 @@
     "pasteInviteLink": "Lim inn invitasjonslenke"
   },
   "validation": {
-    "householdNameShort": "Skriv minst 2 tegn"
+    "householdNameShort": "Skriv minst 2 tegn",
+    "nameRequired": "Skriv inn navnet ditt"
   },
   "invalidInviteLink": "Ugyldig invitasjonslenke",
   "invite": {
@@ -137,11 +145,13 @@
   "viewOverdue": "Se forfalte",
   "quietHours": "Stilletid",
   "timezoneOptional": "Europe/Oslo (valgfritt)",
-    "saveQuietHours": "Lagre stille perioder",
-    "sendTestNotification": "Send testvarsling",
+  "saveQuietHours": "Lagre stille perioder",
+  "sendTestNotification": "Send testvarsling",
   "saved": "Lagret",
   "notifications": "Varsler",
   "invalidTime": "Skriv tid som HH:mm (00-23:59).",
+  "invalidDate": "Skriv dato som YYYY-MM-DD.",
+  "dateRequiredForEvent": "Dato er påkrevd for hendelser.",
   "invalidTimezone": "Oppgi en gyldig IANA-tidssone som Europe/Oslo.",
   "householdSettings": "Husstandsinnstillinger",
   "digestHour": "Sammendrags-time (0-23)",
@@ -166,52 +176,75 @@
   "showHouseholdQr": "Vis husstands-QR",
   "scanHouseholdQr": "Skann husstands-QR",
   "noHouseholdSelected": "Ingen husstand valgt",
-  "inviteLinkUnavailable": "Invitasjonslenke er ikke tilgjengelig"
-  ,"shareHouseholdInvite": "Del husstands-invitasjon",
+  "inviteLinkUnavailable": "Invitasjonslenke er ikke tilgjengelig",
+  "shareHouseholdInvite": "Del husstands-invitasjon",
   "resetToDefaults": "Tilbakestill til standard",
   "filtersReset": "Filter tilbakestilt",
   "moreCount": "+{{count}} flere",
-  "showLess": "Vis færre"
-  ,"calendar": "Kalender",
+  "showLess": "Vis færre",
+  "calendar": "Kalender",
   "agenda": "Agenda",
-  "week": "Uke"
-  ,"month": "Måned"
-  ,"custom": "Egendefinert"
-  ,"timeline": "Tidslinje"
-  ,"from": "Fra"
-  ,"to": "Til"
-  ,"name": "Navn"
-  ,"saveRange": "Lagre område"
-  ,"apply": "Bruk"
-  ,"clearRange": "Tøm område"
-  ,"freeSlots": "Ledige tider"
-  ,"noFreeSlots": "Ingen ledige tider mellom 06:00–22:00"
-  ,"skipToday": "Hopp over i dag"
-  ,"shift30": "+30m"
-  ,"pause7": "Pause 7d"
-  ,"kids": "Barn"
-  ,"noKidsYet": "Ingen barn ennå."
-  ,"assignToKids": "Tildel til barn"
-  ,"approvalRequired": "Krever godkjenning"
-  ,"approve": "Godkjenn"
-  ,"reject": "Avvis"
-  ,"rotation": "Rotasjon"
-  ,"rotationHint": "Velg medlemmer/barn som roterer oppgaver. Neste tildeling settes automatisk."
-  ,"nextAssignee": "Neste tildeling"
-  ,"fairness": "Rettferdighet"
-  ,"language": "Språk"
-  ,"appearance": "Utseende"
-  ,"account": "Konto"
-  ,"insights": "Innsikt"
-  ,"syncPendingActions": "Synkroniser ventende handlinger"
-  ,"pendingCount": "Ventende"
-  ,"retrySync": "Prøv synk på nytt"
-  ,"nightBefore": "Kvelden før-varsel"
-  ,"nightBeforeHint": "Send et forhåndsvarsel for i morgen rundt 20:00."
-  ,"workloadHeatmap": "Arbeidsbelastning varmekart"
-  ,"themeMode": "Tema"
-  ,"newEvent": "Ny hendelse"
-  ,"newBirthday": "Ny bursdag"
-  ,"confirmDeletePhoto": "Slette dette bildet?"
-  ,"notAllowed": "Ikke tillatt"
+  "week": "Uke",
+  "month": "Måned",
+  "custom": "Egendefinert",
+  "timeline": "Tidslinje",
+  "from": "Fra",
+  "to": "Til",
+  "name": "Navn",
+  "saveRange": "Lagre område",
+  "apply": "Bruk",
+  "clearRange": "Tøm område",
+  "freeSlots": "Ledige tider",
+  "noFreeSlots": "Ingen ledige tider mellom 06:00–22:00",
+  "skipToday": "Hopp over i dag",
+  "shift30": "+30m",
+  "pause7": "Pause 7d",
+  "kids": "Barn",
+  "noKidsYet": "Ingen barn ennå.",
+  "assignToKids": "Tildel til barn",
+  "approvalRequired": "Krever godkjenning",
+  "approve": "Godkjenn",
+  "reject": "Avvis",
+  "rotation": "Rotasjon",
+  "rotationHint": "Velg medlemmer/barn som roterer oppgaver. Neste tildeling settes automatisk.",
+  "nextAssignee": "Neste tildeling",
+  "fairness": "Rettferdighet",
+  "language": "Språk",
+  "appearance": "Utseende",
+  "account": "Konto",
+  "insights": "Innsikt",
+  "syncPendingActions": "Synkroniser ventende handlinger",
+  "pendingCount": "Ventende",
+  "retrySync": "Prøv synk på nytt",
+  "nightBefore": "Kvelden før-varsel",
+  "nightBeforeHint": "Send et forhåndsvarsel for i morgen rundt 20:00.",
+  "workloadHeatmap": "Arbeidsbelastning varmekart",
+  "themeMode": "Tema",
+  "newEvent": "Ny hendelse",
+  "newBirthday": "Ny bursdag",
+  "confirmDeletePhoto": "Slette dette bildet?",
+  "notAllowed": "Ikke tillatt",
+  "members": "Medlemmer",
+  "confirm": "Bekreft",
+  "makeAdmin": "Gjør til admin",
+  "demote": "Degrader",
+  "demoteToAdult": "Degrader til voksen",
+  "confirmMakeAdmin": "Gjøre dette medlemmet til admin?",
+  "confirmDemote": "Degradere dette medlemmet til voksen?",
+  "cannotRemoveLastAdmin": "Du kan ikke fjerne siste admin.",
+  "changeRole": "Endre rolle",
+  "typeHintEvent": "Hendelser krever dato og vises i kalenderen.",
+  "typeHintOther": "Ingen dato? Vi setter den til i dag som standard.",
+  "in1Week": "Om 1 uke",
+  "in2Weeks": "Om to uker",
+  "in1Month": "Om 1 måned",
+  "when": "Når",
+  "date": "Dato",
+  "time": "Tid",
+  "allDay": "Hele dagen",
+  "hideOptions": "Skjul alternativer",
+  "moreOptions": "Flere alternativer",
+  "dayLabel": "Dag",
+  "monthLabel": "Måned",
+  "yearLabel": "År"
 }

@@ -14,7 +14,7 @@
     "paths": {
       "*": ["src/*"]
     },
-  "types": ["react", "react-native", "expo", "jest"]
+    "types": ["react", "react-native", "expo"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "App.tsx"],
   "exclude": ["functions/**", "node_modules"],

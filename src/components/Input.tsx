@@ -1,5 +1,12 @@
 import React from "react";
-import { View, TextInput as RNTextInput, Text, StyleSheet, TextInputProps, ViewStyle } from "react-native";
+import {
+  View,
+  TextInput as RNTextInput,
+  Text,
+  StyleSheet,
+  TextInputProps,
+  ViewStyle,
+} from "react-native";
 import { useTheme } from "../design/theme";
 
 type Props = TextInputProps & {
@@ -10,18 +17,37 @@ type Props = TextInputProps & {
 };
 
 const Input = React.forwardRef<RNTextInput, Props>(
-  ({ label, errorText, style, right, editable = true, containerStyle, ...rest }, ref) => {
+  (
+    {
+      label,
+      errorText,
+      style,
+      right,
+      editable = true,
+      containerStyle,
+      ...rest
+    },
+    ref
+  ) => {
     const theme = useTheme();
     const [focused, setFocused] = React.useState(false);
-    const borderColor = focused ? theme.colors.primary : theme.colors.border;
-    const bg = editable ? theme.colors.surface : theme.colors.card;
+    const borderColor = focused ? theme.colors.focus : theme.colors.border;
+    const borderWidth = focused ? 3 : 1;
+    const bg = editable ? theme.colors.card : theme.colors.surfaceVariant;
 
     return (
-      <View style={[{ width: "100%" }, containerStyle]}> 
+      <View style={[{ width: "100%" }, containerStyle]}>
         {label ? (
-          <Text style={{ marginBottom: 6, color: theme.colors.onSurface }}>{label}</Text>
+          <Text style={{ marginBottom: 6, color: theme.colors.onSurface }}>
+            {label}
+          </Text>
         ) : null}
-        <View style={[styles.field, { borderColor, backgroundColor: bg }]}>
+        <View
+          style={[
+            styles.field,
+            { borderColor, borderWidth, backgroundColor: bg },
+          ]}
+        >
           <RNTextInput
             ref={ref}
             style={[styles.input, { color: theme.colors.text }, style as any]}
@@ -40,7 +66,9 @@ const Input = React.forwardRef<RNTextInput, Props>(
           {right ? <View style={styles.right}>{right}</View> : null}
         </View>
         {errorText ? (
-          <Text style={{ color: theme.colors.error, marginTop: 6 }}>{errorText}</Text>
+          <Text style={{ color: theme.colors.error, marginTop: 6 }}>
+            {errorText}
+          </Text>
         ) : null}
       </View>
     );
@@ -51,8 +79,8 @@ Input.displayName = "Input";
 
 const styles = StyleSheet.create({
   field: {
-    borderWidth: 2,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 10,
     position: "relative",

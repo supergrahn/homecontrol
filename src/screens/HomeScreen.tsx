@@ -1,5 +1,14 @@
 import React from "react";
-import { View, Text, FlatList, TouchableOpacity, LayoutAnimation, Platform, UIManager } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  Animated,
+} from "react-native";
 import EmptyState from "../components/EmptyState";
 import { useTheme } from "../design/theme";
 import ScreenContainer from "../components/ScreenContainer";
@@ -14,6 +23,7 @@ import {
   fetchTodayTasks,
   fetchOverdueTasks,
   fetchUpcomingTasks,
+  fetchTasksInRange,
 } from "../services/tasks";
 import { listChildren, type Child } from "../services/children";
 import { fetchRecentActivity } from "../services/activity";
@@ -25,6 +35,8 @@ import { appEvents } from "../events";
 // import { createHousehold } from '../services/households';
 import Input from "../components/Input";
 import Button from "../components/Button";
+import Tabs from "../components/Tabs";
+import Card from "../components/Card";
 
 // Household id from context
 
@@ -44,6 +56,9 @@ export default function HomeScreen({ navigation }: any) {
   const [showAllTags, setShowAllTags] = React.useState(false);
   const [showFilters, setShowFilters] = React.useState(false);
   const [showQuick, setShowQuick] = React.useState(false);
+  const [quickVisible, setQuickVisible] = React.useState(false);
+  const quickAnim = React.useRef(new Animated.Value(0)).current; // 0=hidden,1=shown
+  const [headerBottom, setHeaderBottom] = React.useState<number>(0);
   const [kids, setKids] = React.useState<Child[]>([]);
   const [kidIds, setKidIds] = React.useState<string[]>([]);
   // const [selectorOpen, setSelectorOpen] = React.useState(false);
@@ -63,25 +78,51 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, []);
 
+  // Animate quick actions dropdown
+  React.useEffect(() => {
+    if (showQuick) {
+      setQuickVisible(true);
+      Animated.timing(quickAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else if (quickVisible) {
+      Animated.timing(quickAnim, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setQuickVisible(false);
+      });
+    }
+  }, [showQuick]);
+
   // Enable smooth expand/collapse animations for filters
   React.useEffect(() => {
-    if (Platform.OS === "android" && (UIManager as any)?.setLayoutAnimationEnabledExperimental) {
+    if (
+      Platform.OS === "android" &&
+      (UIManager as any)?.setLayoutAnimationEnabledExperimental
+    ) {
       (UIManager as any).setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
 
   const enabled = !!householdId;
   const today = useQuery({
-    queryKey: ["today", householdId],
-    queryFn: () =>
-      fetchTodayTasks(householdId!, {
+    queryKey: ["today", householdId, prioritySort],
+    queryFn: () => {
+      const start = dayjs().startOf("day").toDate();
+      const end = dayjs().endOf("day").toDate();
+      return fetchTasksInRange(householdId!, start, end, {
         priorityOrder:
           prioritySort === "high"
             ? "desc"
             : prioritySort === "low"
               ? "asc"
               : undefined,
-      } as any),
+      } as any);
+    },
     enabled,
   });
   const overdue = useQuery({
@@ -98,16 +139,19 @@ export default function HomeScreen({ navigation }: any) {
     enabled,
   });
   const upcoming = useQuery({
-    queryKey: ["upcoming", householdId],
-    queryFn: () =>
-      fetchUpcomingTasks(householdId!, {
+    queryKey: ["upcoming", householdId, prioritySort],
+    queryFn: () => {
+      const start = dayjs().add(1, "day").startOf("day").toDate();
+      const end = dayjs().add(7, "day").endOf("day").toDate();
+      return fetchTasksInRange(householdId!, start, end, {
         priorityOrder:
           prioritySort === "high"
             ? "desc"
             : prioritySort === "low"
               ? "asc"
               : undefined,
-      } as any),
+      } as any);
+    },
     enabled,
   });
   const digest = useQuery({
@@ -283,30 +327,28 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", flexShrink: 1 }}>
-          {["today", "overdue", "upcoming"].map((key) => (
-            <TouchableOpacity key={key as any} onPress={() => setTab(key as any)} activeOpacity={0.8}>
-              <View
-                style={{
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                  borderRadius: 999,
-                  backgroundColor: (tab === (key as any)) ? theme.colors.primary : theme.colors.card,
-                }}
-              >
-                <Text style={{ color: (tab === (key as any)) ? theme.colors.onPrimary : theme.colors.text }}>
-                  {t(key as any)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          setHeaderBottom(y + height);
+        }}
+      >
+        <Tabs
+          items={["today", "overdue", "upcoming"].map(
+            (k) => t(k as any) as string
+          )}
+          value={["today", "overdue", "upcoming"].indexOf(tab)}
+          onChange={(i) => setTab(["today", "overdue", "upcoming"][i] as any)}
+          style={{ flexShrink: 1 }}
+        />
         <View style={{ flex: 1 }} />
         {/* Filter toggle */}
         <TouchableOpacity
           onPress={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            LayoutAnimation.configureNext(
+              LayoutAnimation.Presets.easeInEaseOut
+            );
             setShowFilters((v) => !v);
           }}
           accessibilityLabel={t("filters") || "Filters"}
@@ -319,8 +361,10 @@ export default function HomeScreen({ navigation }: any) {
         {/* Quick action (same as floating +), now styled with circular primary background */}
         <TouchableOpacity
           onPress={() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setShowQuick((v) => !v);
+            LayoutAnimation.configureNext(
+              LayoutAnimation.Presets.easeInEaseOut
+            );
+            setShowQuick((v) => !v);
           }}
           accessibilityLabel={t("add") || "Add"}
           accessibilityRole="button"
@@ -343,31 +387,34 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       {/* Daily summary card */}
-  {enabled ? (
-        <View
-          style={{
-    padding: theme.spacing(1.5),
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-            marginBottom: 12,
-          }}
-        >
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+      {enabled ? (
+        <Card style={{ marginBottom: 12 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 4,
+                color: theme.colors.text,
+              }}
+            >
               {t("dailySummary")}
             </Text>
-              <Button
-                title={t("refresh")}
-                onPress={() => {
+            <Button
+              title={t("refresh")}
+              onPress={() => {
                 qc.invalidateQueries({ queryKey: ["digest", householdId] });
                 qc.invalidateQueries({ queryKey: ["today", householdId] });
                 qc.invalidateQueries({ queryKey: ["overdue", householdId] });
                 qc.invalidateQueries({ queryKey: ["upcoming", householdId] });
               }}
-                variant="outline"
-              />
+              variant="outline"
+            />
           </View>
           {digest.isLoading ? (
             <Text>{t("loading")}</Text>
@@ -381,7 +428,10 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
               {!!(digest.data as any).samples ? (
                 <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
-                  {[(digest.data as any).samples.todayTitles, (digest.data as any).samples.overdueTitles]
+                  {[
+                    (digest.data as any).samples.todayTitles,
+                    (digest.data as any).samples.overdueTitles,
+                  ]
                     .flat()
                     .filter(Boolean)
                     .slice(0, 2)
@@ -398,9 +448,11 @@ export default function HomeScreen({ navigation }: any) {
               ) : null}
             </View>
           ) : (
-            <Text style={{ color: theme.colors.muted }}>{t("noSummaryYet")}</Text>
+            <Text style={{ color: theme.colors.muted }}>
+              {t("noSummaryYet")}
+            </Text>
           )}
-        </View>
+        </Card>
       ) : null}
 
       {enabled && list.isLoading ? (
@@ -429,9 +481,11 @@ export default function HomeScreen({ navigation }: any) {
               title={t("noTasks") || "No tasks"}
               subtitle={
                 tab === "today"
-                  ? (t("noTasksTodayTryAdd") as string) || "All clear today. Tap + to add a task."
+                  ? (t("noTasksTodayTryAdd") as string) ||
+                    "All clear today. Tap + to add a task."
                   : tab === "overdue"
-                    ? (t("noOverdueGreatJob") as string) || "Nothing overdue. Great job!"
+                    ? (t("noOverdueGreatJob") as string) ||
+                      "Nothing overdue. Great job!"
                     : (t("noUpcoming") as string) || "No upcoming tasks."
               }
             />
@@ -440,9 +494,15 @@ export default function HomeScreen({ navigation }: any) {
       )}
 
       {/* Filters */}
-  {enabled && showFilters ? (
+      {enabled && showFilters ? (
         <View style={{ marginTop: 12 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 6, color: theme.colors.text }}>
+          <Text
+            style={{
+              fontWeight: "600",
+              marginBottom: 6,
+              color: theme.colors.text,
+            }}
+          >
             {t("filters") || "Filters"}
           </Text>
           {/* Kid chips */}
@@ -477,15 +537,34 @@ export default function HomeScreen({ navigation }: any) {
                         paddingVertical: 6,
                         borderRadius: 999,
                         borderWidth: 1,
-                        borderColor: active ? theme.colors.text : theme.colors.border,
-                        backgroundColor: active ? theme.colors.card : theme.colors.background,
+                        borderColor: active
+                          ? theme.colors.text
+                          : theme.colors.border,
+                        backgroundColor: active
+                          ? theme.colors.card
+                          : theme.colors.background,
                       }}
                     >
                       <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
                       <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
                       {count > 0 ? (
-                        <View style={{ marginLeft: 4, backgroundColor: theme.colors.text, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ color: theme.colors.onEmphasis, fontSize: 10 }}>{count}</Text>
+                        <View
+                          style={{
+                            marginLeft: 4,
+                            backgroundColor: theme.colors.text,
+                            borderRadius: 999,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: theme.colors.onEmphasis,
+                              fontSize: 10,
+                            }}
+                          >
+                            {count}
+                          </Text>
                         </View>
                       ) : null}
                     </View>
@@ -496,7 +575,10 @@ export default function HomeScreen({ navigation }: any) {
           ) : null}
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
             <Input
-              placeholder={(t("tagsFilter") as string) || "Filter by tags (comma-separated)"}
+              placeholder={
+                (t("tagsFilter") as string) ||
+                "Filter by tags (comma-separated)"
+              }
               value={tagInput}
               onChangeText={setTagInput}
               autoCapitalize="none"
@@ -505,12 +587,17 @@ export default function HomeScreen({ navigation }: any) {
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
             <Button
-              title={(t("sortByPriorityHighFirst") as string) || "High priority first"}
+              title={
+                (t("sortByPriorityHighFirst") as string) ||
+                "High priority first"
+              }
               onPress={() => setPrioritySort("high")}
               variant={prioritySort === "high" ? "primary" : "outline"}
             />
             <Button
-              title={(t("sortByPriorityLowFirst") as string) || "Low priority first"}
+              title={
+                (t("sortByPriorityLowFirst") as string) || "Low priority first"
+              }
               onPress={() => setPrioritySort("low")}
               variant={prioritySort === "low" ? "primary" : "outline"}
             />
@@ -571,8 +658,26 @@ export default function HomeScreen({ navigation }: any) {
                   >
                     <View
                       style={{
-                        backgroundColor: active ? theme.colors.primary : theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: active ? theme.colors.primary : theme.colors.border }}>
-                      <Text style={{ color: active ? "#fff" : theme.colors.text, fontSize: 12 }}>#{tg}</Text>
+                        backgroundColor: active
+                          ? theme.colors.primary
+                          : theme.colors.card,
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: active
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: active ? "#fff" : theme.colors.text,
+                          fontSize: 12,
+                        }}
+                      >
+                        #{tg}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -585,8 +690,19 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => setShowAllTags(true)}
                     activeOpacity={0.8}
                   >
-                    <View style={{ backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.colors.border }}>
-                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>{t("moreCount", { count: hiddenCount })}</Text>
+                    <View
+                      style={{
+                        backgroundColor: theme.colors.card,
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>
+                        {t("moreCount", { count: hiddenCount })}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -597,8 +713,19 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => setShowAllTags(false)}
                     activeOpacity={0.8}
                   >
-                    <View style={{ backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.colors.border }}>
-                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>{t("showLess")}</Text>
+                    <View
+                      style={{
+                        backgroundColor: theme.colors.card,
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.text, fontSize: 12 }}>
+                        {t("showLess")}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -610,46 +737,95 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      {/* Quick Actions dropdown */}
-      {enabled && showQuick ? (
-        <View
+      {/* Quick Actions dropdown (absolute, under + button) */}
+      {enabled && quickVisible ? (
+        <Animated.View
           style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: theme.radius.md,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
+            position: "absolute",
+            top: Math.max(headerBottom + 4, 0),
+            right: 12,
+            zIndex: 50,
+            transform: [
+              {
+                translateY: quickAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-8, 0],
+                }),
+              },
+            ],
+            opacity: quickAnim,
           }}
         >
-          <Text style={{ fontWeight: "600", marginBottom: 6, color: theme.colors.text }}>
-            {t("quickActions") || "Quick actions"}
-          </Text>
-          {(() => {
-            const role = households.find((h) => h.id === householdId)?.role;
-            const Item = ({ label, onPress }: { label: string; onPress: () => void }) => (
-              <TouchableOpacity onPress={onPress} style={{ paddingVertical: 12 }}>
-                <Text style={{ fontSize: 16, color: theme.colors.text }}>{label}</Text>
-              </TouchableOpacity>
-            );
-            return (
-              <View>
-                <Item label={(t("newTask") as string) || "New Task"} onPress={() => navigation.navigate("AddTask")} />
-                <Item label={(t("newEvent") as string) || "New event"} onPress={() => navigation.navigate("AddTask", { preset: "event" })} />
-                <Item label={(t("newBirthday") as string) || "New birthday"} onPress={() => navigation.navigate("AddTask", { preset: "birthday" })} />
-                {role === "admin" ? (
-                  <Item label={(t("showHouseholdQr") as string) || "Show Household QR"} onPress={() => navigation.navigate("ShowHouseholdQR")} />
-                ) : null}
-                <Item label={(t("scanHouseholdQr") as string) || "Scan Household QR"} onPress={() => navigation.navigate("ScanInvite")} />
-              </View>
-            );
-          })()}
-        </View>
+          <Card>
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 6,
+                color: theme.colors.text,
+              }}
+            >
+              {t("quickActions") || "Quick actions"}
+            </Text>
+            {(() => {
+              const role = households.find((h) => h.id === householdId)?.role;
+              const Item = ({
+                label,
+                onPress,
+              }: {
+                label: string;
+                onPress: () => void;
+              }) => (
+                <TouchableOpacity
+                  onPress={onPress}
+                  style={{ paddingVertical: 12 }}
+                >
+                  <Text style={{ fontSize: 16, color: theme.colors.text }}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+              return (
+                <View>
+                  <Item
+                    label={(t("newTask") as string) || "New Task"}
+                    onPress={() => navigation.navigate("AddTask")}
+                  />
+                  <Item
+                    label={(t("newEvent") as string) || "New event"}
+                    onPress={() =>
+                      navigation.navigate("AddTask", { preset: "event" })
+                    }
+                  />
+                  <Item
+                    label={(t("newBirthday") as string) || "New birthday"}
+                    onPress={() =>
+                      navigation.navigate("AddTask", { preset: "birthday" })
+                    }
+                  />
+                  {role === "admin" ? (
+                    <Item
+                      label={
+                        (t("showHouseholdQr") as string) || "Show Household QR"
+                      }
+                      onPress={() => navigation.navigate("ShowHouseholdQR")}
+                    />
+                  ) : null}
+                  <Item
+                    label={
+                      (t("scanHouseholdQr") as string) || "Scan Household QR"
+                    }
+                    onPress={() => navigation.navigate("ScanInvite")}
+                  />
+                </View>
+              );
+            })()}
+          </Card>
+        </Animated.View>
       ) : null}
 
-  {/* Bottom Templates/Settings buttons removed per design */}
+      {/* Bottom Templates/Settings buttons removed per design */}
 
-  {/* Floating + button removed; global FAB provided by Navigation */}
+      {/* Floating + button removed; global FAB provided by Navigation */}
 
       {/* Recent activity */}
       {enabled ? (
@@ -661,10 +837,20 @@ export default function HomeScreen({ navigation }: any) {
               alignItems: "center",
             }}
           >
-            <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+            <Text
+              style={{
+                ...theme.typography.subtitle,
+                color: theme.colors.onSurface,
+                marginBottom: 8,
+              }}
+            >
               {t("recentActivity")}
             </Text>
-            <Button title={t("viewTasks")} onPress={() => setTab("today")} variant="link" />
+            <Button
+              title={t("viewTasks")}
+              onPress={() => setTab("today")}
+              variant="link"
+            />
           </View>
           {activity.isLoading ? (
             <Text>{t("loading")}</Text>
@@ -684,23 +870,32 @@ export default function HomeScreen({ navigation }: any) {
                       : `${a.action}`;
                 const time = a.at ? dayjs(a.at).format("HH:mm") : "";
                 return (
-                  <Text key={a.id} style={{ color: theme.colors.text, opacity: 0.8, marginBottom: 4 }}>
+                  <Text
+                    key={a.id}
+                    style={{
+                      color: theme.colors.text,
+                      opacity: 0.8,
+                      marginBottom: 4,
+                    }}
+                  >
                     {time ? `${time} — ` : ""}
                     {line}
                   </Text>
                 );
               })}
               {(activity.data || []).length === 0 ? (
-                <Text style={{ color: theme.colors.muted }}>{t("nothingYet")}</Text>
+                <Text style={{ color: theme.colors.muted }}>
+                  {t("nothingYet")}
+                </Text>
               ) : null}
             </View>
           )}
         </View>
       ) : null}
 
-  {/* Household selector modal removed */}
+      {/* Household selector modal removed */}
 
-  {/* Type picker modal removed */}
+      {/* Type picker modal removed */}
     </ScreenContainer>
   );
 }

@@ -10,6 +10,25 @@ Small Expo app for household tasks with Firebase Auth/Firestore/Storage.
 
 If building with EAS, set a real EAS project ID in `app.json > expo.extra.eas.projectId` and run `eas init`.
 
+### Run on iPhone (Expo Go)
+
+- Install Expo Go from the App Store on your iPhone.
+- Start the dev server in tunnel mode so the phone can reach it even across networks:
+
+  ```sh
+  npm run start:go
+  # or: npx expo start --tunnel
+  ```
+
+- Open Expo Go on the iPhone, tap “Scan QR Code”, and scan the QR from the Expo DevTools page (press `d` in the terminal to open it in your browser). Avoid using the iOS Camera app; it will show “Could not find any data”.
+
+Troubleshooting:
+
+- If the terminal QR is too small, use the bigger QR in the DevTools web page.
+- You can also tap “Enter URL” in Expo Go and paste the `exp://` / `https://u.expo.dev/...` URL printed by Expo.
+- On WSL/Windows, always use `--tunnel` and ensure Windows firewall/VPN isn’t blocking. If needed, try a different network or mobile hotspot.
+- Clear cache if stuck: `npx expo start -c --tunnel`.
+
 ## Build (optional)
 
 - Install EAS CLI: `npm i -g eas-cli`
@@ -34,14 +53,17 @@ If building with EAS, set a real EAS project ID in `app.json > expo.extra.eas.pr
 ## Invites: SMTP and Dynamic Links setup
 
 Cloud Functions supports two ways to provide configuration:
+
 - Environment variables (useful for local emulators and CI)
 - `firebase functions:config:set` (recommended for production)
 
 Supported keys:
+
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - Dynamic Links: `DYNAMIC_LINK_DOMAIN`, `DYNAMIC_LINK_LINK_BASE`, `DYNAMIC_LINK_APN`, `DYNAMIC_LINK_IBI`, `DYNAMIC_LINK_ISI`
 
 Alternatively in Functions Config (preferred):
+
 - `smtp.host`, `smtp.port`, `smtp.user`, `smtp.pass`, `smtp.from`
 - `dynamiclinks.domain`, `dynamiclinks.link_base`, `dynamiclinks.apn`, `dynamiclinks.ibi`, `dynamiclinks.isi`
 

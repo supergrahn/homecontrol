@@ -14,4 +14,18 @@ export default [
       "build/**",
     ],
   },
+  {
+    files: ["__tests__/**"],
+    rules: {
+      "import/no-unresolved": "off",
+    },
+    languageOptions: {
+      globals: {
+        jest: true,
+        describe: true,
+        it: true,
+        expect: true,
+      },
+    },
+  },
 ];

@@ -1,5 +1,13 @@
 import React from "react";
-import { View, Text, FlatList, TouchableOpacity, Image, Alert, TextInput as RNTextInput } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  Alert,
+  TextInput as RNTextInput,
+} from "react-native";
 import Button from "../components/Button";
 import ScreenContainer from "../components/ScreenContainer";
 import { useTheme } from "../design/theme";
@@ -27,6 +35,7 @@ import {
   addDependency,
   removeDependency,
 } from "../services/tasks";
+import { deleteTask } from "../services/tasks";
 import { listChildren, type Child } from "../services/children";
 import { listComments, addComment, type Comment } from "../services/comments";
 import {
@@ -68,6 +77,7 @@ export default function TaskDetailScreen({ route }: any) {
     type?: string;
     title?: string;
   } | null>(null);
+  const [titleDraft, setTitleDraft] = React.useState<string>("");
   const [items, setItems] = React.useState<any[]>([]);
   const [newItem, setNewItem] = React.useState("");
   const [photos, setPhotos] = React.useState<{ name: string; url: string }[]>(
@@ -114,6 +124,7 @@ export default function TaskDetailScreen({ route }: any) {
       const task = await getTask(householdId, taskId);
       if (task) {
         setTaskMeta({ type: task.type, title: task.title });
+        setTitleDraft(String(task.title || ""));
         setChildIds(
           Array.isArray((task as any).childIds) ? (task as any).childIds : []
         );
@@ -239,6 +250,38 @@ export default function TaskDetailScreen({ route }: any) {
     }
   };
 
+  const saveTitle = async () => {
+    if (!householdId || !titleDraft.trim()) return;
+    try {
+      await updateTask(householdId, taskId, {
+        title: titleDraft.trim(),
+      } as any);
+      setTaskMeta((m) => (m ? { ...m, title: titleDraft.trim() } : m));
+    } catch {}
+  };
+
+  const confirmDelete = async () => {
+    if (!householdId) return;
+    Alert.alert(
+      (t("deleteTaskTitle") as string) || "Delete task",
+      (t("deleteTaskConfirm") as string) ||
+        "Delete this task? This cannot be undone.",
+      [
+        { text: (t("cancel") as string) || "Cancel", style: "cancel" },
+        {
+          text: (t("delete") as string) || "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTask(householdId, taskId);
+              (navigation as any).goBack?.();
+            } catch {}
+          },
+        },
+      ]
+    );
+  };
+
   const pickAndUpload = React.useCallback(async () => {
     // Request library permission
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -263,6 +306,24 @@ export default function TaskDetailScreen({ route }: any) {
 
   return (
     <ScreenContainer style={{ paddingHorizontal: 16 }}>
+      {/* Title edit / delete actions */}
+      <View style={{ marginBottom: 12 }}>
+        <Input
+          value={titleDraft}
+          onChangeText={setTitleDraft}
+          placeholder={(t("titleLabel") as string) || "Title"}
+          returnKeyType="done"
+          onSubmitEditing={saveTitle}
+        />
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <Button title={(t("save") as string) || "Save"} onPress={saveTitle} />
+          <Button
+            title={(t("delete") as string) || "Delete"}
+            onPress={confirmDelete}
+            variant="outline"
+          />
+        </View>
+      </View>
       {/* Auto-reschedule info */}
       {lastAutoShift?.at ? (
         <View
@@ -292,7 +353,13 @@ export default function TaskDetailScreen({ route }: any) {
       ) : null}
       {/* Rotation settings */}
       <View style={{ marginBottom: 12 }}>
-        <Text style={{ fontWeight: "700", marginBottom: 6, color: theme.colors.text }}>
+        <Text
+          style={{
+            fontWeight: "700",
+            marginBottom: 6,
+            color: theme.colors.text,
+          }}
+        >
           {(t("rotation") as string) || "Rotation"}
         </Text>
         <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
@@ -308,7 +375,7 @@ export default function TaskDetailScreen({ route }: any) {
               gap: 8,
               marginBottom: 8,
             }}
-         >
+          >
             {members.map((m) => {
               const active = rotationPool.includes(m.userId);
               return (
@@ -334,7 +401,9 @@ export default function TaskDetailScreen({ route }: any) {
                       paddingVertical: 6,
                       borderRadius: 999,
                       borderWidth: 1,
-                      borderColor: active ? theme.colors.text : theme.colors.border,
+                      borderColor: active
+                        ? theme.colors.text
+                        : theme.colors.border,
                       backgroundColor: theme.colors.card,
                     }}
                   >
@@ -356,7 +425,7 @@ export default function TaskDetailScreen({ route }: any) {
               gap: 8,
               marginBottom: 8,
             }}
-         >
+          >
             {kids.map((k) => {
               const active = rotationPool.includes(k.id);
               return (
@@ -382,7 +451,9 @@ export default function TaskDetailScreen({ route }: any) {
                       paddingVertical: 6,
                       borderRadius: 999,
                       borderWidth: 1,
-                      borderColor: active ? theme.colors.text : theme.colors.border,
+                      borderColor: active
+                        ? theme.colors.text
+                        : theme.colors.border,
                       backgroundColor: theme.colors.card,
                     }}
                   >
@@ -400,7 +471,8 @@ export default function TaskDetailScreen({ route }: any) {
         {rotationPool.length > 0 ? (
           <View style={{ marginTop: 6 }}>
             <Text style={{ marginBottom: 6, color: theme.colors.text }}>
-              {(t("nextAssignee") as string) || "Next assignee"}: {(() => {
+              {(t("nextAssignee") as string) || "Next assignee"}:{" "}
+              {(() => {
                 const idx = Math.min(
                   Math.max(0, rotationIndex),
                   Math.max(0, rotationPool.length - 1)
@@ -411,7 +483,13 @@ export default function TaskDetailScreen({ route }: any) {
                 return m?.displayName || kid?.displayName || id || "";
               })()}
             </Text>
-            <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 4 }}>
+            <Text
+              style={{
+                ...theme.typography.subtitle,
+                color: theme.colors.onSurface,
+                marginBottom: 4,
+              }}
+            >
               {(t("fairness") as string) || "Fairness"}
             </Text>
             <View style={{ gap: 4 }}>
@@ -435,7 +513,13 @@ export default function TaskDetailScreen({ route }: any) {
       {/* Kid assignment */}
       {kids.length > 0 ? (
         <View style={{ marginBottom: 12 }}>
-          <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>
+          <Text
+            style={{
+              ...theme.typography.subtitle,
+              color: theme.colors.onSurface,
+              marginBottom: 6,
+            }}
+          >
             {(t("assignToKids") as string) || "Assign to kids"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -525,7 +609,10 @@ export default function TaskDetailScreen({ route }: any) {
           <Button
             title={(t("approve") as string) || "Approve"}
             accessibilityLabel={(t("approve") as string) || "Approve"}
-            accessibilityHint={(t("hint.approveTask") as string) || "Marks this completed task as verified."}
+            accessibilityHint={
+              (t("hint.approveTask") as string) ||
+              "Marks this completed task as verified."
+            }
             onPress={async () => {
               if (!householdId) return;
               try {
@@ -542,7 +629,9 @@ export default function TaskDetailScreen({ route }: any) {
           <Button
             title={(t("reject") as string) || "Reject"}
             accessibilityLabel={(t("reject") as string) || "Reject"}
-            accessibilityHint={(t("hint.rejectTask") as string) || "Sends the task back to open."}
+            accessibilityHint={
+              (t("hint.rejectTask") as string) || "Sends the task back to open."
+            }
             onPress={async () => {
               if (!householdId) return;
               try {
@@ -558,13 +647,21 @@ export default function TaskDetailScreen({ route }: any) {
           />
         </View>
       ) : null}
-  <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>{t("task")}</Text>
+      <Text style={{ ...theme.typography.h2, color: theme.colors.onSurface }}>
+        {t("task")}
+      </Text>
       <Text style={{ marginBottom: 12, color: "#666" }}>
         {t("id")}: {taskId}
       </Text>
       {/* Dependencies */}
       <View style={{ marginBottom: 12 }}>
-        <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 6 }}>
+        <Text
+          style={{
+            ...theme.typography.subtitle,
+            color: theme.colors.onSurface,
+            marginBottom: 6,
+          }}
+        >
           {(t("dependencies") as string) || "Dependencies"}
         </Text>
         {dependsOn.length === 0 ? (
@@ -584,7 +681,10 @@ export default function TaskDetailScreen({ route }: any) {
                 <Button
                   title={(t("remove") as string) || "Remove"}
                   accessibilityLabel={(t("remove") as string) || "Remove"}
-                  accessibilityHint={(t("hint.removeDependency") as string) || "Removes this dependency from the task."}
+                  accessibilityHint={
+                    (t("hint.removeDependency") as string) ||
+                    "Removes this dependency from the task."
+                  }
                   onPress={async () => {
                     if (!householdId) return;
                     await removeDependency(householdId, taskId, dep);
@@ -761,7 +861,13 @@ export default function TaskDetailScreen({ route }: any) {
         </Text>
       ) : null}
 
-      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+      <Text
+        style={{
+          ...theme.typography.subtitle,
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
         {t("checklist")}
       </Text>
       <FlatList
@@ -805,7 +911,11 @@ export default function TaskDetailScreen({ route }: any) {
 
               {isEditing ? (
                 <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                  <Input value={editingText} onChangeText={setEditingText} containerStyle={{ flex: 1 }} />
+                  <Input
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    containerStyle={{ flex: 1 }}
+                  />
                   <Button title={t("save")} onPress={saveEdit} />
                   <Button title={t("cancel")} onPress={cancelEdit} />
                 </View>
@@ -848,7 +958,13 @@ export default function TaskDetailScreen({ route }: any) {
 
       {/* Photos */}
       <View style={{ height: 24 }} />
-      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+      <Text
+        style={{
+          ...theme.typography.subtitle,
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
         {t("photos") || "Photos"}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
@@ -906,7 +1022,13 @@ export default function TaskDetailScreen({ route }: any) {
 
       {/* Comments */}
       <View style={{ height: 24 }} />
-      <Text style={{ ...theme.typography.subtitle, color: theme.colors.onSurface, marginBottom: 8 }}>
+      <Text
+        style={{
+          ...theme.typography.subtitle,
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
         {t("comments") || "Comments"}
       </Text>
       {comments.length === 0 ? (
@@ -1008,7 +1130,7 @@ export default function TaskDetailScreen({ route }: any) {
           ))}
         </View>
       ) : null}
-  </ScreenContainer>
+    </ScreenContainer>
   );
 }
 

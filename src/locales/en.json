@@ -5,6 +5,7 @@
   "signInFailed": "Sign-in failed — try creating an account.",
   "signUpFailed": "Sign-up failed. Check email and password.",
   "signIn": "Sign in",
+  "signInSubtitle": "Welcome back. Please sign in.",
   "createAccount": "Create account",
   "today": "Today",
   "add": "Add",
@@ -69,6 +70,8 @@
   "auth.tooManyRequests": "Too many attempts. Try again later.",
   "auth.resetEmailSent": "Reset email sent.",
   "forgotPassword": "Forgot password?",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
   "signOut": "Sign out",
   "markComplete": "Mark complete",
   "selectHousehold": "Select household",
@@ -77,8 +80,12 @@
   "close": "Close",
   "createHousehold": "Create household",
   "householdName": "Household name",
+  "yourName": "Your name",
+  "yourNameHint": "Shown to your household; you can change it later.",
   "settings": "Settings",
   "delete": "Delete",
+  "deleteTaskTitle": "Delete task",
+  "deleteTaskConfirm": "Delete this task? This cannot be undone.",
   "leave": "Leave",
   "cancel": "Cancel",
   "deleteHouseholdTitle": "Delete household",
@@ -116,7 +123,8 @@
     "pasteInviteLink": "Paste invite link"
   },
   "validation": {
-    "householdNameShort": "Please enter at least 2 characters"
+    "householdNameShort": "Please enter at least 2 characters",
+    "nameRequired": "Please enter your name"
   },
   "invalidInviteLink": "Invalid invite link",
   "invite": {
@@ -142,6 +150,8 @@
   "saved": "Saved",
   "notifications": "Notifications",
   "invalidTime": "Enter time as HH:mm (00-23:59).",
+  "invalidDate": "Enter date as YYYY-MM-DD.",
+  "dateRequiredForEvent": "Date is required for events.",
   "invalidTimezone": "Enter a valid IANA timezone like Europe/Oslo.",
   "householdSettings": "Household settings",
   "digestHour": "Digest hour (0-23)",
@@ -168,13 +178,13 @@
   "scanHouseholdQr": "Scan Household QR",
   "noHouseholdSelected": "No household selected",
   "notAllowed": "Not allowed",
-  "inviteLinkUnavailable": "Invite link unavailable"
-  ,"shareHouseholdInvite": "Share Household Invite",
+  "inviteLinkUnavailable": "Invite link unavailable",
+  "shareHouseholdInvite": "Share Household Invite",
   "resetToDefaults": "Reset to defaults",
   "filtersReset": "Filters reset",
   "moreCount": "+{{count}} more",
-  "showLess": "Show less"
-  ,"calendar": "Calendar",
+  "showLess": "Show less",
+  "calendar": "Calendar",
   "agenda": "Agenda",
   "week": "Week",
   "month": "Month",
@@ -190,28 +200,51 @@
   "noFreeSlots": "No free slots between 06:00–22:00",
   "skipToday": "Skip today",
   "shift30": "+30m",
-  "pause7": "Pause 7d"
-  ,"kids": "Kids"
-  ,"noKidsYet": "No kids yet."
-  ,"assignToKids": "Assign to kids"
-  ,"approvalRequired": "Approval required"
-  ,"approve": "Approve"
-  ,"reject": "Reject"
-  ,"rotation": "Rotation"
-  ,"rotationHint": "Pick members/children to rotate assignments. Next assignee cycles when scheduled."
-  ,"nextAssignee": "Next assignee"
-  ,"fairness": "Fairness"
-  ,"language": "Language"
-  ,"appearance": "Appearance"
-  ,"account": "Account"
-  ,"insights": "Insights"
-  ,"syncPendingActions": "Sync pending actions"
-  ,"pendingCount": "Pending"
-  ,"retrySync": "Retry sync"
-  ,"nightBefore": "Night-before reminder"
-  ,"nightBeforeHint": "Send a preview of tomorrow around 20:00."
-  ,"workloadHeatmap": "Workload heatmap"
-  ,"themeMode": "Theme"
-  ,"newEvent": "New event"
-  ,"newBirthday": "New birthday"
+  "pause7": "Pause 7d",
+  "kids": "Kids",
+  "noKidsYet": "No kids yet.",
+  "assignToKids": "Assign to kids",
+  "approvalRequired": "Approval required",
+  "approve": "Approve",
+  "reject": "Reject",
+  "rotation": "Rotation",
+  "rotationHint": "Pick members/children to rotate assignments. Next assignee cycles when scheduled.",
+  "nextAssignee": "Next assignee",
+  "fairness": "Fairness",
+  "language": "Language",
+  "appearance": "Appearance",
+  "account": "Account",
+  "insights": "Insights",
+  "syncPendingActions": "Sync pending actions",
+  "pendingCount": "Pending",
+  "retrySync": "Retry sync",
+  "nightBefore": "Night-before reminder",
+  "nightBeforeHint": "Send a preview of tomorrow around 20:00.",
+  "workloadHeatmap": "Workload heatmap",
+  "themeMode": "Theme",
+  "newEvent": "New event",
+  "newBirthday": "New birthday",
+  "members": "Members",
+  "confirm": "Confirm",
+  "makeAdmin": "Make admin",
+  "demote": "Demote",
+  "demoteToAdult": "Demote to adult",
+  "confirmMakeAdmin": "Make this member an admin?",
+  "confirmDemote": "Demote this member to adult?",
+  "cannotRemoveLastAdmin": "You can’t remove the last admin.",
+  "changeRole": "Change role",
+  "typeHintEvent": "Events require a date and show on the calendar.",
+  "typeHintOther": "No date? We'll schedule it for Today by default.",
+  "in1Week": "In 1 week",
+  "in2Weeks": "In two weeks",
+  "in1Month": "In 1 month",
+  "when": "When",
+  "date": "Date",
+  "time": "Time",
+  "allDay": "All-day",
+  "hideOptions": "Hide options",
+  "moreOptions": "More options",
+  "dayLabel": "Day",
+  "monthLabel": "Month",
+  "yearLabel": "Year"
 }

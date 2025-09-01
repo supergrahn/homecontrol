@@ -6,7 +6,7 @@ type Props = {
   title: string;
   onPress?: () => void;
   disabled?: boolean;
-  variant?: "primary" | "link" | "outline";
+  variant?: "primary" | "outline" | "ghost" | "link";
   style?: ViewStyle;
   textStyle?: TextStyle;
   iconLeft?: React.ReactNode;
@@ -42,20 +42,30 @@ export default function Button({
   };
   const styles: Record<string, ViewStyle> = {
     primary: { backgroundColor: theme.colors.primary },
-    outline: { borderWidth: 1, borderColor: theme.colors.outline },
-    link: { backgroundColor: "transparent", paddingHorizontal: 0, paddingVertical: 0 },
+    outline: {
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      backgroundColor: "transparent",
+    },
+    ghost: { backgroundColor: "transparent" },
+    link: {
+      backgroundColor: "transparent",
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
   };
-  const color = variant === "primary" ? theme.colors.onPrimary : theme.colors.onSurface;
+  const color =
+    variant === "primary" ? theme.colors.onPrimary : theme.colors.primary;
   const textBase: TextStyle = { color, fontWeight: "600" };
   return (
     <TouchableOpacity
       onPress={disabled ? undefined : onPress}
       style={[base, styles[variant], style]}
-  testID={testID}
+      testID={testID}
       accessibilityRole="button"
-  accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled }}
       accessibilityLabel={accessibilityLabel || title}
-  accessibilityHint={accessibilityHint}
+      accessibilityHint={accessibilityHint}
       hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
     >
       {iconLeft}
