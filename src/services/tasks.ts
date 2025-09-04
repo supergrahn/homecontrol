@@ -179,6 +179,32 @@ export async function deleteTask(hid: string, id: string): Promise<void> {
   await deleteDoc(ref);
 }
 
+// Fetch tasks assigned to a specific child (by childId)
+export async function fetchChildTasks(
+  hid: string,
+  childId: string,
+  opts?: { includeDone?: boolean; limit?: number }
+): Promise<Task[]> {
+  const ref = collection(db, `households/${hid}/tasks`);
+  const parts: any[] = [where("childIds", "array-contains", childId)];
+  if (!opts?.includeDone) {
+    parts.push(where("status", "in", ["open", "in_progress", "blocked"]));
+  }
+  // Try ordering by nextOccurrenceAt then priority
+  parts.push(orderBy("nextOccurrenceAt", "asc"));
+  const q = query(ref, ...parts);
+  const snap = await getDocs(q);
+  let items = snap.docs.map((d) => ({ id: d.id, ...convert(d.data()) }) as Task);
+  if (opts?.limit && items.length > opts.limit) items = items.slice(0, opts.limit);
+  // Fallback sorting: if dates missing, use dueAt then createdAt
+  items.sort((a: any, b: any) => {
+    const aDate = (a.nextOccurrenceAt || a.dueAt || 0) as any;
+    const bDate = (b.nextOccurrenceAt || b.dueAt || 0) as any;
+    return (aDate ? +new Date(aDate) : 0) - (bDate ? +new Date(bDate) : 0);
+  });
+  return items;
+}
+
 // Fetch tasks in a time range by nextOccurrenceAt OR dueAt, merge, and sort by effective date
 export async function fetchTasksInRange(
   hid: string,

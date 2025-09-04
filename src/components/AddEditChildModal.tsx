@@ -11,9 +11,9 @@ import {
   Easing,
   Dimensions,
   Keyboard,
+  ScrollView,
+  TouchableWithoutFeedback,
 } from "react-native";
-import { ScrollView } from "react-native";
-import { TouchableWithoutFeedback } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../design/theme";
 import Button from "./Button";
@@ -23,17 +23,27 @@ export type AddEditChildModalProps = {
   visible: boolean;
   onClose: () => void;
   onSave: (name: string, school: any | null, url: string | null) => void;
+  child?: { displayName?: string } | null;
 };
 
 export default function AddEditChildModal({
   visible,
   onClose,
   onSave,
+  child,
 }: AddEditChildModalProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(child?.displayName || "");
+  // When modal opens for editing, set name from child
+  useEffect(() => {
+    if (visible && child?.displayName) {
+      setName(child.displayName);
+    } else if (!visible) {
+      setName("");
+    }
+  }, [visible, child]);
   const [schoolSearch, setSchoolSearch] = useState("");
   const [schoolResult, setSchoolResult] = useState<string | null>(null);
   const [schoolOptions, setSchoolOptions] = useState<any[]>([]);
@@ -288,23 +298,39 @@ export default function AddEditChildModal({
               }
               contentContainerStyle={{ paddingBottom: 12 }}
             >
-              <TouchableOpacity
-                accessibilityLabel={t("close") || "Close"}
-                onPress={handleCloseAnimated}
-                style={[
-                  styles.closeButton,
-                  { top: 12 + insets.top, left: 12 + insets.left },
-                ]}
-              >
-                <Text
-                  style={[styles.closeText, { color: theme.colors.onSurface }]}
+              {/* Header with left close and centered title */}
+              <View style={{ marginBottom: 16, position: "relative", minHeight: 44, justifyContent: "center" }}>
+                <TouchableOpacity
+                  accessibilityLabel={t("close") || "Close"}
+                  onPress={handleCloseAnimated}
+                  style={[
+                    styles.closeButton,
+                    {
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      padding: 12, // larger tap target
+                    },
+                  ]}
                 >
-                  ×
+                  <Text style={[styles.closeText, { color: theme.colors.onSurface }]}>×</Text>
+                </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.title,
+                    {
+                      color: theme.colors.onSurface,
+                      textAlign: "center",
+                      marginBottom: 0,
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                    },
+                  ]}
+                >
+                  {child ? (t("editChild") || "Edit Child") : (t("addChild") || "Add Child")}
                 </Text>
-              </TouchableOpacity>
-              <Text style={[styles.title, { color: theme.colors.onSurface }]}>
-                {t("addChild")}
-              </Text>
+              </View>
               <TextInput
                 style={[
                   styles.input,

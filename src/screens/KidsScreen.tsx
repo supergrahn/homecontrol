@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../design/theme";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
@@ -14,6 +15,7 @@ import ScreenContainer from "../components/ScreenContainer";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import AddEditChildModal from "../components/AddEditChildModal";
+import ChildDetailDrawer from "../components/ChildDetailDrawer";
 import { appEvents } from "../events";
 
 export default function KidsScreen() {
@@ -21,15 +23,14 @@ export default function KidsScreen() {
   const { householdId } = useHousehold();
   const theme = useTheme();
   const [kids, setKids] = React.useState<Child[]>([]);
-  const [name, setName] = React.useState("");
-  const [emoji, setEmoji] = React.useState("🙂");
-  const [color, setColor] = React.useState("#FDE68A");
+  // Avatar uses icon; no local name/color state needed here
   const [editing, setEditing] = React.useState<string | null>(null);
   const [editName, setEditName] = React.useState("");
-  const [schoolSummaries, setSchoolSummaries] = React.useState<
-    Record<string, any>
-  >({});
-  const [loadingSummaries, setLoadingSummaries] = React.useState(false);
+  const [editChild, setEditChild] = React.useState<Child | null>(null);
+  const [viewChild, setViewChild] = React.useState<Child | null>(null);
+  const [showViewDrawer, setShowViewDrawer] = React.useState(false);
+  const [schoolSummaries] = React.useState<Record<string, any>>({});
+  const [loadingSummaries] = React.useState(false);
   const [showAddModal, setShowAddModal] = React.useState(false);
 
   const load = React.useCallback(async () => {
@@ -60,8 +61,10 @@ export default function KidsScreen() {
           {(t("kids") as string) || "Kids"}
         </Text>
         <Button
-          title={(t("addChild") as string) || "Add child"}
+          title=""
+          accessibilityLabel={(t("addChild") as string) || "Add child"}
           onPress={() => setShowAddModal(true)}
+          iconLeft={<Ionicons name="add" size={20} color={theme.colors.onPrimary} />}
         />
       </View>
       {/* School summary for each child */}
@@ -154,7 +157,7 @@ export default function KidsScreen() {
                 borderBottomColor: theme.colors.border,
               }}
             >
-              <View
+              <TouchableOpacity
                 style={{
                   width: 32,
                   height: 32,
@@ -164,9 +167,18 @@ export default function KidsScreen() {
                   justifyContent: "center",
                   marginRight: 10,
                 }}
+                onPress={() => {
+                  setViewChild(item);
+                  setShowViewDrawer(true);
+                }}
               >
-                <Text style={{ fontSize: 16 }}>{item.emoji || "🙂"}</Text>
-              </View>
+                <Ionicons
+                  name="person"
+                  size={18}
+                  color={theme.colors.onSurface}
+                  accessibilityLabel={t("childIcon") || "Child icon"}
+                />
+              </TouchableOpacity>
               {isEditing ? (
                 <>
                   <Input
@@ -206,18 +218,36 @@ export default function KidsScreen() {
                 </>
               ) : (
                 <>
-                  <Text style={{ flex: 1, color: theme.colors.text }}>
-                    {item.displayName}
-                  </Text>
-                  <Button
-                    title={(t("edit") as string) || "Edit"}
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
                     onPress={() => {
-                      setEditing(item.id);
-                      setEditName(item.displayName);
+                      setViewChild(item);
+                      setShowViewDrawer(true);
                     }}
+                  >
+                    <Text style={{ color: theme.colors.text }}>
+                      {item.displayName}
+                    </Text>
+                  </TouchableOpacity>
+                  <Button
+                    title=""
+                    onPress={() => {
+                      // Open edit drawer/modal without inline edit mode
+                      setEditChild(item);
+                      setShowAddModal(true);
+                    }}
+                    accessibilityLabel={(t("edit") as string) || "Edit"}
+                    iconLeft={
+                      <Ionicons
+                        name="create-outline"
+                        size={18}
+                        color={theme.colors.primary}
+                      />
+                    }
+                    variant="ghost"
                   />
                   <Button
-                    title={(t("delete") as string) || "Delete"}
+                    title=""
                     accessibilityLabel={(t("delete") as string) || "Delete"}
                     accessibilityHint={
                       (t("hint.deleteChild") as string) ||
@@ -229,7 +259,14 @@ export default function KidsScreen() {
                       load();
                       appEvents.emit("kids:changed", { hid: householdId });
                     }}
-                    variant="outline"
+                    variant="ghost"
+                    iconLeft={
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={theme.colors.primary}
+                      />
+                    }
                   />
                 </>
               )}
@@ -246,34 +283,62 @@ export default function KidsScreen() {
       />
       <AddEditChildModal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        child={editChild}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditChild(null);
+          setEditing(null);
+        }}
         onSave={async (
           name: string,
           school: any | null,
           url: string | null
         ) => {
           if (!householdId) return;
-          // Persist child profile with selected school if provided
-          const childId = await addChild(
-            householdId,
-            name.trim() || "Unnamed",
-            undefined,
-            undefined,
-            school
-          );
-          // Fire-and-forget: if URL provided, call local crawler (dev only)
-          if (url && url.startsWith("http")) {
-            try {
-              // Expect a local dev server to proxy to Python crawler
-              fetch(
-                `http://localhost:5055/crawl?url=${encodeURIComponent(url)}`
-              ).catch(() => {});
-            } catch {}
+          if (editChild) {
+            // Editing existing child
+            await renameChild(
+              householdId,
+              editChild.id,
+              name.trim() || editChild.displayName,
+              editChild.emoji,
+              editChild.color
+            );
+          } else {
+            // Adding new child
+            await addChild(
+              householdId,
+              name.trim() || "Unnamed",
+              undefined,
+              undefined,
+              school
+            );
+            // Fire-and-forget: if URL provided, call local crawler (dev only)
+            if (url && url.startsWith("http")) {
+              try {
+                fetch(
+                  `http://localhost:5055/crawl?url=${encodeURIComponent(url)}`
+                ).catch(() => {});
+              } catch {}
+            }
           }
           setShowAddModal(false);
+          setEditChild(null);
+          setEditing(null);
           load();
-          // Notify other screens (Home) to refresh kid list
           appEvents.emit("kids:changed", { hid: householdId });
+        }}
+      />
+
+      {/* Child details drawer */}
+      <ChildDetailDrawer
+        visible={showViewDrawer}
+        child={viewChild}
+        summary={viewChild ? schoolSummaries[viewChild.id] : null}
+  hid={householdId || undefined}
+        onClose={() => {
+          setShowViewDrawer(false);
+          setViewChild(null);
         }}
       />
     </ScreenContainer>

@@ -30,15 +30,18 @@ export default function Button({
   testID,
 }: Props) {
   const theme = useTheme();
+  const isIconOnly = (!title || title.length === 0) && (!!iconLeft || !!iconRight);
   const base: ViewStyle = {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: isIconOnly ? 8 : 14,
+    paddingVertical: isIconOnly ? 8 : 10,
     borderRadius: 8,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
+    gap: isIconOnly ? 0 : 8,
     opacity: disabled ? 0.6 : 1,
+    minWidth: isIconOnly ? 36 : undefined,
+    minHeight: isIconOnly ? 36 : undefined,
   };
   const styles: Record<string, ViewStyle> = {
     primary: { backgroundColor: theme.colors.primary },
@@ -69,7 +72,7 @@ export default function Button({
       hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
     >
       {iconLeft}
-      <Text style={[textBase, textStyle]}>{title}</Text>
+  {!!title && <Text style={[textBase, textStyle]}>{title}</Text>}
       {iconRight}
     </TouchableOpacity>
   );
