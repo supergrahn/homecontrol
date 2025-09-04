@@ -7,11 +7,13 @@ export default function Tabs({
   value,
   onChange,
   style,
+  even,
 }: {
   items: string[];
   value: number;
   onChange: (i: number) => void;
   style?: ViewStyle;
+  even?: boolean;
 }) {
   const theme = useTheme();
   return (
@@ -35,7 +37,11 @@ export default function Tabs({
             key={it}
             onPress={() => onChange(i)}
             activeOpacity={0.9}
-            style={{ paddingVertical: 10, paddingHorizontal: 14 }}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              ...(even ? { flex: 1, alignItems: "center" } : null),
+            }}
           >
             <View
               style={{
@@ -45,13 +51,19 @@ export default function Tabs({
                 borderRadius: theme.radius.lg,
                 paddingVertical: 8,
                 paddingHorizontal: 12,
+                ...(even
+                  ? { alignSelf: "stretch", alignItems: "center" }
+                  : null),
               }}
             >
               <Text
                 style={{
                   color: selected ? theme.colors.onPrimary : theme.colors.text,
                   fontWeight: "700",
+                  textAlign: "center",
                 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {it}
               </Text>

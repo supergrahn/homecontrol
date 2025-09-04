@@ -35,6 +35,11 @@ export default function MembersScreen() {
   const [heatmap, setHeatmap] = React.useState<Heatmap | null>(null);
   const roleInHh = households?.find((h) => h.id === householdId)?.role;
   const isAdmin = roleInHh === "admin";
+  // Compute admin count once per render, not inside renderItem callback
+  const adminCount = React.useMemo(
+    () => members.filter((m) => m.role === "admin").length,
+    [members]
+  );
 
   React.useEffect(() => {
     (async () => {
@@ -67,10 +72,6 @@ export default function MembersScreen() {
         }}
         renderItem={({ item, index }) => {
           const canEdit = isAdmin && item.userId !== auth.currentUser?.uid;
-          const adminCount = React.useMemo(
-            () => members.filter((m) => m.role === "admin").length,
-            [members]
-          );
           const onToggleRole = () => {
             if (!householdId) return;
             if (item.role === "admin" && adminCount <= 1) {

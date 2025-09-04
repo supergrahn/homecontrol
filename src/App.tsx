@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
 import React from "react";
+import { NativeModules, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./firebase/providers/QueryProvider";
 import { ThemeProvider } from "./design/theme";
@@ -32,6 +33,27 @@ import { refreshNextUpWidget } from "./services/widgets";
 let outboxNetInterval: any | undefined;
 
 export default function App() {
+  // In dev, sometimes the Dev Loading overlay ("Downloading 100%") sticks around.
+  // Proactively hide it after mount so it doesn't block the bottom navigation.
+  React.useEffect(() => {
+    if (__DEV__) {
+      try {
+        const DevLoadingView = (NativeModules as any)?.DevLoadingView;
+        DevLoadingView?.hide?.();
+      } catch {}
+      // Retry a few times in case the overlay reappears during initial bundles/HMR
+      let tries = 0;
+      const timer = setInterval(() => {
+        try {
+          const DevLoadingView = (NativeModules as any)?.DevLoadingView;
+          DevLoadingView?.hide?.();
+        } catch {}
+        tries += 1;
+        if (tries >= 8) clearInterval(timer);
+      }, 250);
+      return () => clearInterval(timer);
+    }
+  }, []);
   React.useEffect(() => {
     (async () => {
       try {

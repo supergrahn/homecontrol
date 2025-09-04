@@ -19,14 +19,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import TaskCard from "../components/TaskCard";
-import {
-  fetchTodayTasks,
-  fetchOverdueTasks,
-  fetchUpcomingTasks,
-  fetchTasksInRange,
-} from "../services/tasks";
+import { fetchTasksInRange } from "../services/tasks";
 import { listChildren, type Child } from "../services/children";
-import { fetchRecentActivity } from "../services/activity";
+// import { fetchRecentActivity } from "../services/activity";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { fetchLatestDigest } from "../services/digest";
 import dayjs from "dayjs";
@@ -37,6 +32,13 @@ import Input from "../components/Input";
 import Button from "../components/Button";
 import Tabs from "../components/Tabs";
 import Card from "../components/Card";
+import { API_BASE } from "../config";
+import {
+  loadKidDayWeek,
+  saveKidDayWeekLocal,
+  type KidDayInfo,
+  type KidWeekInfo,
+} from "../services/kidInfo";
 
 // Household id from context
 
@@ -44,9 +46,8 @@ export default function HomeScreen({ navigation }: any) {
   const { t } = useTranslation();
   const theme = useTheme();
   const qc = useQueryClient();
-  const [tab, setTab] = React.useState<"today" | "overdue" | "upcoming">(
-    "today"
-  );
+  const [tab, setTab] = React.useState<"today" | "week">("today");
+  const [summaryOpen, setSummaryOpen] = React.useState<boolean>(false);
   const { householdId, households, loading } = useHousehold();
   const [tagFilter, setTagFilter] = React.useState("");
   const [tagInput, setTagInput] = React.useState("");
@@ -67,14 +68,20 @@ export default function HomeScreen({ navigation }: any) {
   // (was: animate local type picker sheet)
   const [refreshing, setRefreshing] = React.useState(false);
   React.useEffect(() => {
-    const sub = appEvents.addListener("show-overdue", () => setTab("overdue"));
+    const sub = appEvents.addListener("show-overdue", () => setTab("today"));
     const qa = appEvents.addListener("quickactions:toggle", () => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setShowQuick((v) => !v);
     });
+    const kc = appEvents.addListener("kids:changed", (e: any) => {
+      if (!e || e.hid !== householdId) return;
+      // Clear cached highlights to force reload below
+      setSchoolHighlights(null);
+    });
     return () => {
       sub.remove();
       qa.remove();
+      kc.remove();
     };
   }, []);
 
@@ -125,23 +132,10 @@ export default function HomeScreen({ navigation }: any) {
     },
     enabled,
   });
-  const overdue = useQuery({
-    queryKey: ["overdue", householdId],
-    queryFn: () =>
-      fetchOverdueTasks(householdId!, {
-        priorityOrder:
-          prioritySort === "high"
-            ? "desc"
-            : prioritySort === "low"
-              ? "asc"
-              : undefined,
-      } as any),
-    enabled,
-  });
-  const upcoming = useQuery({
-    queryKey: ["upcoming", householdId, prioritySort],
+  const week = useQuery({
+    queryKey: ["week", householdId, prioritySort],
     queryFn: () => {
-      const start = dayjs().add(1, "day").startOf("day").toDate();
+      const start = dayjs().startOf("day").toDate();
       const end = dayjs().add(7, "day").endOf("day").toDate();
       return fetchTasksInRange(householdId!, start, end, {
         priorityOrder:
@@ -160,22 +154,10 @@ export default function HomeScreen({ navigation }: any) {
     enabled,
   });
 
-  // If a digest arrives indicating zero 'today' but some overdue, switch to Overdue once
-  React.useEffect(() => {
-    const d = digest.data;
-    if (d && d.counts) {
-      if (d.counts.today === 0 && d.counts.overdue > 0 && tab === "today") {
-        setTab("overdue");
-      }
-    }
-  }, [digest.data, tab]);
+  // No auto-tab switching with new filters
 
-  const list = tab === "today" ? today : tab === "overdue" ? overdue : upcoming;
-  const activity = useQuery({
-    queryKey: ["activity", householdId],
-    queryFn: () => fetchRecentActivity(householdId!),
-    enabled,
-  });
+  const list = tab === "today" ? today : week;
+  // Recent activity removed from HomeScreen
 
   // Persist filters per household and tab
   React.useEffect(() => {
@@ -229,18 +211,28 @@ export default function HomeScreen({ navigation }: any) {
 
   // Load kids for chips
   React.useEffect(() => {
-    (async () => {
+    let active = true;
+    const loadKids = async () => {
       try {
         if (!householdId) {
-          setKids([]);
+          if (active) setKids([]);
           return;
         }
         const list = await listChildren(householdId);
-        setKids(list);
+        if (active) setKids(list);
       } catch {
-        setKids([]);
+        if (active) setKids([]);
       }
-    })();
+    };
+    loadKids();
+    const sub = appEvents.addListener("kids:changed", (e: any) => {
+      if (!e || e.hid !== householdId) return;
+      loadKids();
+    });
+    return () => {
+      active = false;
+      sub.remove();
+    };
   }, [householdId]);
 
   const { displayData, kidCounts } = React.useMemo(() => {
@@ -296,14 +288,119 @@ export default function HomeScreen({ navigation }: any) {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["digest", householdId] }),
         qc.invalidateQueries({ queryKey: ["today", householdId] }),
-        qc.invalidateQueries({ queryKey: ["overdue", householdId] }),
-        qc.invalidateQueries({ queryKey: ["upcoming", householdId] }),
+        qc.invalidateQueries({ queryKey: ["week", householdId] }),
         qc.invalidateQueries({ queryKey: ["activity", householdId] }),
       ]);
     } finally {
       setRefreshing(false);
     }
   }, [enabled, qc, householdId]);
+
+  // School highlights: anomalies and timetable
+  const [schoolHighlights, setSchoolHighlights] = React.useState<{
+    anomalies?: string[];
+    schedule?: any[];
+    documents?: any[];
+  } | null>(null);
+  const [loadingHighlights, setLoadingHighlights] = React.useState(false);
+  const [kidDayInfo, setKidDayInfo] = React.useState<KidDayInfo | null>(null);
+  const [kidWeekInfo, setKidWeekInfo] = React.useState<KidWeekInfo | null>(
+    null
+  );
+  const [loadingKidInfo, setLoadingKidInfo] = React.useState(false);
+
+  const currentKid = React.useMemo(() => {
+    if (!kids.length) return null;
+    return kidIds.length
+      ? kids.find((k) => k.id === kidIds[0]) || kids[0]
+      : kids[0];
+  }, [kids, kidIds]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadHighlights = async () => {
+      try {
+        if (!enabled) return setSchoolHighlights(null);
+        // Use current kid filter if any; otherwise first kid
+        const kid = currentKid;
+        if (!kid || !kid.school) {
+          if (!cancelled) setSchoolHighlights(null);
+          return;
+        }
+        setLoadingHighlights(true);
+        const key = (() => {
+          const s: any = kid.school;
+          return (
+            s?.url ||
+            s?.website ||
+            s?.id ||
+            s?.name ||
+            s?.title ||
+            s?.displayName ||
+            ""
+          );
+        })();
+        if (!key) {
+          if (!cancelled) setSchoolHighlights(null);
+          return;
+        }
+        const res = await fetch(
+          `${API_BASE.replace(/\/$/, "")}/summary/next-day?school=${encodeURIComponent(
+            key
+          )}`
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setSchoolHighlights(data);
+      } catch (e) {
+        if (!cancelled) setSchoolHighlights(null);
+      } finally {
+        if (!cancelled) setLoadingHighlights(false);
+      }
+    };
+    loadHighlights();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, kids, kidIds, currentKid]);
+
+  // Load kid day/week info from local, fallback to Firestore on Home open and when kid selection changes
+  React.useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (!householdId) return;
+        if (!currentKid) {
+          if (!cancelled) {
+            setKidDayInfo(null);
+            setKidWeekInfo(null);
+          }
+          return;
+        }
+        setLoadingKidInfo(true);
+        const res = await loadKidDayWeek(householdId, currentKid.id);
+        if (!cancelled) {
+          setKidDayInfo(res.day);
+          setKidWeekInfo(res.week);
+        }
+        // Persist fresh values locally to seed future loads
+        if ((res.day && res.day.date) || (res.week && res.week.weekStart)) {
+          await saveKidDayWeekLocal(
+            householdId,
+            currentKid.id,
+            res.day,
+            res.week
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingKidInfo(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [householdId, currentKid]);
 
   return (
     <ScreenContainer style={{ paddingTop: 8 }}>
@@ -327,6 +424,38 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       ) : null}
 
+      {/* Kids filter row above the time filter */}
+      {enabled && kids.length > 0 ? (
+        <View style={{ marginBottom: 8 }}>
+          <Tabs
+            items={kids.map((k) => k.displayName)}
+            value={(() => {
+              const idx = kids.findIndex((k) => kidIds.includes(k.id));
+              return idx < 0 ? 0 : idx;
+            })()}
+            onChange={(i) => {
+              const id = kids[i]?.id;
+              if (!id) return;
+              const isActive = kidIds.includes(id);
+              setKidIds(isActive ? [] : [id]);
+            }}
+            even
+          />
+        </View>
+      ) : enabled ? (
+        <View style={{ marginBottom: 8 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Kids")}
+            accessibilityRole="button"
+            accessibilityLabel={t("addChild") || "Add child"}
+          >
+            <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
+              {t("addChild") || "Add child"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
         onLayout={(e) => {
@@ -335,11 +464,12 @@ export default function HomeScreen({ navigation }: any) {
         }}
       >
         <Tabs
-          items={["today", "overdue", "upcoming"].map(
-            (k) => t(k as any) as string
-          )}
-          value={["today", "overdue", "upcoming"].indexOf(tab)}
-          onChange={(i) => setTab(["today", "overdue", "upcoming"][i] as any)}
+          items={[
+            t("today") as string,
+            (t("thisWeek") as string) || "This week",
+          ]}
+          value={["today", "week"].indexOf(tab)}
+          onChange={(i) => setTab((i === 0 ? "today" : "week") as any)}
           style={{ flexShrink: 1 }}
         />
         <View style={{ flex: 1 }} />
@@ -386,7 +516,79 @@ export default function HomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Daily summary card */}
+      {/* Daily summary card (collapsible) */}
+      {enabled ? (
+        <Card style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={async () => {
+              const opening = !summaryOpen;
+              setSummaryOpen(opening);
+              if (opening) {
+                // Refetch when opening
+                await qc.invalidateQueries({
+                  queryKey: ["digest", householdId],
+                });
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: "600",
+                  marginBottom: 4,
+                  color: theme.colors.text,
+                }}
+              >
+                {t("dailySummary")}
+              </Text>
+              <Ionicons
+                name={summaryOpen ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={theme.colors.text}
+              />
+            </View>
+          </TouchableOpacity>
+          {summaryOpen ? (
+            digest.isLoading ? (
+              <Text>{t("loading")}</Text>
+            ) : digest.data ? (
+              <View>
+                <Text>
+                  {t("dailySummaryCounts", {
+                    today: digest.data.counts.today,
+                    overdue: digest.data.counts.overdue,
+                  })}
+                </Text>
+                {!!(digest.data as any).samples ? (
+                  <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
+                    {[
+                      (digest.data as any).samples.todayTitles,
+                      (digest.data as any).samples.overdueTitles,
+                    ]
+                      .flat()
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .join(" • ")}
+                  </Text>
+                ) : null}
+              </View>
+            ) : (
+              <Text style={{ color: theme.colors.muted }}>
+                {t("noSummaryYet")}
+              </Text>
+            )
+          ) : null}
+        </Card>
+      ) : null}
+
+      {/* School highlights */}
       {enabled ? (
         <Card style={{ marginBottom: 12 }}>
           <View
@@ -403,54 +605,131 @@ export default function HomeScreen({ navigation }: any) {
                 color: theme.colors.text,
               }}
             >
-              {t("dailySummary")}
+              {t("schoolHighlights") || "School highlights"}
             </Text>
-            <Button
-              title={t("refresh")}
-              onPress={() => {
-                qc.invalidateQueries({ queryKey: ["digest", householdId] });
-                qc.invalidateQueries({ queryKey: ["today", householdId] });
-                qc.invalidateQueries({ queryKey: ["overdue", householdId] });
-                qc.invalidateQueries({ queryKey: ["upcoming", householdId] });
-              }}
-              variant="outline"
-            />
-          </View>
-          {digest.isLoading ? (
-            <Text>{t("loading")}</Text>
-          ) : digest.data ? (
-            <View>
-              <Text>
-                {t("dailySummaryCounts", {
-                  today: digest.data.counts.today,
-                  overdue: digest.data.counts.overdue,
-                })}
+            {!!currentKid && (
+              <Text style={{ color: theme.colors.muted }}>
+                {currentKid.displayName}
+                {currentKid.schoolGradeLabel
+                  ? ` • ${t("grade") || "Grade"} ${currentKid.schoolGradeLabel}`
+                  : ""}
               </Text>
-              {!!(digest.data as any).samples ? (
-                <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
-                  {[
-                    (digest.data as any).samples.todayTitles,
-                    (digest.data as any).samples.overdueTitles,
-                  ]
-                    .flat()
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join(" • ")}
-                </Text>
-              ) : null}
-              {digest.data.counts.overdue > 0 ? (
-                <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
-                  <Button
-                    title={t("viewOverdue")}
-                    onPress={() => setTab("overdue")}
-                  />
-                </View>
-              ) : null}
+            )}
+          </View>
+          {loadingHighlights ? (
+            <Text style={{ color: theme.colors.muted }}>{t("loading")}</Text>
+          ) : schoolHighlights ? (
+            <View>
+              {Array.isArray(schoolHighlights.anomalies) &&
+                schoolHighlights.anomalies.length > 0 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={{ fontWeight: "600" }}>
+                      {t("anomalies") || "Anomalies"}
+                    </Text>
+                    <Text style={{ color: theme.colors.warning }}>
+                      {schoolHighlights.anomalies.join(" • ")}
+                    </Text>
+                  </View>
+                )}
+              {Array.isArray(schoolHighlights.schedule) &&
+                schoolHighlights.schedule.length > 0 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={{ fontWeight: "600" }}>
+                      {t("schedule") || "Schedule"}
+                    </Text>
+                    {schoolHighlights.schedule
+                      .slice(0, 4)
+                      .map((it: any, i: number) => (
+                        <Text key={i} style={{ color: theme.colors.text }}>
+                          {it.time ? `${it.time} – ` : ""}
+                          {it.subject || it.title || it.summary}
+                          {it.homework
+                            ? ` (${t("homework") || "Homework"}: ${it.homework})`
+                            : ""}
+                        </Text>
+                      ))}
+                  </View>
+                )}
+              {Array.isArray(schoolHighlights.documents) &&
+                schoolHighlights.documents.length > 0 && (
+                  <View style={{ marginBottom: 4 }}>
+                    <Text style={{ fontWeight: "600" }}>
+                      {t("documents") || "Documents"}
+                    </Text>
+                    {schoolHighlights.documents
+                      .slice(0, 3)
+                      .map((d: any, i: number) => (
+                        <Text key={i} style={{ color: theme.colors.primary }}>
+                          {d.title || d.url}
+                        </Text>
+                      ))}
+                  </View>
+                )}
+              {!schoolHighlights.anomalies?.length &&
+                !schoolHighlights.schedule?.length &&
+                !schoolHighlights.documents?.length && (
+                  <Text style={{ color: theme.colors.muted }}>
+                    {t("noSchoolHighlights") || "No school highlights yet."}
+                  </Text>
+                )}
             </View>
           ) : (
             <Text style={{ color: theme.colors.muted }}>
-              {t("noSummaryYet")}
+              {t("noSchoolHighlights") || "No school highlights yet."}
             </Text>
+          )}
+        </Card>
+      ) : null}
+
+      {/* Today / This Week (from local storage or Firestore) */}
+      {enabled ? (
+        <Card style={{ marginBottom: 12 }}>
+          <Text
+            style={{
+              fontWeight: "600",
+              marginBottom: 4,
+              color: theme.colors.text,
+            }}
+          >
+            {t("kidOverview") || "Today / This Week"}
+          </Text>
+          {loadingKidInfo ? (
+            <Text style={{ color: theme.colors.muted }}>{t("loading")}</Text>
+          ) : (
+            <View>
+              {/* Today */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontWeight: "600" }}>{t("today")}</Text>
+                {kidDayInfo?.data ? (
+                  <Text style={{ color: theme.colors.text }}>
+                    {typeof kidDayInfo.data === "string"
+                      ? kidDayInfo.data
+                      : JSON.stringify(kidDayInfo.data)}
+                  </Text>
+                ) : (
+                  <Text style={{ color: theme.colors.muted }}>
+                    {t("noData") || "No data"}
+                  </Text>
+                )}
+              </View>
+              {/* This Week */}
+              <View>
+                <Text style={{ fontWeight: "600" }}>
+                  {t("thisWeek") || "This week"}
+                </Text>
+                {kidWeekInfo?.data ? (
+                  <Text style={{ color: theme.colors.text }}>
+                    {typeof kidWeekInfo.data === "string"
+                      ? kidWeekInfo.data
+                      : JSON.stringify(kidWeekInfo.data)}
+                  </Text>
+                ) : (
+                  <Text style={{ color: theme.colors.muted }}>
+                    {t("noData") || "No data"}
+                  </Text>
+                )}
+              </View>
+            </View>
           )}
         </Card>
       ) : null}
@@ -470,10 +749,9 @@ export default function HomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate("TaskDetail", { id: item.id })}
               onChanged={() => {
                 qc.invalidateQueries({ queryKey: ["today", householdId] });
-                qc.invalidateQueries({ queryKey: ["overdue", householdId] });
-                qc.invalidateQueries({ queryKey: ["upcoming", householdId] });
+                qc.invalidateQueries({ queryKey: ["week", householdId] });
               }}
-              showQuickAccept={tab === "today" || tab === "overdue"}
+              showQuickAccept={tab === "today"}
             />
           )}
           ListEmptyComponent={
@@ -483,10 +761,7 @@ export default function HomeScreen({ navigation }: any) {
                 tab === "today"
                   ? (t("noTasksTodayTryAdd") as string) ||
                     "All clear today. Tap + to add a task."
-                  : tab === "overdue"
-                    ? (t("noOverdueGreatJob") as string) ||
-                      "Nothing overdue. Great job!"
-                    : (t("noUpcoming") as string) || "No upcoming tasks."
+                  : (t("noUpcoming") as string) || "No upcoming tasks."
               }
             />
           }
@@ -505,74 +780,6 @@ export default function HomeScreen({ navigation }: any) {
           >
             {t("filters") || "Filters"}
           </Text>
-          {/* Kid chips */}
-          {kids.length > 0 ? (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                gap: 8,
-                marginBottom: 8,
-              }}
-            >
-              {kids.map((k) => {
-                const active = kidIds.includes(k.id);
-                const count = kidCounts.get(k.id) || 0;
-                return (
-                  <TouchableOpacity
-                    key={k.id}
-                    onPress={() => {
-                      const next = active
-                        ? kidIds.filter((x) => x !== k.id)
-                        : [...kidIds, k.id];
-                      setKidIds(next);
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        gap: 6,
-                        alignItems: "center",
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: active
-                          ? theme.colors.text
-                          : theme.colors.border,
-                        backgroundColor: active
-                          ? theme.colors.card
-                          : theme.colors.background,
-                      }}
-                    >
-                      <Text style={{ fontSize: 14 }}>{k.emoji || "🙂"}</Text>
-                      <Text style={{ fontSize: 12 }}>{k.displayName}</Text>
-                      {count > 0 ? (
-                        <View
-                          style={{
-                            marginLeft: 4,
-                            backgroundColor: theme.colors.text,
-                            borderRadius: 999,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: theme.colors.onEmphasis,
-                              fontSize: 10,
-                            }}
-                          >
-                            {count}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ) : null}
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
             <Input
               placeholder={
@@ -827,71 +1034,7 @@ export default function HomeScreen({ navigation }: any) {
 
       {/* Floating + button removed; global FAB provided by Navigation */}
 
-      {/* Recent activity */}
-      {enabled ? (
-        <View style={{ marginTop: 24 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                ...theme.typography.subtitle,
-                color: theme.colors.onSurface,
-                marginBottom: 8,
-              }}
-            >
-              {t("recentActivity")}
-            </Text>
-            <Button
-              title={t("viewTasks")}
-              onPress={() => setTab("today")}
-              variant="link"
-            />
-          </View>
-          {activity.isLoading ? (
-            <Text>{t("loading")}</Text>
-          ) : (
-            <View>
-              {(activity.data || []).map((a) => {
-                const isTaskCreate = a.action === "task.create";
-                const isTaskComplete = a.action === "task.complete";
-                const isInviteAccept = a.action === "invite.accept";
-                const title = (a as any).payload?.title;
-                const line = isTaskCreate
-                  ? `${t("add")} · ${title || a.taskId || ""}`
-                  : isTaskComplete
-                    ? `${t("markComplete")} · ${title || a.taskId || ""}`
-                    : isInviteAccept
-                      ? t("inviteAccepted")
-                      : `${a.action}`;
-                const time = a.at ? dayjs(a.at).format("HH:mm") : "";
-                return (
-                  <Text
-                    key={a.id}
-                    style={{
-                      color: theme.colors.text,
-                      opacity: 0.8,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {time ? `${time} — ` : ""}
-                    {line}
-                  </Text>
-                );
-              })}
-              {(activity.data || []).length === 0 ? (
-                <Text style={{ color: theme.colors.muted }}>
-                  {t("nothingYet")}
-                </Text>
-              ) : null}
-            </View>
-          )}
-        </View>
-      ) : null}
+      {/* Recent activity removed */}
 
       {/* Household selector modal removed */}
 

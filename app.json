@@ -36,6 +36,10 @@
         }
       ]
     ],
+    "updates": {
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
+    },
     "extra": {
       "eas": {
         "projectId": "de4fa559-a42f-4575-acdb-020bf5a1e620"

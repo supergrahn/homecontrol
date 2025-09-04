@@ -348,15 +348,21 @@ export default function NavigationProvider() {
   const [uid, setUid] = React.useState<string | null>(
     auth.currentUser?.uid ?? null
   );
+  const [authReady, setAuthReady] = React.useState(false);
   const lastRouteRef = React.useRef<string | undefined>(undefined);
 
   // React to auth state changes so gating runs after sign-in/out
   React.useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUid(u?.uid ?? null));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUid(u?.uid ?? null);
+      setAuthReady(true);
+    });
     return unsub;
   }, []);
   React.useEffect(() => {
     if (!navReady) return;
+    // Wait until auth has initialized to avoid redirect churn and SignIn flash
+    if (!authReady) return;
     // Avoid churn while household membership is resolving
     if (loading) return;
     const user = auth.currentUser;
@@ -404,7 +410,7 @@ export default function NavigationProvider() {
         }
       }
     }
-  }, [navReady, uid, householdId, loading]);
+  }, [navReady, uid, householdId, loading, authReady]);
   return (
     <NavigationContainer
       theme={DefaultTheme}
@@ -412,135 +418,142 @@ export default function NavigationProvider() {
       linking={linking}
       onReady={() => setNavReady(true)}
     >
-      <Stack.Navigator
-        initialRouteName="SignIn"
-        screenOptions={{
-          header: ({ route, navigation, back, options }) => {
-            const title = options?.title ?? route.name;
-            const canGoBack = !!back || navigation.canGoBack();
-            const Left = canGoBack ? (
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-                onPress={() => navigation.goBack()}
-                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-              >
-                <Ionicons name="chevron-back" size={22} color="#fff" />
-              </TouchableOpacity>
-            ) : route.name === "TaskDetail" ? (
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Back to Today"
-                onPress={() => navRef.navigate("MainTabs")}
-                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-              >
-                <Ionicons name="chevron-back" size={22} color="#fff" />
-              </TouchableOpacity>
-            ) : undefined;
-            return <AppBar title={String(title)} left={Left} />;
-          },
-          headerBackButtonDisplayMode: "minimal",
-          contentStyle: { backgroundColor: theme.colors.background },
-        }}
-      >
-        <Stack.Screen
-          name="SignIn"
-          component={SignInScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="HouseholdChooser"
-          component={HouseholdChooserScreen}
-          options={{ title: "Get started" }}
-        />
-        <Stack.Screen
-          name="MainTabs"
-          component={MainTabs}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="CreateHousehold"
-          component={CreateHouseholdScreen}
-          options={{ title: "Create household" }}
-        />
-        <Stack.Screen
-          name="ScanInvite"
-          component={ScanInviteScreen}
-          options={{ title: "Scan invite" }}
-        />
-        {/** QuickActions screen replaced by inline dropdown on Home */}
-        <Stack.Screen
-          name="ShowHouseholdQR"
-          component={ShowHouseholdQRScreen}
-          options={{ title: "Show Household QR" }}
-        />
-        <Stack.Screen
-          name="AddTask"
-          component={AddTaskScreen}
-          options={{ title: "New Task" }}
-        />
-        <Stack.Screen
-          name="TaskDetail"
-          component={TaskDetailScreen}
-          options={({ navigation }) => {
-            const th = theme; // close over theme from component scope
-            return {
-              title: "Task",
-              headerLeft: () =>
-                navigation.canGoBack() ? undefined : (
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Back to Today"
-                    onPress={() => navRef.navigate("MainTabs")}
-                    style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={22}
-                      color={th.colors.onSurface}
-                    />
-                  </TouchableOpacity>
-                ),
-            };
+      {/** Wait for auth to be ready before mounting the navigator to avoid flashing SignIn */}
+      {!authReady ? null : (
+        <Stack.Navigator
+          initialRouteName={(() => {
+            const loggedIn = !!(uid || auth.currentUser);
+            if (loggedIn) return householdId ? "MainTabs" : "HouseholdChooser";
+            return "SignIn";
+          })()}
+          screenOptions={{
+            header: ({ route, navigation, back, options }) => {
+              const title = options?.title ?? route.name;
+              const canGoBack = !!back || navigation.canGoBack();
+              const Left = canGoBack ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                  onPress={() => navigation.goBack()}
+                  style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                >
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
+                </TouchableOpacity>
+              ) : route.name === "TaskDetail" ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to Today"
+                  onPress={() => navRef.navigate("MainTabs")}
+                  style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                >
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
+                </TouchableOpacity>
+              ) : undefined;
+              return <AppBar title={String(title)} left={Left} />;
+            },
+            headerBackButtonDisplayMode: "minimal",
+            contentStyle: { backgroundColor: theme.colors.background },
           }}
-        />
-        <Stack.Screen
-          name="Templates"
-          component={TemplatesScreen}
-          options={{ title: "Templates" }}
-        />
-        <Stack.Screen
-          name="ManageTemplates"
-          component={ManageTemplatesScreen}
-          options={{ title: "Manage templates" }}
-        />
-        <Stack.Screen
-          name="TemplatePicker"
-          component={TemplatePickerScreen}
-          options={{ title: "Templates" }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ title: "Settings" }}
-        />
-        <Stack.Screen
-          name="Activity"
-          component={ActivityScreen}
-          options={{ title: "Activity" }}
-        />
-        <Stack.Screen
-          name="Calendar"
-          component={CalendarScreen}
-          options={{ title: "Calendar" }}
-        />
-        <Stack.Screen
-          name="Heatmap"
-          component={HeatmapScreen}
-          options={{ title: "Workload heatmap" }}
-        />
-        {/** WidgetPreview removed */}
-      </Stack.Navigator>
+        >
+          <Stack.Screen
+            name="SignIn"
+            component={SignInScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="HouseholdChooser"
+            component={HouseholdChooserScreen}
+            options={{ title: "Get started" }}
+          />
+          <Stack.Screen
+            name="MainTabs"
+            component={MainTabs}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="CreateHousehold"
+            component={CreateHouseholdScreen}
+            options={{ title: "Create household" }}
+          />
+          <Stack.Screen
+            name="ScanInvite"
+            component={ScanInviteScreen}
+            options={{ title: "Scan invite" }}
+          />
+          {/** QuickActions screen replaced by inline dropdown on Home */}
+          <Stack.Screen
+            name="ShowHouseholdQR"
+            component={ShowHouseholdQRScreen}
+            options={{ title: "Show Household QR" }}
+          />
+          <Stack.Screen
+            name="AddTask"
+            component={AddTaskScreen}
+            options={{ title: "New Task" }}
+          />
+          <Stack.Screen
+            name="TaskDetail"
+            component={TaskDetailScreen}
+            options={({ navigation }) => {
+              const th = theme; // close over theme from component scope
+              return {
+                title: "Task",
+                headerLeft: () =>
+                  navigation.canGoBack() ? undefined : (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Back to Today"
+                      onPress={() => navRef.navigate("MainTabs")}
+                      style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={22}
+                        color={th.colors.onSurface}
+                      />
+                    </TouchableOpacity>
+                  ),
+              };
+            }}
+          />
+          <Stack.Screen
+            name="Templates"
+            component={TemplatesScreen}
+            options={{ title: "Templates" }}
+          />
+          <Stack.Screen
+            name="ManageTemplates"
+            component={ManageTemplatesScreen}
+            options={{ title: "Manage templates" }}
+          />
+          <Stack.Screen
+            name="TemplatePicker"
+            component={TemplatePickerScreen}
+            options={{ title: "Templates" }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ title: "Settings" }}
+          />
+          <Stack.Screen
+            name="Activity"
+            component={ActivityScreen}
+            options={{ title: "Activity" }}
+          />
+          <Stack.Screen
+            name="Calendar"
+            component={CalendarScreen}
+            options={{ title: "Calendar" }}
+          />
+          <Stack.Screen
+            name="Heatmap"
+            component={HeatmapScreen}
+            options={{ title: "Workload heatmap" }}
+          />
+          {/** WidgetPreview removed */}
+        </Stack.Navigator>
+      )}
     </NavigationContainer>
   );
 }

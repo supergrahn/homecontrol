@@ -122,7 +122,7 @@ const dark: Theme = {
 
 export const ThemeContext = React.createContext<Theme>(light);
 
-type ThemeMode = "system" | "light" | "dark";
+export type ThemeMode = "system" | "light" | "dark";
 export const ThemeModeContext = React.createContext<{
   mode: ThemeMode;
   setMode: (m: ThemeMode) => void;
@@ -130,7 +130,7 @@ export const ThemeModeContext = React.createContext<{
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();
-  const [mode, setMode] = React.useState<ThemeMode>("dark");
+  const [mode, setMode] = React.useState<ThemeMode>("system");
   const resolved = mode === "system" ? system : mode;
   const value = resolved === "dark" ? dark : light;
   return React.createElement(
