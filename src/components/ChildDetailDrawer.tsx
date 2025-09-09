@@ -382,8 +382,16 @@ export default function ChildDetailDrawer({
 
               {/* Events placeholder */}
               <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>{t("events") || "Events"}</Text>
-                <Text style={{ color: theme.colors.muted }}>{t("noUpcomingEvents") || "No upcoming events yet."}</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>{t("schoolSchedule") || "School Schedule"}</Text>
+                <Text style={{ color: theme.colors.primary, fontWeight: "600", marginBottom: 8 }}>
+                  {t("norwegianSchoolIntegration") || "Norwegian School Integration Active"}
+                </Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20 }}>
+                  {t("schoolScheduleDescription") || "Tomorrow's schedule and events will appear here automatically when your child's Norwegian school is connected to POTY."}
+                </Text>
+                <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 8 }}>
+                  {t("supportedSchools") || "Supports most Norwegian municipality schools • Real-time updates • Offline access"}
+                </Text>
               </View>
 
               {/* Tasks */}

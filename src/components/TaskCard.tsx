@@ -11,6 +11,7 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { auth } from "../firebase";
 import { useNavigation } from "@react-navigation/native";
 import { enqueueComplete } from "../services/outbox";
+import { useTheme } from "../design/theme";
 
 export default function TaskCard({
   task,
@@ -26,6 +27,7 @@ export default function TaskCard({
   const { t, i18n } = useTranslation();
   const { householdId } = useHousehold();
   const qc = useQueryClient();
+  const theme = useTheme();
   const navigation = useNavigation<any>();
 
   useEffect(() => {
@@ -196,14 +198,14 @@ export default function TaskCard({
         style={{
           padding: 14,
           borderRadius: 12,
-          backgroundColor: "#fff",
+          backgroundColor: theme.colors.card,
           borderWidth: 1,
-          borderColor: "#eee",
+          borderColor: theme.colors.border,
           marginBottom: 10,
         }}
       >
         <Text style={{ fontWeight: "600", fontSize: 16 }}>{task.title}</Text>
-        <Text style={{ color: "#666", marginTop: 2 }}>
+        <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing(0.5) }}>
           {t(typeKey).toUpperCase()} • {when}
         </Text>
         {(() => {

@@ -30,7 +30,7 @@ import { refreshNextUpWidget } from "./services/widgets";
 // appEvents is provided by src/events
 
 // module-scoped interval handle for connectivity watcher
-let outboxNetInterval: any | undefined;
+let outboxNetInterval: ReturnType<typeof setInterval> | undefined;
 
 export default function App() {
   // In dev, sometimes the Dev Loading overlay ("Downloading 100%") sticks around.
@@ -95,13 +95,17 @@ export default function App() {
     registerNotificationResponseHandler();
     const sub = Notifications.addNotificationResponseReceivedListener(
       (resp) => {
-        const data = resp.notification.request.content.data as any;
+        const data = resp.notification.request.content.data as {
+          type?: string;
+          hid?: string;
+          counts?: { overdue?: number };
+        };
         // Data example: { type: 'digest.daily', hid }
         try {
           if (navRef.isReady()) {
             // For now, just ensure we're on Home; Home can default to Today and offer an Overdue CTA
             navRef.navigate("MainTabs");
-            if (data?.type === "digest.daily" && data?.counts?.overdue > 0) {
+            if (data?.type === "digest.daily" && (data?.counts?.overdue ?? 0) > 0) {
               appEvents.emit("show-overdue");
             }
           }
@@ -141,12 +145,16 @@ function GlobalToasts() {
   const toast = useToast();
   const { t } = useTranslation();
   React.useEffect(() => {
-    const sub = appEvents.addListener("toast", (payload: any) => {
+    const sub = appEvents.addListener("toast", (payload: {
+      key?: string;
+      message?: string;
+      type?: string;
+    }) => {
       try {
         const msg = payload?.key
           ? (t(payload.key) as string)
           : String(payload?.message || "");
-        const type = (payload?.type as any) || "success";
+        const type = (payload?.type as "success" | "error" | "info") || "success";
         if (msg) toast.show(msg, { type });
       } catch {}
     });
@@ -158,7 +166,7 @@ function GlobalToasts() {
 }
 
 function HouseholdEffects() {
-  const { householdId } = useHousehold() as any;
+  const { householdId } = useHousehold();
   React.useEffect(() => {
     (async () => {
       try {

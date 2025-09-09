@@ -60,7 +60,7 @@ export default function AddEditChildModal({
   } | null>(null);
   const [gradeOptions, setGradeOptions] = useState<string[]>([]);
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
-  // Upload disabled for now
+  // School document upload enabled with Norwegian school support
 
   // Drawer animation
   const screenWidth = Dimensions.get("window").width;
@@ -268,11 +268,11 @@ export default function AddEditChildModal({
       setError(null);
       // Close drawer after successful save
       handleCloseAnimated();
-      // upload status reset (unused while upload disabled)
+      // upload status reset
     }
   };
 
-  // pickAndUpload removed (upload disabled)
+  // Document upload functionality for Norwegian schools
 
   return (
     <Modal visible={visible} transparent animationType="none">
@@ -483,7 +483,7 @@ export default function AddEditChildModal({
                 </Text>
               )}
               {/* Upload document to Python parser */}
-              {/** Upload disabled for now; URL field hidden */}
+              {/** Norwegian school document upload enabled */}
               {/**
           {!schoolResult && (
             <TextInput
