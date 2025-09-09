@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, FlatList, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { TextSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../design/theme";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import {
@@ -149,9 +150,7 @@ export default function KidsScreen() {
         );
       })}
       {loadingSummaries && (
-        <Text style={{ color: theme.colors.muted }}>
-          {t("loading") || "Loading…"}
-        </Text>
+        <TextSkeleton lines={2} />
       )}
       <FlatList
         data={kids}

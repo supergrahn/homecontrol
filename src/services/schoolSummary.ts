@@ -1,6 +1,9 @@
 // Enhanced Norwegian School Integration Service
 import { API_BASE } from "../config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ValidationService, SchoolDataValidationError } from "./validation";
+import { SchoolSummary } from "../validation/schemas";
+import { errorHandler, ErrorType, ErrorSeverity } from "./errorHandling";
 
 // Enhanced types based on School Crawler Platform capabilities
 export type SchoolEvent = {
@@ -61,7 +64,18 @@ class NorwegianSchoolAPI {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || `HTTP ${response.status}`);
+      const errorMessage = error.detail || `HTTP ${response.status}`;
+      
+      errorHandler.handleError({
+        type: ErrorType.SCHOOL_API,
+        severity: response.status >= 500 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM,
+        message: `School API request failed: ${endpoint}`,
+        details: errorMessage,
+        code: `HTTP_${response.status}`,
+        context: { endpoint, status: response.status }
+      });
+      
+      throw new Error(errorMessage);
     }
     
     return response.json();
@@ -74,15 +88,29 @@ class NorwegianSchoolAPI {
 
   // Get tomorrow's schedule for a grade
   async getTomorrowSchedule(gradeId: string): Promise<SchoolSummary> {
-    return this.makeRequest(`/feed/tomorrow/${gradeId}`);
+    const data = await this.makeRequest(`/feed/tomorrow/${gradeId}`);
+    return ValidationService.validateSchoolSummary(data, `tomorrow schedule for grade ${gradeId}`);
   }
 
   // Parse school website URL
   async parseSchoolWebsite(url: string, render: 'auto' | 'always' | 'never' = 'auto'): Promise<SchoolSummary> {
-    return this.makeRequest('/summary/next-day', {
+    const data = await this.makeRequest('/summary/next-day', {
       method: 'POST',
       body: JSON.stringify({ url, render }),
     });
+    
+    try {
+      return ValidationService.validateSchoolSummary(data, `school website ${url}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new SchoolDataValidationError(
+          `Failed to validate school data from ${url}`,
+          [error.message],
+          url
+        );
+      }
+      throw error;
+    }
   }
 
   // Search for Norwegian schools
@@ -125,7 +153,7 @@ export async function fetchNextDaySummary(
     
     return result;
   } catch (error) {
-    console.warn('School API failed, trying cache:', error);
+    errorHandler.handleSchoolAPIError(error, childSchoolIdOrUrl);
     
     // Fallback to cached data
     const cached = await getCachedSchoolData(childSchoolIdOrUrl);

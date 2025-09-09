@@ -6,6 +6,7 @@ import { appEvents } from "../events";
 import { navRef } from "../firebase/providers/NavigationProvider";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { useTheme } from "../design/theme";
 
 type Current = {
   hid: string;
@@ -16,6 +17,7 @@ type Current = {
 
 export default function LiveActivityOverlay() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const [current, setCurrent] = React.useState<Current | null>(null);
   const [tick, setTick] = React.useState<number>(0);
 
@@ -66,12 +68,12 @@ export default function LiveActivityOverlay() {
         left: 12,
         right: 12,
         bottom: (insets.bottom || 0) + 64,
-        backgroundColor: "#111",
+        backgroundColor: theme.colors.card,
         borderRadius: 12,
         padding: 12,
         zIndex: 999,
         elevation: 12,
-        shadowColor: "#000",
+        shadowColor: theme.colors.border,
         shadowOpacity: 0.25,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 4,
@@ -85,10 +87,10 @@ export default function LiveActivityOverlay() {
         }}
       >
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={{ color: "#fff", fontWeight: "700" }} numberOfLines={1}>
+          <Text style={{ color: theme.colors.text, fontWeight: "700" }} numberOfLines={1}>
             {current.title || "Task"}
           </Text>
-          <Text style={{ color: "#9CA3AF", marginTop: 2 }}>
+          <Text style={{ color: theme.colors.textSecondary, marginTop: 2 }}>
             In progress · {mm}:{ss}
           </Text>
         </View>
@@ -101,13 +103,13 @@ export default function LiveActivityOverlay() {
             } catch {}
           }}
           style={{
-            backgroundColor: "#0a84ff",
+            backgroundColor: theme.colors.primary,
             paddingHorizontal: 12,
             paddingVertical: 8,
             borderRadius: 8,
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "600" }}>Open</Text>
+          <Text style={{ color: theme.colors.onPrimary, fontWeight: "600" }}>Open</Text>
         </TouchableOpacity>
       </View>
     </View>

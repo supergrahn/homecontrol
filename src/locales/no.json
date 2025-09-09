@@ -48,6 +48,25 @@
   "filters": "Filter",
   "tagsFilter": "Filtrer på tagger (kommaseparert)",
   "sortByPriorityHighFirst": "Høy prioritet først",
+  "errorBoundary.title": "Noe gikk galt",
+  "errorBoundary.description": "Appen støtte på en uventet feil. Vennligst prøv igjen eller kontakt support hvis problemet vedvarer.",
+  "errorBoundary.retry": "Prøv igjen",
+  "errorBoundary.retryLabel": "Prøv å laste siden på nytt",
+  "taskCard": "Oppgave {{title}} planlagt for {{when}}",
+  "taskCard.hint": "Dobbelttrykk for å se oppgavedetaljer",
+  "dependency": "Avhengighet {{title}} er {{status}}",
+  "dependency.hint": "Dobbelttrykk for å se blokkerende oppgave",
+  "completed": "fullført",
+  "pending": "ventende",
+  "moreDependencies": "{{count}} flere avhengigheter",
+  "moreDependencies.hint": "Dobbelttrykk for å se alle avhengigheter",
+  "markComplete.label": "Marker {{title}} som fullført",
+  "markComplete.hint": "Dobbelttrykk for å markere oppgave som fullført",
+  "markComplete.blocked": "Oppgaven er blokkert og kan ikke fullføres",
+  "acceptTask.label": "Godta {{title}}",
+  "acceptTask.hint": "Dobbelttrykk for å godta denne oppgaven",
+  "releaseTask.label": "Frigjør {{title}}",
+  "releaseTask.hint": "Dobbelttrykk for å frigjøre denne oppgaven",
   "sortByPriorityLowFirst": "Lav prioritet først",
   "clearFilters": "Tøm",
   "overdue": "Forfalt",
@@ -340,5 +359,38 @@
   "rewards": "Belønninger",
   "weeklyGoal": "Ukemål",
   "dayStreak": "dagers rekke",
-  "goalAchieved": "Mål oppnådd!"
+  "goalAchieved": "Mål oppnådd!",
+  
+  "pushActions": {
+    "complete": "✅ Ferdig",
+    "snooze30min": "⏰ 30 min",
+    "snooze2hours": "⏰ 2 timer",
+    "snoozeTomorrow": "📅 I morgen",
+    "snoozeNextWeek": "📅 Neste uke",
+    "accept": "👥 Jeg tar den",
+    "reassign": "🔄 Gi til annen",
+    "quickAdd": "➕ Legg til lignende",
+    "acceptLegacy": "Godta",
+    "doneLegacy": "Ferdig",
+    "snooze15Legacy": "15 min senere"
+  },
+  
+  "pushMessages": {
+    "taskAccepted": "Oppgave akseptert!",
+    "taskCompleted": "Flott jobbet!",
+    "snoozedMinutes": "Utsatt {{minutes}} minutter",
+    "snoozedTomorrow": "Utsatt til i morgen kl 08:00",
+    "snoozedNextWeek": "Utsatt til neste mandag kl 08:00",
+    "openingReassign": "Åpner oppgave for omfordeling...",
+    "openingNewTask": "Åpner ny oppgave...",
+    "actionQueued": "Handlingen er lagret - vil synkroniseres når tilkoblingen er gjenopprettet",
+    "actionQueuedFailed": "Kunne ikke lagre handlingen. Prøv igjen når du er tilkoblet."
+  },
+  
+  "culturalGreetings": {
+    "morning": ["God morgen!", "Hyggelig morgen!", "Ha en fin dag!", "Kos deg på skolen!"],
+    "afternoon": ["God ettermiddag!", "Håper du hadde en fin dag!", "Hvordan gikk det på skolen?", "Godt jobba i dag!"],
+    "evening": ["God kveld!", "Kos deg i kveld!", "Ha det gøy!", "Sov godt!"],
+    "motivational": ["Du klarer dette!", "Stå på!", "Bare å fortsette!", "Flott jobbet!", "Godt gjort!", "Helt topp!", "Supert!", "Du er flink!"]
+  }
 }

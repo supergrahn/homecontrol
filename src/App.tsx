@@ -27,26 +27,29 @@ import { useTranslation } from "react-i18next";
 import { maybeShowMorningBrief } from "./services/morningBrief";
 import { flushOutbox } from "./services/outbox";
 import { refreshNextUpWidget } from "./services/widgets";
-// Minimal event bus; type as any to avoid strict typing for quick integration
-// appEvents is provided by src/events
+import ErrorBoundary from "./components/ErrorBoundary";
+// Event bus integration with proper typing
 
-// module-scoped interval handle for connectivity watcher
-let outboxNetInterval: ReturnType<typeof setInterval> | undefined;
+// Component-scoped interval handles to prevent memory leaks
+type IntervalId = ReturnType<typeof setInterval>;
 
 export default function App() {
+  // Component-scoped interval handle for connectivity watcher to prevent memory leaks
+  const outboxNetIntervalRef = React.useRef<IntervalId | undefined>();
+  
   // In dev, sometimes the Dev Loading overlay ("Downloading 100%") sticks around.
   // Proactively hide it after mount so it doesn't block the bottom navigation.
   React.useEffect(() => {
     if (__DEV__) {
       try {
-        const DevLoadingView = (NativeModules as any)?.DevLoadingView;
+        const DevLoadingView = (NativeModules as { DevLoadingView?: { hide?: () => void } })?.DevLoadingView;
         DevLoadingView?.hide?.();
       } catch {}
       // Retry a few times in case the overlay reappears during initial bundles/HMR
       let tries = 0;
       const timer = setInterval(() => {
         try {
-          const DevLoadingView = (NativeModules as any)?.DevLoadingView;
+          const DevLoadingView = (NativeModules as { DevLoadingView?: { hide?: () => void } })?.DevLoadingView;
           DevLoadingView?.hide?.();
         } catch {}
         tries += 1;
@@ -72,7 +75,7 @@ export default function App() {
         }, 1000);
         // simple connectivity watcher: ping and flush when back online
         let lastOnline = true;
-        outboxNetInterval = setInterval(async () => {
+        outboxNetIntervalRef.current = setInterval(async () => {
           try {
             // HEAD to a lightweight endpoint; fall back to navigator.onLine
             const ctrl = new AbortController();
@@ -96,11 +99,12 @@ export default function App() {
     registerNotificationResponseHandler();
     const sub = Notifications.addNotificationResponseReceivedListener(
       (resp) => {
-        const data = resp.notification.request.content.data as {
+        interface NotificationData {
           type?: string;
           hid?: string;
           counts?: { overdue?: number };
-        };
+        }
+        const data = resp.notification.request.content.data as NotificationData;
         // Data example: { type: 'digest.daily', hid }
         try {
           if (navRef.isReady()) {
@@ -116,31 +120,56 @@ export default function App() {
     return () => {
       sub.remove();
       try {
-        if (outboxNetInterval) {
-          clearInterval(outboxNetInterval);
-          outboxNetInterval = undefined;
+        if (outboxNetIntervalRef.current) {
+          clearInterval(outboxNetIntervalRef.current);
+          outboxNetIntervalRef.current = undefined;
         }
       } catch {}
     };
   }, []);
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <QueryProvider>
-          <AuthProvider>
-            <HouseholdProvider>
-              <ToastProvider>
-                <NavigationProvider />
-                <GlobalToasts />
-                <DeepLinkHandler />
-                <LiveActivityOverlay />
-                <HouseholdEffects />
-              </ToastProvider>
-            </HouseholdProvider>
-          </AuthProvider>
-        </QueryProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary onError={(error, errorInfo) => {
+      // Log critical app-level errors
+      console.error("App-level error boundary triggered:", error, errorInfo);
+    }}>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <ErrorBoundary>
+              <QueryProvider>
+                <ErrorBoundary>
+                  <AuthProvider>
+                    <ErrorBoundary>
+                      <HouseholdProvider>
+                        <ErrorBoundary>
+                          <ToastProvider>
+                            <ErrorBoundary>
+                              <NavigationProvider />
+                            </ErrorBoundary>
+                            <ErrorBoundary>
+                              <GlobalToasts />
+                            </ErrorBoundary>
+                            <ErrorBoundary>
+                              <DeepLinkHandler />
+                            </ErrorBoundary>
+                            <ErrorBoundary>
+                              <LiveActivityOverlay />
+                            </ErrorBoundary>
+                            <ErrorBoundary>
+                              <HouseholdEffects />
+                            </ErrorBoundary>
+                          </ToastProvider>
+                        </ErrorBoundary>
+                      </HouseholdProvider>
+                    </ErrorBoundary>
+                  </AuthProvider>
+                </ErrorBoundary>
+              </QueryProvider>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -148,11 +177,12 @@ function GlobalToasts() {
   const toast = useToast();
   const { t } = useTranslation();
   React.useEffect(() => {
-    const sub = appEvents.addListener("toast", (payload: {
+    interface ToastPayload {
       key?: string;
       message?: string;
       type?: string;
-    }) => {
+    }
+    const sub = appEvents.addListener("toast", (payload: ToastPayload) => {
       try {
         const msg = payload?.key
           ? (t(payload.key) as string)

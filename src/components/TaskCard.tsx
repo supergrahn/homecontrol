@@ -12,6 +12,7 @@ import { auth } from "../firebase";
 import { useNavigation } from "@react-navigation/native";
 import { enqueueComplete } from "../services/outbox";
 import { useTheme } from "../design/theme";
+import { useErrorHandler } from "../services/errorHandling";
 
 export default function TaskCard({
   task,
@@ -29,6 +30,7 @@ export default function TaskCard({
   const qc = useQueryClient();
   const theme = useTheme();
   const navigation = useNavigation<any>();
+  const { handleTaskError } = useErrorHandler();
 
   useEffect(() => {
     // Map our i18n language to dayjs locale (we use 'no' -> dayjs 'nb')
@@ -70,7 +72,7 @@ export default function TaskCard({
       );
       return { previous };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       const prev = ctx as any;
       if (prev?.previous) {
         Object.entries(prev.previous).forEach(([key, data]) => {
@@ -78,6 +80,7 @@ export default function TaskCard({
           qc.setQueryData(qk, data);
         });
       }
+      handleTaskError(err, task.id, householdId);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["today", householdId] });
@@ -160,7 +163,7 @@ export default function TaskCard({
       );
       return { previous };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       const prev = ctx as any;
       if (prev?.previous) {
         Object.entries(prev.previous).forEach(([key, data]) => {
@@ -168,6 +171,7 @@ export default function TaskCard({
           qc.setQueryData(qk, data);
         });
       }
+      handleTaskError(err, task.id, householdId);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["today", householdId] });
@@ -193,7 +197,14 @@ export default function TaskCard({
         ? dayjs(task.dueAt).format("ddd HH:mm")
         : "—";
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${t("taskCard", { title: task.title })} ${when}`}
+      accessibilityHint={t("taskCard.hint") || "Double tap to view task details"}
+      accessible={true}
+    >
       <View
         style={{
           padding: 14,
@@ -203,6 +214,7 @@ export default function TaskCard({
           borderColor: theme.colors.border,
           marginBottom: 10,
         }}
+        accessible={false}
       >
         <Text style={{ fontWeight: "600", fontSize: 16 }}>{task.title}</Text>
         <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing(0.5) }}>
@@ -222,7 +234,7 @@ export default function TaskCard({
                 "Auto-shifted when unblocked"
               : (t("autoShifted") as string) || "Auto-shifted";
           return (
-            <Text style={{ color: "#9CA3AF", marginTop: 2, fontSize: 12 }}>
+            <Text style={{ color: theme.colors.textSecondary, marginTop: 2, fontSize: 12 }}>
               {label}
             </Text>
           );
@@ -233,15 +245,15 @@ export default function TaskCard({
               style={{
                 marginTop: 6,
                 alignSelf: "flex-start",
-                backgroundColor: "#FEF2F2",
+                backgroundColor: theme.colors.blockedSurface,
                 borderRadius: 999,
                 paddingHorizontal: 8,
                 paddingVertical: 2,
                 borderWidth: 1,
-                borderColor: "#FECACA",
+                borderColor: theme.colors.blockedBorder,
               }}
             >
-              <Text style={{ color: "#991B1B", fontSize: 12 }}>
+              <Text style={{ color: theme.colors.blocked, fontSize: 12 }}>
                 {(() => {
                   const unresolved = depInfos.filter(
                     (d) => d.status !== "done" && d.status !== "verified"
@@ -258,7 +270,7 @@ export default function TaskCard({
                     style={{
                       height: 10,
                       width: 160,
-                      backgroundColor: "#F3F4F6",
+                      backgroundColor: theme.colors.skeleton,
                       borderRadius: 4,
                     }}
                   />
@@ -266,7 +278,7 @@ export default function TaskCard({
                     style={{
                       height: 10,
                       width: 140,
-                      backgroundColor: "#F3F4F6",
+                      backgroundColor: theme.colors.skeleton,
                       borderRadius: 4,
                     }}
                   />
@@ -295,7 +307,7 @@ export default function TaskCard({
                     {visible.map((d) => {
                       const resolved =
                         d.status === "done" || d.status === "verified";
-                      const dotColor = resolved ? "#9CA3AF" : "#DC2626";
+                      const dotColor = resolved ? theme.colors.textSecondary : theme.colors.error;
                       return (
                         <TouchableOpacity
                           key={d.id}
@@ -303,6 +315,8 @@ export default function TaskCard({
                             navigation.navigate("TaskDetail", { id: d.id })
                           }
                           accessibilityRole="link"
+                          accessibilityLabel={`${t("dependency", { title: d.title, status: resolved ? t("completed") : t("pending") })}`}
+                          accessibilityHint={t("dependency.hint") || "Double tap to view blocking task"}
                           style={{
                             flexDirection: "row",
                             alignItems: "center",
@@ -320,7 +334,7 @@ export default function TaskCard({
                           />
                           <Text
                             style={{
-                              color: resolved ? "#6B7280" : "#1D4ED8",
+                              color: resolved ? theme.colors.muted : theme.colors.primary,
                               fontSize: 12,
                               textDecorationLine: resolved
                                 ? "line-through"
@@ -338,9 +352,11 @@ export default function TaskCard({
                           navigation.navigate("TaskDetail", { id: task.id })
                         }
                         accessibilityRole="link"
+                        accessibilityLabel={t("moreDependencies", { count: moreCount }) || `${moreCount} more dependencies`}
+                        accessibilityHint={t("moreDependencies.hint") || "Double tap to view all dependencies"}
                         style={{ paddingVertical: 4 }}
                       >
-                        <Text style={{ color: "#1F2937", fontSize: 12 }}>
+                        <Text style={{ color: theme.colors.text, fontSize: 12 }}>
                           +{moreCount} more
                         </Text>
                       </TouchableOpacity>
@@ -364,15 +380,15 @@ export default function TaskCard({
             {typeof task.priority === "number" ? (
               <View
                 style={{
-                  backgroundColor: "#FFF7ED",
+                  backgroundColor: theme.colors.prioritySurface,
                   borderRadius: 999,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderWidth: 1,
-                  borderColor: "#FFEDD5",
+                  borderColor: theme.colors.priorityBorder,
                 }}
               >
-                <Text style={{ color: "#9A3412", fontSize: 12 }}>
+                <Text style={{ color: theme.colors.priority, fontSize: 12 }}>
                   {t("priority")}:{" "}
                   {task.priority === 1
                     ? (t("priorityLow") as string) || "Low"
@@ -386,15 +402,15 @@ export default function TaskCard({
               <View
                 key={tag}
                 style={{
-                  backgroundColor: "#EEF2FF",
+                  backgroundColor: theme.colors.tagSurface,
                   borderRadius: 999,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderWidth: 1,
-                  borderColor: "#E0E7FF",
+                  borderColor: theme.colors.tagBorder,
                 }}
               >
-                <Text style={{ color: "#3730A3", fontSize: 12 }}>#{tag}</Text>
+                <Text style={{ color: theme.colors.tag, fontSize: 12 }}>#{tag}</Text>
               </View>
             ))}
           </View>
@@ -404,16 +420,16 @@ export default function TaskCard({
             {isAcceptedByMe ? (
               <View
                 style={{
-                  backgroundColor: "#E6F4EA",
+                  backgroundColor: theme.colors.acceptedSurface,
                   borderRadius: 999,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderWidth: 1,
-                  borderColor: "#C8E6C9",
+                  borderColor: theme.colors.acceptedBorder,
                   alignSelf: "flex-start",
                 }}
               >
-                <Text style={{ color: "#2E7D32", fontSize: 12 }}>
+                <Text style={{ color: theme.colors.accepted, fontSize: 12 }}>
                   {t("mine") || "Mine"}
                 </Text>
               </View>
@@ -421,16 +437,16 @@ export default function TaskCard({
             {acceptedCount > 0 ? (
               <View
                 style={{
-                  backgroundColor: "#EEF2FF",
+                  backgroundColor: theme.colors.tagSurface,
                   borderRadius: 999,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderWidth: 1,
-                  borderColor: "#E0E7FF",
+                  borderColor: theme.colors.tagBorder,
                   alignSelf: "flex-start",
                 }}
               >
-                <Text style={{ color: "#3730A3", fontSize: 12 }}>
+                <Text style={{ color: theme.colors.tag, fontSize: 12 }}>
                   {t("acceptedCount", { count: acceptedCount }) ||
                     `${acceptedCount} accepted`}
                 </Text>
@@ -453,6 +469,8 @@ export default function TaskCard({
                 });
               }}
               disabled={isBlocked || !householdId || mutation.isPending}
+              accessibilityLabel={t("markComplete.label", { title: task.title }) || `Mark ${task.title} as complete`}
+              accessibilityHint={isBlocked ? t("markComplete.blocked") || "Task is blocked and cannot be completed" : t("markComplete.hint") || "Double tap to mark task as complete"}
             />
           </View>
           {showQuickAccept ? (
@@ -461,10 +479,20 @@ export default function TaskCard({
                 title={
                   isAcceptedByMe
                     ? (t("releaseTask") as string) || "Release"
-                    : (t("acceptTask") as string) || "I’ve got it"
+                    : (t("acceptTask") as string) || "I've got it"
                 }
                 onPress={() => toggleAccept.mutate()}
                 disabled={isBlocked || !householdId || toggleAccept.isPending}
+                accessibilityLabel={
+                  isAcceptedByMe 
+                    ? t("releaseTask.label", { title: task.title }) || `Release ${task.title}`
+                    : t("acceptTask.label", { title: task.title }) || `Accept ${task.title}`
+                }
+                accessibilityHint={
+                  isAcceptedByMe 
+                    ? t("releaseTask.hint") || "Double tap to release this task"
+                    : t("acceptTask.hint") || "Double tap to accept this task"
+                }
               />
             </View>
           ) : null}

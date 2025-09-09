@@ -388,8 +388,54 @@ export class NorwegianCulturalAdaptationService {
     const now = new Date();
     const hour = now.getHours();
     
-    // Norwegian quiet hours: 22:00 - 07:00
-    return hour >= 22 || hour < 7;
+    // Norwegian quiet hours: 20:00 - 07:00 (8PM - 7AM)
+    return hour >= 20 || hour < 7;
+  }
+
+  // Check if current time is during typical Norwegian friluftsliv hours
+  isWithinFriluftsliv(): boolean {
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay();
+    const isWeekend = day === 0 || day === 6;
+    
+    // Weekend daytime (10:00-16:00) is typical Norwegian outdoor family time
+    return isWeekend && hour >= 10 && hour <= 16;
+  }
+
+  // Get appropriate notification delay for cultural context
+  getNotificationDelay(): number {
+    if (this.isWithinQuietHours()) {
+      // Delay until 7 AM
+      const now = new Date();
+      const nextMorning = new Date();
+      if (now.getHours() >= 20) {
+        // If it's evening, delay until next morning
+        nextMorning.setDate(now.getDate() + 1);
+      }
+      nextMorning.setHours(7, 0, 0, 0);
+      return Math.max(0, nextMorning.getTime() - now.getTime());
+    }
+    
+    if (this.isWithinFriluftsliv()) {
+      // Short delay during friluftsliv time (30 minutes)
+      return 30 * 60 * 1000;
+    }
+    
+    return 0; // No delay
+  }
+
+  // Get culturally appropriate notification channel
+  getNotificationChannel(): string {
+    if (this.isWithinQuietHours()) {
+      return "silent";
+    }
+    
+    if (this.isWithinFriluftsliv()) {
+      return "friluftsliv";
+    }
+    
+    return "default";
   }
 
   // Adapt task scheduling for Norwegian culture

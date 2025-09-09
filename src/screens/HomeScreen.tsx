@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 // import { BlurView } from "expo-blur";
 // import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import { ListSkeleton, TextSkeleton, SchoolScheduleSkeleton } from "../components/SkeletonLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import TaskCard from "../components/TaskCard";
 import { fetchTasksInRange } from "../services/tasks";
@@ -557,7 +558,7 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
           {summaryOpen ? (
             digest.isLoading ? (
-              <Text>{t("loading")}</Text>
+              <TextSkeleton lines={2} />
             ) : digest.data ? (
               <View>
                 <Text>
@@ -617,7 +618,7 @@ export default function HomeScreen({ navigation }: any) {
             )}
           </View>
           {loadingHighlights ? (
-            <Text style={{ color: theme.colors.muted }}>{t("loading")}</Text>
+            <SchoolScheduleSkeleton />
           ) : schoolHighlights ? (
             <View>
               {Array.isArray(schoolHighlights.anomalies) &&
@@ -694,7 +695,7 @@ export default function HomeScreen({ navigation }: any) {
             {t("kidOverview") || "Today / This Week"}
           </Text>
           {loadingKidInfo ? (
-            <Text style={{ color: theme.colors.muted }}>{t("loading")}</Text>
+            <TextSkeleton lines={3} />
           ) : (
             <View>
               {/* Today */}
@@ -735,7 +736,7 @@ export default function HomeScreen({ navigation }: any) {
       ) : null}
 
       {enabled && list.isLoading ? (
-        <Text>{t("loading")}</Text>
+        <ListSkeleton count={5} />
       ) : (
         <FlatList
           // Filtered+sorted client-side for now; can move to server later

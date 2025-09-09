@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
-import { createHousehold } from "../services/households";
+import { createHousehold, findPotentialHouseholdMatches } from "../services/households";
 import { acceptInvite } from "../services/invites";
 import { parseInviteFromUrl } from "../services/inviteLinks";
 import * as Clipboard from "expo-clipboard";
@@ -22,6 +22,7 @@ import Input from "../components/Input";
 import Button from "../components/Button";
 import { setUserDisplayName } from "../services/user";
 import { auth } from "../firebase";
+import { NorwegianFamilyStructure, NORWEGIAN_FAMILY_TEMPLATES } from "../models/Household";
 
 export default function CreateHouseholdScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -42,7 +43,8 @@ export default function CreateHouseholdScreen({ navigation }: any) {
   const [createError, setCreateError] = React.useState<string | null>(null);
   const [joinError, setJoinError] = React.useState<string | null>(null);
   const [suggestedHouseholds, setSuggestedHouseholds] = React.useState<any[]>([]);
-  const [showMergeOptions, setShowMergeOptions] = React.useState(false);
+  const [showFamilyStructure, setShowFamilyStructure] = React.useState(false);
+  const [selectedFamilyStructure, setSelectedFamilyStructure] = React.useState<NorwegianFamilyStructure>("traditional");
   const nameRef = React.useRef<any>(null);
   const yourNameRef = React.useRef<any>(null);
   const inviteRef = React.useRef<any>(null);
@@ -202,7 +204,7 @@ export default function CreateHouseholdScreen({ navigation }: any) {
                         );
                       } else {
                         await setUserDisplayName(yn);
-                        const id = await createHousehold(trimmed);
+                        const id = await createHousehold(trimmed, selectedFamilyStructure);
                         await selectHousehold(id);
                         navigation.replace("MainTabs");
                       }
@@ -262,7 +264,7 @@ export default function CreateHouseholdScreen({ navigation }: any) {
                     }
                     try {
                       await setUserDisplayName(yn);
-                      const id = await createHousehold(trimmed);
+                      const id = await createHousehold(trimmed, selectedFamilyStructure);
                       await selectHousehold(id);
                       navigation.replace("MainTabs");
                     } catch {
@@ -276,78 +278,150 @@ export default function CreateHouseholdScreen({ navigation }: any) {
                 }}
               />
 
-              {/* Household Intelligence Section */}
+              {/* Norwegian Family Structure Selection */}
               <View style={{ height: 24 }} />
               <View
                 style={{
                   backgroundColor: theme.colors.card,
-                  borderRadius: 12,
-                  padding: 16,
+                  borderRadius: 16,
+                  padding: 20,
                   marginBottom: 24,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                  <Ionicons 
-                    name="people" 
-                    size={20} 
-                    color={theme.colors.primary} 
-                    style={{ marginRight: 8 }}
-                  />
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                  <Text style={{ fontSize: 28, marginRight: 8 }}>🇳🇴</Text>
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: "700",
                       color: theme.colors.text,
+                      flex: 1,
                     }}
                   >
-                    {t("onboarding.modernFamilies") || "Modern Family Structures"}
+                    {t("onboarding.norwegianFamilies") || "Norske familier"}
                   </Text>
                 </View>
-                <Text style={{ color: theme.colors.muted, marginBottom: 12 }}>
-                  {t("onboarding.familyStructureExplainer") || 
-                   "We support all family types: single parents, separated parents sharing custody, joint households, and extended families."}
+                <Text style={{ color: theme.colors.muted, marginBottom: 16 }}>
+                  {t("onboarding.chooseFamilyStructure") || 
+                   "Velg familiestrukturen som passer best for deres situasjon. Dette hjelper oss å tilpasse appen til deres behov."}
                 </Text>
+                
+                {/* Family Structure Options */}
+                {Object.entries(NORWEGIAN_FAMILY_TEMPLATES).map(([structureType, template]) => {
+                  const isSelected = selectedFamilyStructure === structureType;
+                  return (
+                    <TouchableOpacity
+                      key={structureType}
+                      style={{
+                        backgroundColor: isSelected ? theme.colors.primary + '15' : 'transparent',
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                        borderWidth: 1,
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 12,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                      onPress={() => setSelectedFamilyStructure(structureType as NorwegianFamilyStructure)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: isSelected }}
+                    >
+                      <Text style={{ fontSize: 24, marginRight: 12 }}>
+                        {template.icon}
+                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "600",
+                            color: isSelected ? theme.colors.primary : theme.colors.text,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {template.displayName}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: theme.colors.muted,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {template.description}
+                        </Text>
+                        {template.culturalNotes.length > 0 && (
+                          <Text style={{ fontSize: 12, color: theme.colors.muted, fontStyle: "italic" }}>
+                            {template.culturalNotes[0]}
+                          </Text>
+                        )}
+                      </View>
+                      <Ionicons
+                        name={isSelected ? "radio-button-on" : "radio-button-off"}
+                        size={20}
+                        color={isSelected ? theme.colors.primary : theme.colors.muted}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
                 
                 <TouchableOpacity
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    paddingVertical: 8,
+                    justifyContent: "center",
+                    paddingVertical: 12,
+                    marginTop: 8,
                   }}
-                  onPress={() => setShowMergeOptions(!showMergeOptions)}
+                  onPress={() => setShowFamilyStructure(!showFamilyStructure)}
                 >
-                  <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
-                    {t("onboarding.familyOptions") || "Family setup options"}
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={16}
+                    color={theme.colors.primary}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={{ color: theme.colors.primary, fontWeight: "500" }}>
+                    {showFamilyStructure 
+                      ? (t("onboarding.lessInfo") || "Mindre info")
+                      : (t("onboarding.moreInfo") || "Mer info om familietyper")
+                    }
                   </Text>
                   <Ionicons
-                    name={showMergeOptions ? "chevron-up" : "chevron-down"}
+                    name={showFamilyStructure ? "chevron-up" : "chevron-down"}
                     size={16}
                     color={theme.colors.primary}
                     style={{ marginLeft: 4 }}
                   />
                 </TouchableOpacity>
                 
-                {showMergeOptions && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: "600", marginBottom: 8 }}>
-                      {t("onboarding.familyTypes") || "Choose your situation:"}
+                {showFamilyStructure && (
+                  <View 
+                    style={{ 
+                      marginTop: 16, 
+                      paddingTop: 16,
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.text, fontWeight: "600", marginBottom: 12 }}>
+                      {t("onboarding.whyFamilyStructure") || "Hvorfor spør vi om familiestruktur?"}
                     </Text>
                     <View style={{ gap: 8 }}>
-                      <Text style={{ color: theme.colors.text }}>
-                        • {t("onboarding.singleParent") || "Single parent household"}
+                      <Text style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 20 }}>
+                        • {t("onboarding.reasonScheduling") || "Tilpasser oppgaveplanlegging til deres rutiner"}
                       </Text>
-                      <Text style={{ color: theme.colors.text }}>
-                        • {t("onboarding.separatedParents") || "Separated parents (shared custody)"}
+                      <Text style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 20 }}>
+                        • {t("onboarding.reasonCustody") || "Støtter delt omsorg og koordinering mellom husholdninger"}
                       </Text>
-                      <Text style={{ color: theme.colors.text }}>
-                        • {t("onboarding.jointHousehold") || "Joint household (multiple adults)"}
+                      <Text style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 20 }}>
+                        • {t("onboarding.reasonCultural") || "Respekterer norske familieverdier og kulturtradisjon"}
                       </Text>
-                      <Text style={{ color: theme.colors.text }}>
-                        • {t("onboarding.extendedFamily") || "Extended family household"}
+                      <Text style={{ color: theme.colors.muted, fontSize: 14, lineHeight: 20 }}>
+                        • {t("onboarding.reasonNotifications") || "Sender relevant kommunikasjon til riktige personer"}
                       </Text>
                     </View>
-                    <Text style={{ color: theme.colors.muted, marginTop: 8, fontSize: 12 }}>
-                      {t("onboarding.setupLater") || "You can adjust these settings later in the app."}
+                    <Text style={{ color: theme.colors.muted, marginTop: 12, fontSize: 12, fontStyle: "italic" }}>
+                      {t("onboarding.changeLater") || "Du kan endre familiestruktur når som helst i innstillingene."}
                     </Text>
                   </View>
                 )}

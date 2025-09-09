@@ -1,6 +1,7 @@
 import React from "react";
 import { Animated, Easing, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../design/theme";
 
 type ToastType = "success" | "error" | "info";
 
@@ -68,8 +69,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo(() => ({ show }), [show]);
 
+  const theme = useTheme();
   const bg =
-    type === "error" ? "#b00020" : type === "success" ? "#111" : "#333";
+    type === "error" ? theme.colors.error : type === "success" ? theme.colors.success : theme.colors.muted;
 
   return (
     <ToastContext.Provider value={value}>
@@ -96,7 +98,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               maxWidth: "90%",
             }}
           >
-            <Text style={{ color: "#fff" }}>{message}</Text>
+            <Text style={{ color: theme.colors.onEmphasis }}>{message}</Text>
           </View>
         </Animated.View>
       ) : null}

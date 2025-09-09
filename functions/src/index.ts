@@ -11,6 +11,11 @@ import * as fairness from "./stats";
 import * as prefs from "./userPrefs";
 import * as calendar from "./ics";
 import * as workload from "./workload";
+import * as onboarding from "./onboarding/orchestration";
+import * as householdMerging from "./households/merge";
+import * as dataValidation from "./security/dataValidation";
+import * as childSetup from "./children/setup";
+import * as rewardSystem from "./rewards/initialize";\nimport * as norwegianAI from "./ai/norwegianIntelligence";
 
 export const createInvite = invites.createInvite;
 export const acceptInvite = invites.acceptInvite;
@@ -38,3 +43,24 @@ export const createCalendarShare = calendar.createCalendarShare;
 export const revokeCalendarShare = calendar.revokeCalendarShare;
 export const icsFeed = calendar.icsFeed;
 export const getCalendarShares = calendar.getCalendarShares;
+
+// Norwegian Onboarding System (Phase 4)
+export const completeNorwegianOnboarding = onboarding.completeNorwegianOnboarding;
+export const requestHouseholdMerge = householdMerging.requestHouseholdMerge;
+export const approveHouseholdMerge = householdMerging.approveHouseholdMerge;
+export const processAutomaticMerge = householdMerging.processAutomaticMerge;
+
+// Norwegian GDPR+ Compliance
+export const validateNorwegianCompliance = dataValidation.validateNorwegianCompliance;
+export const processDataDeletion = dataValidation.processDataDeletion;
+export const automaticDataRetention = dataValidation.automaticDataRetention;
+
+// Norwegian Child Account System
+export const createChildAccount = childSetup.createChildAccount;
+export const setupChildDevice = childSetup.setupChildDevice;
+export const setupSchoolIntegration = childSetup.setupSchoolIntegration;
+
+// Norwegian Reward System
+export const setupRewardSystem = rewardSystem.setupRewardSystem;
+export const unlockAchievement = rewardSystem.unlockAchievement;
+export const getAvailableAchievements = rewardSystem.getAvailableAchievements;\n\n// Norwegian Family AI Assistant\nexport const generateNorwegianFamilyInsights = norwegianAI.generateNorwegianFamilyInsights;\nexport const norwegianAIUtilities = norwegianAI.norwegianAIUtilities;

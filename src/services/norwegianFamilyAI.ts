@@ -3,6 +3,8 @@
 import { Task } from "../models/task";
 import { Child } from "./children";
 import { norwegianCalendar, SchoolCalendarData } from "./norwegianCalendar";
+import { norwegianWeatherAI, NorwegianWeatherData, WeatherActivityRecommendation } from "./norwegianWeatherAI";
+import { norwegianDugnadAI, DugnadRecommendation } from "./norwegianDugnadAI";
 import { norwegianCulture } from "./norwegianCulture";
 import { conflictDetector } from "./scheduleConflicts";
 import { listTasks } from "./tasks";
