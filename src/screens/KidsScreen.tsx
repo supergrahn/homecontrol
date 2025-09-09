@@ -52,14 +52,25 @@ export default function KidsScreen() {
           marginBottom: 8,
         }}
       >
-        <Text
-          style={{
-            ...theme.typography.h2,
-            color: theme.colors.onSurface,
-          }}
-        >
-          {(t("kids") as string) || "Kids"}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              ...theme.typography.h2,
+              color: theme.colors.onSurface,
+            }}
+          >
+            {(t("children") as string) || "Children"}
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.muted,
+              fontSize: 14,
+              marginTop: 2,
+            }}
+          >
+            {t("childrenHint") || "Manage your children's profiles and activities"}
+          </Text>
+        </View>
         <Button
           title=""
           accessibilityLabel={(t("addChild") as string) || "Add child"}
@@ -159,25 +170,31 @@ export default function KidsScreen() {
             >
               <TouchableOpacity
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
                   backgroundColor: item.color || theme.colors.card,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 10,
+                  marginRight: 12,
+                  borderWidth: 2,
+                  borderColor: item.hasDeviceAccess ? theme.colors.primary : theme.colors.border,
                 }}
                 onPress={() => {
                   setViewChild(item);
                   setShowViewDrawer(true);
                 }}
               >
-                <Ionicons
-                  name="person"
-                  size={18}
-                  color={theme.colors.onSurface}
-                  accessibilityLabel={t("childIcon") || "Child icon"}
-                />
+                {item.emoji ? (
+                  <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={20}
+                    color={theme.colors.onSurface}
+                    accessibilityLabel={t("childIcon") || "Child icon"}
+                  />
+                )}
               </TouchableOpacity>
               {isEditing ? (
                 <>
@@ -225,9 +242,44 @@ export default function KidsScreen() {
                       setShowViewDrawer(true);
                     }}
                   >
-                    <Text style={{ color: theme.colors.text }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "600" }}>
                       {item.displayName}
                     </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                      {item.age && (
+                        <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
+                          {t("age")} {item.age}
+                        </Text>
+                      )}
+                      {item.hasDeviceAccess && (
+                        <>
+                          {item.age && <Text style={{ color: theme.colors.muted, fontSize: 12 }}> • </Text>}
+                          <Ionicons
+                            name="phone-portrait"
+                            size={12}
+                            color={theme.colors.primary}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={{ color: theme.colors.primary, fontSize: 11, fontWeight: "500" }}>
+                            {t("hasDevice") || "Has device"}
+                          </Text>
+                        </>
+                      )}
+                      {item.rewardPoints && (
+                        <>
+                          <Text style={{ color: theme.colors.muted, fontSize: 12 }}> • </Text>
+                          <Ionicons
+                            name="star"
+                            size={12}
+                            color="#FFD700"
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={{ color: "#FFD700", fontSize: 11, fontWeight: "500" }}>
+                            {item.rewardPoints} {t("points") || "points"}
+                          </Text>
+                        </>
+                      )}
+                    </View>
                   </TouchableOpacity>
                   <Button
                     title=""
@@ -274,10 +326,48 @@ export default function KidsScreen() {
           );
         }}
         ListEmptyComponent={
-          <View style={{ alignItems: "flex-start", gap: 8 }}>
-            <Text style={{ color: theme.colors.muted }}>
-              {(t("noKidsYet") as string) || "No kids yet."}
+          <View 
+            style={{ 
+              alignItems: "center", 
+              padding: 32,
+              backgroundColor: theme.colors.card,
+              borderRadius: 12,
+              marginTop: 16,
+            }}
+          >
+            <Ionicons
+              name="people"
+              size={48}
+              color={theme.colors.muted}
+              style={{ marginBottom: 16 }}
+            />
+            <Text 
+              style={{ 
+                color: theme.colors.text, 
+                fontSize: 18,
+                fontWeight: "600",
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              {t("children.welcome") || "Welcome to your family organizer!"}
             </Text>
+            <Text 
+              style={{ 
+                color: theme.colors.muted,
+                textAlign: "center",
+                lineHeight: 20,
+                marginBottom: 16,
+              }}
+            >
+              {t("children.addChildrenHint") || 
+               "Add your children's profiles to get started with family task management, school schedules, and reward tracking."}
+            </Text>
+            <Button
+              title={t("addFirstChild") || "Add Your First Child"}
+              onPress={() => setShowAddModal(true)}
+              iconLeft={<Ionicons name="add" size={20} color={theme.colors.onPrimary} />}
+            />
           </View>
         }
       />

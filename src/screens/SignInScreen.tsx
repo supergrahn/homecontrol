@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../firebase";
 import { FirebaseError } from "firebase/app";
 import {
@@ -23,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "../design/theme";
 import Input from "../components/Input";
 import Button from "../components/Button";
-import { setUserDisplayName } from "../services/user";
+import { setUserDisplayName, createOrUpdateUserProfile } from "../services/user";
 import KeyboardAvoidingWrapper from "../components/KeyboardAvoidingWrapper";
 import { mark, measureFrom } from "../utils/perf";
 import { getDocs, collection } from "firebase/firestore";
@@ -41,6 +42,7 @@ export default function SignInScreen({ navigation }: any) {
   const passRef = React.useRef<any>(null);
   const nameRef = React.useRef<any>(null);
   const [yourName, setYourName] = React.useState("");
+  const [isSignUp, setIsSignUp] = React.useState(false);
   const { t } = useTranslation();
 
   const signIn = async () => {
@@ -100,10 +102,21 @@ export default function SignInScreen({ navigation }: any) {
         email.trim(),
         pass
       );
-      // Save displayName immediately for downstream flows (memberships, invites)
+      
+      // Create enhanced user profile with Norwegian family context
       try {
+        await createOrUpdateUserProfile(
+          cred.user.uid, 
+          email.trim(), 
+          yourName.trim(),
+          'parent' // Default to parent role for signup
+        );
+      } catch (profileError) {
+        console.warn('[SignIn] Failed to create user profile:', profileError);
+        // Fallback to legacy approach
         await setUserDisplayName(yourName.trim());
-      } catch {}
+      }
+      
       // Check if the user is already a member of any household
       const qs = await getDocs(collection(db, "households"));
       const uid = cred.user.uid;
@@ -191,7 +204,7 @@ export default function SignInScreen({ navigation }: any) {
                 width: "100%",
                 maxWidth: 480,
                 alignItems: "flex-start",
-                marginBottom: 12,
+                marginBottom: 24,
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -214,9 +227,84 @@ export default function SignInScreen({ navigation }: any) {
                   {t("title")}
                 </Text>
               </View>
-              <Text style={{ color: theme.colors.muted, marginTop: 6 }}>
-                {t("signInSubtitle") || "Welcome back. Please sign in."}
+              <Text 
+                style={{ 
+                  color: theme.colors.muted, 
+                  marginTop: 6,
+                  fontSize: 16,
+                  lineHeight: 22
+                }}
+              >
+                {isSignUp 
+                  ? (t("auth.welcomeToFamily") || "Welcome to your family organizer")
+                  : (t("auth.welcomeBack") || "Welcome back. Please sign in.")
+                }
               </Text>
+            </View>
+
+            {/* Authentication Mode Toggle - Enhanced Design */}
+            <View 
+              style={{
+                width: "100%",
+                maxWidth: 480,
+                flexDirection: "row",
+                backgroundColor: theme.colors.card,
+                borderRadius: 16,
+                padding: 6,
+                marginBottom: 24,
+                shadowColor: theme.colors.text,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 3,
+                elevation: 1,
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 16,
+                  paddingHorizontal: 24,
+                  borderRadius: 10,
+                  backgroundColor: !isSignUp ? theme.colors.primary : "transparent",
+                  alignItems: "center",
+                }}
+                onPress={() => setIsSignUp(false)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: !isSignUp }}
+              >
+                <Text
+                  style={{
+                    color: !isSignUp ? theme.colors.onPrimary : theme.colors.text,
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  {t("auth.signIn") || "Sign In"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 16,
+                  paddingHorizontal: 24,
+                  borderRadius: 10,
+                  backgroundColor: isSignUp ? theme.colors.primary : "transparent",
+                  alignItems: "center",
+                }}
+                onPress={() => setIsSignUp(true)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSignUp }}
+              >
+                <Text
+                  style={{
+                    color: isSignUp ? theme.colors.onPrimary : theme.colors.text,
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  {t("auth.createAccount") || "Create Account"}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Form */}
@@ -230,34 +318,38 @@ export default function SignInScreen({ navigation }: any) {
                 value={email}
                 onChangeText={setEmail}
                 returnKeyType="next"
-                onSubmitEditing={() => nameRef.current?.focus?.()}
+                onSubmitEditing={() => isSignUp ? nameRef.current?.focus?.() : passRef.current?.focus?.()}
                 accessibilityLabel={t("email") || "Email"}
                 testID="emailInput"
               />
 
-              {/* Your name (used when creating an account) */}
-              <Input
-                ref={nameRef}
-                placeholder={t("yourName") || "Your name"}
-                value={yourName}
-                onChangeText={setYourName}
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passRef.current?.focus?.()}
-                accessibilityLabel={t("yourName") || "Your name"}
-                testID="yourNameInput"
-              />
-              <Text
-                style={{
-                  color: theme.colors.muted,
-                  marginTop: -4,
-                  marginBottom: 8,
-                }}
-              >
-                {t("yourNameHint") ||
-                  "Shown to your household; you can change it later."}
-              </Text>
+              {/* Your name (only shown for signup) */}
+              {isSignUp && (
+                <>
+                  <Input
+                    ref={nameRef}
+                    placeholder={t("yourName") || "Your name"}
+                    value={yourName}
+                    onChangeText={setYourName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passRef.current?.focus?.()}
+                    accessibilityLabel={t("yourName") || "Your name"}
+                    testID="yourNameInput"
+                  />
+                  <Text
+                    style={{
+                      color: theme.colors.muted,
+                      marginTop: -4,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {t("yourNameHint") ||
+                      "Shown to your household; you can change it later."}
+                  </Text>
+                </>
+              )}
 
               <View style={{ position: "relative" }}>
                 <Input
@@ -270,7 +362,7 @@ export default function SignInScreen({ navigation }: any) {
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="go"
-                  onSubmitEditing={signIn}
+                  onSubmitEditing={isSignUp ? signUp : signIn}
                   accessibilityLabel={t("password") || "Password"}
                   testID="passwordInput"
                   right={
@@ -319,28 +411,43 @@ export default function SignInScreen({ navigation }: any) {
 
               <View style={{ height: 12 }} />
               <Button
-                testID="signInButton"
-                title={loading ? "…" : (t("signIn") as string)}
-                onPress={signIn}
-                disabled={loading || !email.trim() || !pass}
+                testID={isSignUp ? "signUpButton" : "signInButton"}
+                title={
+                  loading ? "…" : 
+                  isSignUp ? (t("auth.createAccount") || "Create Account") : 
+                  (t("signIn") || "Sign In")
+                }
+                onPress={isSignUp ? signUp : signIn}
+                disabled={
+                  loading || 
+                  !email.trim() || 
+                  !pass || 
+                  (isSignUp && !yourName.trim())
+                }
               />
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginTop: 12,
-                }}
-              >
-                <TouchableOpacity onPress={signUp} accessibilityRole="button">
-                  <Text
-                    style={{ color: theme.colors.primary, fontWeight: "600" }}
-                  >
-                    {t("createAccount")}
+              {!isSignUp && (
+                <View
+                  style={{
+                    alignItems: "center",
+                    marginTop: 16,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
+                    {t("auth.dontHaveAccount") || "Don't have an account?"}
                   </Text>
-                </TouchableOpacity>
-                {/* Forgot link moved near password field */}
-              </View>
+                  <TouchableOpacity 
+                    onPress={() => setIsSignUp(true)} 
+                    accessibilityRole="button"
+                  >
+                    <Text
+                      style={{ color: theme.colors.primary, fontWeight: "600" }}
+                    >
+                      {t("auth.createAccountPrompt") || "Create one here"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Optional sign out for debugging */}
               <View style={{ height: 16 }} />

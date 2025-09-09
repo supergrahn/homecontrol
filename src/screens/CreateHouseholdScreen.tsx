@@ -41,6 +41,8 @@ export default function CreateHouseholdScreen({ navigation }: any) {
   const [joining, setJoining] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
   const [joinError, setJoinError] = React.useState<string | null>(null);
+  const [suggestedHouseholds, setSuggestedHouseholds] = React.useState<any[]>([]);
+  const [showMergeOptions, setShowMergeOptions] = React.useState(false);
   const nameRef = React.useRef<any>(null);
   const yourNameRef = React.useRef<any>(null);
   const inviteRef = React.useRef<any>(null);
@@ -109,11 +111,11 @@ export default function CreateHouseholdScreen({ navigation }: any) {
                   color: theme.colors.text,
                 }}
               >
-                {t("createHousehold")}
+                {t("onboarding.setupFamily") || "Set up your family"}
               </Text>
               <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
-                {t("onboarding.createOrJoin") ||
-                  "Create a household or join with an invite link."}
+                {t("onboarding.familySetupHint") ||
+                  "Create your family's household or connect to an existing one."}
               </Text>
             </View>
 
@@ -274,8 +276,85 @@ export default function CreateHouseholdScreen({ navigation }: any) {
                 }}
               />
 
-              {/* Join via invite link */}
+              {/* Household Intelligence Section */}
               <View style={{ height: 24 }} />
+              <View
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 24,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                  <Ionicons 
+                    name="people" 
+                    size={20} 
+                    color={theme.colors.primary} 
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "700",
+                      color: theme.colors.text,
+                    }}
+                  >
+                    {t("onboarding.modernFamilies") || "Modern Family Structures"}
+                  </Text>
+                </View>
+                <Text style={{ color: theme.colors.muted, marginBottom: 12 }}>
+                  {t("onboarding.familyStructureExplainer") || 
+                   "We support all family types: single parents, separated parents sharing custody, joint households, and extended families."}
+                </Text>
+                
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 8,
+                  }}
+                  onPress={() => setShowMergeOptions(!showMergeOptions)}
+                >
+                  <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
+                    {t("onboarding.familyOptions") || "Family setup options"}
+                  </Text>
+                  <Ionicons
+                    name={showMergeOptions ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={theme.colors.primary}
+                    style={{ marginLeft: 4 }}
+                  />
+                </TouchableOpacity>
+                
+                {showMergeOptions && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: "600", marginBottom: 8 }}>
+                      {t("onboarding.familyTypes") || "Choose your situation:"}
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      <Text style={{ color: theme.colors.text }}>
+                        • {t("onboarding.singleParent") || "Single parent household"}
+                      </Text>
+                      <Text style={{ color: theme.colors.text }}>
+                        • {t("onboarding.separatedParents") || "Separated parents (shared custody)"}
+                      </Text>
+                      <Text style={{ color: theme.colors.text }}>
+                        • {t("onboarding.jointHousehold") || "Joint household (multiple adults)"}
+                      </Text>
+                      <Text style={{ color: theme.colors.text }}>
+                        • {t("onboarding.extendedFamily") || "Extended family household"}
+                      </Text>
+                    </View>
+                    <Text style={{ color: theme.colors.muted, marginTop: 8, fontSize: 12 }}>
+                      {t("onboarding.setupLater") || "You can adjust these settings later in the app."}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Join via invite link */}
+              <View style={{ height: 8 }} />
               <Text
                 style={{
                   fontSize: 18,

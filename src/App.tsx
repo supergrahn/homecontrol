@@ -4,6 +4,7 @@ import { NativeModules, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./firebase/providers/QueryProvider";
 import { ThemeProvider } from "./design/theme";
+import { AuthProvider } from "./firebase/providers/AuthProvider";
 import NavigationProvider, {
   navRef,
 } from "./firebase/providers/NavigationProvider";
@@ -126,15 +127,17 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryProvider>
-          <HouseholdProvider>
-            <ToastProvider>
-              <NavigationProvider />
-              <GlobalToasts />
-              <DeepLinkHandler />
-              <LiveActivityOverlay />
-              <HouseholdEffects />
-            </ToastProvider>
-          </HouseholdProvider>
+          <AuthProvider>
+            <HouseholdProvider>
+              <ToastProvider>
+                <NavigationProvider />
+                <GlobalToasts />
+                <DeepLinkHandler />
+                <LiveActivityOverlay />
+                <HouseholdEffects />
+              </ToastProvider>
+            </HouseholdProvider>
+          </AuthProvider>
         </QueryProvider>
       </ThemeProvider>
     </SafeAreaProvider>
