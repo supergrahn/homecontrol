@@ -37,7 +37,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Subscribe once on mount; re-running on householdId causes re-subscribe loops
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   React.useEffect(() => {
     let unsubUser: (() => void) | null = null;
     const unsubAuth = onAuthStateChanged(auth, async (user) => {

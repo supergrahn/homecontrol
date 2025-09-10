@@ -7,6 +7,14 @@ import {
 } from '../../src/services/user';
 import { UserProfile, OnboardingState } from '../../src/models/User';
 
+import { 
+  doc, 
+  serverTimestamp, 
+  setDoc, 
+  getDoc, 
+  updateDoc 
+} from 'firebase/firestore';
+
 // Mock Firebase
 jest.mock('../../src/firebase', () => ({
   auth: {
@@ -23,14 +31,6 @@ jest.mock('firebase/firestore', () => ({
   getDoc: jest.fn(),
   updateDoc: jest.fn()
 }));
-
-import { 
-  doc, 
-  serverTimestamp, 
-  setDoc, 
-  getDoc, 
-  updateDoc 
-} from 'firebase/firestore';
 
 const mockDoc = doc as jest.MockedFunction<typeof doc>;
 const mockSetDoc = setDoc as jest.MockedFunction<typeof setDoc>;

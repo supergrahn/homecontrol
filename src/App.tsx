@@ -4,6 +4,7 @@ import { NativeModules, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "./firebase/providers/QueryProvider";
 import { ThemeProvider } from "./design/theme";
+import { SeasonalThemeProvider } from "./design/SeasonalThemeProvider";
 import { AuthProvider } from "./firebase/providers/AuthProvider";
 import NavigationProvider, {
   navRef,
@@ -35,7 +36,7 @@ type IntervalId = ReturnType<typeof setInterval>;
 
 export default function App() {
   // Component-scoped interval handle for connectivity watcher to prevent memory leaks
-  const outboxNetIntervalRef = React.useRef<IntervalId | undefined>();
+  const outboxNetIntervalRef = React.useRef<IntervalId | undefined>(undefined);
   
   // In dev, sometimes the Dev Loading overlay ("Downloading 100%") sticks around.
   // Proactively hide it after mount so it doesn't block the bottom navigation.
@@ -143,21 +144,23 @@ export default function App() {
                       <HouseholdProvider>
                         <ErrorBoundary>
                           <ToastProvider>
-                            <ErrorBoundary>
-                              <NavigationProvider />
-                            </ErrorBoundary>
-                            <ErrorBoundary>
-                              <GlobalToasts />
-                            </ErrorBoundary>
-                            <ErrorBoundary>
-                              <DeepLinkHandler />
-                            </ErrorBoundary>
-                            <ErrorBoundary>
-                              <LiveActivityOverlay />
-                            </ErrorBoundary>
-                            <ErrorBoundary>
-                              <HouseholdEffects />
-                            </ErrorBoundary>
+                            <SeasonalThemeProvider>
+                              <ErrorBoundary>
+                                <NavigationProvider />
+                              </ErrorBoundary>
+                              <ErrorBoundary>
+                                <GlobalToasts />
+                              </ErrorBoundary>
+                              <ErrorBoundary>
+                                <DeepLinkHandler />
+                              </ErrorBoundary>
+                              <ErrorBoundary>
+                                <LiveActivityOverlay />
+                              </ErrorBoundary>
+                              <ErrorBoundary>
+                                <HouseholdEffects />
+                              </ErrorBoundary>
+                            </SeasonalThemeProvider>
                           </ToastProvider>
                         </ErrorBoundary>
                       </HouseholdProvider>

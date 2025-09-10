@@ -1,7 +1,6 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Switch, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Switch, Alert , ScrollView } from "react-native";
 import ScreenContainer from "../components/ScreenContainer";
-import { ScrollView } from "react-native";
 import { useTheme } from "../design/theme";
 import { useTranslation } from "react-i18next";
 import { createTask } from "../services/tasks";

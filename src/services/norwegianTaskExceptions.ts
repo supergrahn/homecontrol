@@ -5,7 +5,7 @@ import { norwegianCalendar, NorwegianHoliday, NorwegianSchoolBreak } from "./nor
 import { norwegianCulture } from "./norwegianCulture";
 import { updateTask } from "./tasks";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { RRule, RRuleSet, rrulestr } from "rrule";
+// import { RRule, RRuleSet, rrulestr } from "rrule"; // TODO: Add rrule package when needed
 
 export type NorwegianTaskException = {
   id: string;

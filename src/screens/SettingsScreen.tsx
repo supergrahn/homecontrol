@@ -7,7 +7,7 @@ import {
   Share,
   Switch,
   Image,
-} from "react-native";
+ ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { useNavigation } from "@react-navigation/native";
@@ -45,7 +45,6 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { flushOutbox } from "../services/outbox";
 import ScreenContainer from "../components/ScreenContainer";
-import { ScrollView } from "react-native";
 import { useTheme, useThemeMode } from "../design/theme";
 import Input from "../components/Input";
 import Button from "../components/Button";

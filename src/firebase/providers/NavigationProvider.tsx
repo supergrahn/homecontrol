@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Animated } from "react-native";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -8,6 +8,7 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import CommunityTabIcon from "../../components/CommunityTabIcon";
 import HomeScreen from "../../screens/HomeScreen";
 import AddTaskScreen from "../../screens/AddTaskScreen";
 import TaskDetailScreen from "../../screens/TaskDetailScreen";
@@ -16,8 +17,16 @@ import SignInScreen from "../../screens/SignInScreen";
 import SettingsScreen from "../../screens/SettingsScreen";
 import ActivityScreen from "../../screens/ActivityScreen";
 import MembersScreen from "../../screens/MembersScreen";
-import KidsScreen from "../../screens/KidsScreen";
+import AIKidsScreen from "../../screens/AIKidsScreen";
 import SearchScreen from "../../screens/SearchScreen";
+import CommunityScreen from "../../screens/CommunityScreen";
+import GroupsScreen from "../../screens/GroupsScreen";
+import EventsScreen from "../../screens/EventsScreen";
+import GroupDetailScreen from "../../screens/GroupDetailScreen";
+import CreateGroupScreen from "../../screens/CreateGroupScreen";
+import EventDetailScreen from "../../screens/EventDetailScreen";
+import CreateEventScreen from "../../screens/CreateEventScreen";
+import InvitationsScreen from "../../screens/InvitationsScreen";
 import { useHousehold } from "./HouseholdProvider";
 import { auth } from "../../firebase";
 import CreateHouseholdScreen from "../../screens/CreateHouseholdScreen";
@@ -59,6 +68,15 @@ export type RootStackParamList = {
   Activity: undefined;
   Calendar: undefined;
   Heatmap: undefined;
+  // Community features
+  Community: undefined;
+  Groups: undefined;
+  GroupDetail: { id: string };
+  CreateGroup: undefined;
+  Events: undefined;
+  EventDetail: { id: string };
+  CreateEvent: undefined;
+  Invitations: undefined;
   // WidgetPreview removed
 };
 
@@ -76,7 +94,7 @@ const linking: any = {
         screens: {
           Today: "today",
           Activity: "activity",
-          Members: "members",
+          Community: "community",
           Kids: "kids",
           Search: "search",
         },
@@ -94,6 +112,14 @@ const linking: any = {
       Heatmap: "heatmap",
       Calendar: "calendar",
       QuickActions: "quick",
+      Community: "community",
+      Groups: "groups",
+      GroupDetail: "group/:id",
+      CreateGroup: "create-group",
+      Events: "events",
+      EventDetail: "event/:id",
+      CreateEvent: "create-event",
+      Invitations: "invitations",
       // WidgetPreview removed
     },
   },
@@ -112,7 +138,7 @@ export function MainTabs() {
     }, 0);
     return () => clearTimeout(id);
     // measure once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
   // Track pending tab transitions: key by target route name -> from route name
   const pendingFromRef = React.useRef<Record<string, string | undefined>>({});
@@ -140,161 +166,208 @@ export function MainTabs() {
       <Tab.Navigator
         screenOptions={({ route, navigation }) => ({
           headerShown: true,
-          header: () => {
-            const title =
-              route.name === "Today"
-                ? households?.find((h) => h.id === householdId)?.name || ""
-                : route.name;
-            const Right =
-              route.name === "Today" ? (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <TouchableOpacity
-                    style={{ padding: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Search"
-                    onPress={() => navigation.navigate("Search" as never)}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    <Ionicons name="search" size={22} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ padding: 8, marginRight: 4 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Settings"
-                    onPress={() => navigation.navigate("Settings" as never)}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    <Ionicons name="settings-outline" size={22} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ) : undefined;
-            return <AppBar title={title} right={Right} />;
+          header: ({ navigation }) => {
+            // Revolutionary header: Home icon on left, title in center, actions on right
+            const title = route.name === "Today" 
+              ? households?.find((h) => h.id === householdId)?.name || ""
+              : route.name;
+            
+            const Left = (
+              <TouchableOpacity
+                style={{ padding: 8, marginLeft: 4 }}
+                accessibilityRole="button" 
+                accessibilityLabel="Home"
+                onPress={() => navigation.navigate("Today" as never)}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <Ionicons name="home" size={22} color="#fff" />
+              </TouchableOpacity>
+            );
+            
+            const Right = (
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  style={{ padding: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Search"
+                  onPress={() => navigation.navigate("Search" as never)}
+                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                >
+                  <Ionicons name="search" size={22} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ padding: 8, marginRight: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Settings"
+                  onPress={() => navigation.navigate("Settings" as never)}
+                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                >
+                  <Ionicons name="settings-outline" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            );
+            
+            return <AppBar title={title} left={Left} right={Right} />;
           },
           tabBarShowLabel: false,
           tabBarStyle: {
-            height: 68,
-            paddingBottom: 8,
-            paddingTop: 8,
+            height: 90, // Optimized height for Community circle
+            paddingBottom: 16,
+            paddingTop: 12,
+            paddingLeft: 0, // Remove all left padding
+            paddingRight: 0, // Remove all right padding
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.outline,
+            borderTopWidth: 1,
+            elevation: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            // Force even distribution with flex
+            display: 'flex',
+            flexDirection: 'row',
+          },
+          tabBarItemStyle: {
+            flex: 1, // Each tab takes equal space (1/5 of total width)
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 0, // Remove item padding
+            marginHorizontal: 0, // Remove item margins
           },
           tabBarIcon: ({ color, size, focused }) => {
             const name = route.name;
+            
+            // Revolutionary circular Community tab with seasonal Norwegian elements
+            if (name === "Community") {
+              return (
+                <CommunityTabIcon
+                  focused={focused}
+                  color={color}
+                  size={size}
+                  activityLevel="medium" // TODO: Connect to real community activity data
+                  hasNewActivity={false} // TODO: Connect to real community notifications
+                />
+              );
+            }
+            
+            // Revolutionary tab icons: Discover, Kids, Community (center), Events, Groups
             const icon =
-              name === "Today"
+              name === "Discover"
                 ? focused
-                  ? "home"
-                  : "home-outline"
-                : name === "Activity"
+                  ? "sparkles"
+                  : "sparkles-outline"
+                : name === "Kids"
                   ? focused
-                    ? "notifications"
-                    : "notifications-outline"
-                  : name === "Members"
+                    ? "people"
+                    : "people-outline"
+                  : name === "Events"
                     ? focused
-                      ? "people"
-                      : "people-outline"
-                    : name === "Kids"
+                      ? "ticket"
+                      : "ticket-outline"
+                    : name === "Groups"
                       ? focused
-                        ? "happy"
-                        : "happy-outline"
-                      : name === "Search"
-                        ? focused
-                          ? "search"
-                          : "search-outline"
-                        : "ellipse-outline";
-            return <Ionicons name={icon as any} size={size} color={color} />;
+                        ? "layers"
+                        : "layers-outline"
+                      : "ellipse-outline";
+            // World-class animated tab design with enhanced theme colors
+            const iconSize = size * 1.2; // Nice smaller size for regular tabs (80% of original 1.5x)
+            const iconColor = focused ? theme.colors.tabBarActive : theme.colors.tabBarInactive;
+            const containerWidth = 64;
+            
+            // Animated values for smooth transitions
+            const animatedScale = React.useRef(new Animated.Value(focused ? 1.05 : 1)).current;
+            const animatedOpacity = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
+            
+            React.useEffect(() => {
+              Animated.parallel([
+                Animated.spring(animatedScale, {
+                  toValue: focused ? 1.05 : 1,
+                  useNativeDriver: true,
+                  tension: 300,
+                  friction: 20,
+                }),
+                Animated.timing(animatedOpacity, {
+                  toValue: focused ? 1 : 0,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            }, [focused]);
+            
+            return (
+              <View style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: containerWidth,
+                height: 56,
+                // Remove marginHorizontal to prevent left space issues
+              }}>
+                {/* Animated container with premium styling */}
+                <Animated.View style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: focused ? 52 : 44,
+                  height: focused ? 52 : 44,
+                  borderRadius: focused ? 16 : 12,
+                  backgroundColor: focused ? theme.colors.tabBarActiveBackground : 'transparent',
+                  // Premium shadow for focused state
+                  ...(focused && {
+                    elevation: 8,
+                    shadowColor: theme.colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                  }),
+                  transform: [{ scale: animatedScale }],
+                }}>
+                  <Ionicons name={icon as any} size={iconSize} color={iconColor} />
+                </Animated.View>
+                
+                {/* Animated active indicator dot */}
+                <Animated.View style={{
+                  marginTop: 6,
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: theme.colors.primary,
+                  opacity: animatedOpacity,
+                }} />
+              </View>
+            );
           },
           tabBarAccessibilityLabel: route.name,
         })}
       >
         <Tab.Screen
-          name="Today"
-          component={HomeScreen}
-          options={{ title: "Today" }}
+          name="Discover"
+          component={SearchScreen}
+          options={{ title: "Discover" }}
           listeners={({ navigation }) => ({
             tabPress: (e) => {
               const state: any = navigation.getState?.();
               const idx = state?.index ?? 0;
               const from =
                 state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
-              if (from === "Today") return; // no-op if pressing current tab
-              pendingFromRef.current["Today"] = from;
-              mark("tab:Today");
+              if (from === "Discover") return;
+              pendingFromRef.current["Discover"] = from;
+              mark("tab:Discover");
             },
             focus: () => {
-              const from = pendingFromRef.current["Today"] || "unknown";
-              measureWarnFrom("tab:Today", `tab:switch:${from}->Today`, 100);
-              delete pendingFromRef.current["Today"];
-            },
-            blur: () => {
-              // ensure we don't leak a pending mark on blur without focus
-              clearMark("tab:Today");
-            },
-          })}
-        />
-        <Tab.Screen
-          name="Activity"
-          component={ActivityScreen}
-          options={{ title: "Activity" }}
-          listeners={({ navigation }) => ({
-            tabPress: (e) => {
-              const state: any = navigation.getState?.();
-              const idx = state?.index ?? 0;
-              const from =
-                state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
-              if (from === "Activity") return;
-              pendingFromRef.current["Activity"] = from;
-              mark("tab:Activity");
-            },
-            focus: () => {
-              const from = pendingFromRef.current["Activity"] || "unknown";
+              const from = pendingFromRef.current["Discover"] || "unknown";
               measureWarnFrom(
-                "tab:Activity",
-                `tab:switch:${from}->Activity`,
+                "tab:Discover",
+                `tab:switch:${from}->Discover`,
                 100
               );
-              delete pendingFromRef.current["Activity"];
+              delete pendingFromRef.current["Discover"];
             },
-            blur: () => clearMark("tab:Activity"),
-          })}
-        />
-        <Tab.Screen
-          name="Members"
-          component={MembersScreen}
-          options={{
-            tabBarBadge:
-              outboxCount > 0
-                ? outboxCount > 9
-                  ? "9+"
-                  : String(outboxCount)
-                : undefined,
-            title: "Members",
-          }}
-          listeners={({ navigation }) => ({
-            tabPress: () => {
-              const state: any = navigation.getState?.();
-              const idx = state?.index ?? 0;
-              const from =
-                state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
-              if (from === "Members") return;
-              pendingFromRef.current["Members"] = from;
-              mark("tab:Members");
-            },
-            focus: () => {
-              const from = pendingFromRef.current["Members"] || "unknown";
-              measureWarnFrom(
-                "tab:Members",
-                `tab:switch:${from}->Members`,
-                100
-              );
-              delete pendingFromRef.current["Members"];
-            },
-            blur: () => clearMark("tab:Members"),
+            blur: () => clearMark("tab:Discover"),
           })}
         />
         <Tab.Screen
           name="Kids"
-          component={KidsScreen}
+          component={AIKidsScreen}
           options={{ title: "Kids" }}
           listeners={({ navigation }) => ({
             tabPress: () => {
@@ -308,32 +381,80 @@ export function MainTabs() {
             },
             focus: () => {
               const from = pendingFromRef.current["Kids"] || "unknown";
-              measureWarnFrom("tab:Kids", `tab:switch:${from}->Kids`, 100);
+              measureWarnFrom(
+                "tab:Kids",
+                `tab:switch:${from}->Kids`,
+                100
+              );
               delete pendingFromRef.current["Kids"];
             },
             blur: () => clearMark("tab:Kids"),
           })}
         />
         <Tab.Screen
-          name="Search"
-          component={SearchScreen}
-          options={{ title: "Search" }}
+          name="Community"
+          component={CommunityScreen}
+          options={{ title: "Community" }}
           listeners={({ navigation }) => ({
             tabPress: () => {
               const state: any = navigation.getState?.();
               const idx = state?.index ?? 0;
               const from =
                 state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
-              if (from === "Search") return;
-              pendingFromRef.current["Search"] = from;
-              mark("tab:Search");
+              if (from === "Community") return;
+              pendingFromRef.current["Community"] = from;
+              mark("tab:Community");
             },
             focus: () => {
-              const from = pendingFromRef.current["Search"] || "unknown";
-              measureWarnFrom("tab:Search", `tab:switch:${from}->Search`, 100);
-              delete pendingFromRef.current["Search"];
+              const from = pendingFromRef.current["Community"] || "unknown";
+              measureWarnFrom("tab:Community", `tab:switch:${from}->Community`, 100);
+              delete pendingFromRef.current["Community"];
             },
-            blur: () => clearMark("tab:Search"),
+            blur: () => clearMark("tab:Community"),
+          })}
+        />
+        <Tab.Screen
+          name="Events"
+          component={EventsScreen}
+          options={{ title: "Events" }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              const state: any = navigation.getState?.();
+              const idx = state?.index ?? 0;
+              const from =
+                state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
+              if (from === "Events") return;
+              pendingFromRef.current["Events"] = from;
+              mark("tab:Events");
+            },
+            focus: () => {
+              const from = pendingFromRef.current["Events"] || "unknown";
+              measureWarnFrom("tab:Events", `tab:switch:${from}->Events`, 100);
+              delete pendingFromRef.current["Events"];
+            },
+            blur: () => clearMark("tab:Events"),
+          })}
+        />
+        <Tab.Screen
+          name="Groups"
+          component={GroupsScreen}
+          options={{ title: "Groups" }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              const state: any = navigation.getState?.();
+              const idx = state?.index ?? 0;
+              const from =
+                state?.routeNames?.[idx] || state?.routes?.[idx]?.name;
+              if (from === "Groups") return;
+              pendingFromRef.current["Groups"] = from;
+              mark("tab:Groups");
+            },
+            focus: () => {
+              const from = pendingFromRef.current["Groups"] || "unknown";
+              measureWarnFrom("tab:Groups", `tab:switch:${from}->Groups`, 100);
+              delete pendingFromRef.current["Groups"];
+            },
+            blur: () => clearMark("tab:Groups"),
           })}
         />
       </Tab.Navigator>
@@ -537,6 +658,11 @@ export default function NavigationProvider() {
             options={{ title: "Settings" }}
           />
           <Stack.Screen
+            name="Today"
+            component={HomeScreen}
+            options={{ title: "Today" }}
+          />
+          <Stack.Screen
             name="Activity"
             component={ActivityScreen}
             options={{ title: "Activity" }}
@@ -550,6 +676,47 @@ export default function NavigationProvider() {
             name="Heatmap"
             component={HeatmapScreen}
             options={{ title: "Workload heatmap" }}
+          />
+          {/* Community Features */}
+          <Stack.Screen
+            name="Community"
+            component={CommunityScreen}
+            options={{ title: "Community" }}
+          />
+          <Stack.Screen
+            name="Groups"
+            component={GroupsScreen}
+            options={{ title: "Grupper" }}
+          />
+          <Stack.Screen
+            name="Events"
+            component={EventsScreen}
+            options={{ title: "Arrangementer" }}
+          />
+          <Stack.Screen
+            name="GroupDetail"
+            component={GroupDetailScreen}
+            options={{ title: "Gruppe" }}
+          />
+          <Stack.Screen
+            name="CreateGroup"
+            component={CreateGroupScreen}
+            options={{ title: "Opprett gruppe" }}
+          />
+          <Stack.Screen
+            name="EventDetail"
+            component={EventDetailScreen}
+            options={{ title: "Arrangement" }}
+          />
+          <Stack.Screen
+            name="CreateEvent"
+            component={CreateEventScreen}
+            options={{ title: "Opprett arrangement" }}
+          />
+          <Stack.Screen
+            name="Invitations"
+            component={InvitationsScreen}
+            options={{ title: "Invitasjoner" }}
           />
           {/** WidgetPreview removed */}
         </Stack.Navigator>

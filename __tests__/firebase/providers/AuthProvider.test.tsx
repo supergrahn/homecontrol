@@ -4,6 +4,13 @@ import { Text } from 'react-native';
 import { AuthProvider, useAuth } from '../../../src/firebase/providers/AuthProvider';
 import { UserProfile, OnboardingState } from '../../../src/models/User';
 
+import { onAuthStateChanged } from 'firebase/auth';
+import { 
+  getUserProfile, 
+  createOrUpdateUserProfile, 
+  updateOnboardingState 
+} from '../../../src/services/user';
+
 // Mock Firebase
 jest.mock('../../../src/firebase', () => ({
   auth: {}
@@ -20,13 +27,6 @@ jest.mock('../../../src/services/user', () => ({
   createOrUpdateUserProfile: jest.fn(),
   updateOnboardingState: jest.fn()
 }));
-
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  getUserProfile, 
-  createOrUpdateUserProfile, 
-  updateOnboardingState 
-} from '../../../src/services/user';
 
 const mockOnAuthStateChanged = onAuthStateChanged as jest.MockedFunction<typeof onAuthStateChanged>;
 const mockGetUserProfile = getUserProfile as jest.MockedFunction<typeof getUserProfile>;

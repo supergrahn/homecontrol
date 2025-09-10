@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, TouchableOpacity, Button } from "react-native";
-import { Alert } from "react-native";
+import { View, Text, TouchableOpacity, Button , Alert } from "react-native";
 import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { Task } from "../models/task";

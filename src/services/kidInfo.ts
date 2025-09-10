@@ -94,7 +94,7 @@ export async function saveKidDayWeekLocal(
   day?: KidDayInfo | null,
   week?: KidWeekInfo | null
 ): Promise<void> {
-  const ops: Array<Promise<void>> = [];
+  const ops: Promise<void>[] = [];
   if (day && day.date) {
     ops.push(AsyncStorage.setItem(dayKey(hid, kidId), JSON.stringify(day)));
   }

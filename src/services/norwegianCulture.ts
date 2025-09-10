@@ -263,23 +263,13 @@ const NORWEGIAN_CULTURAL_CONTEXT: NorwegianCulturalContext = {
 export class NorwegianCulturalAdaptationService {
   private preferencesKey = "norwegian_cultural_preferences";
   private languageLevelKey = "norwegian_language_level";
+  private cachedPreferences: NorwegianCulturalPreferences | null = null;
 
-  // Get current cultural preferences
-  async getCulturalPreferences(): Promise<NorwegianCulturalPreferences> {
-    try {
-      const stored = await AsyncStorage.getItem(this.preferencesKey);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.warn("Failed to get cultural preferences:", error);
-    }
-
-    // Default Norwegian preferences
+  private getDefaultPreferences(): NorwegianCulturalPreferences {
     return {
       preferNorwegianLanguage: true,
       useNorwegianTimeFormat: true,
-      observeNorwegianHolidays: true, 
+      observeNorwegianHolidays: true,
       includeFriluftsliv: true,
       useNorwegianGradingSystem: true,
       respectQuietHours: true,
@@ -288,12 +278,37 @@ export class NorwegianCulturalAdaptationService {
     };
   }
 
+  // Get current cultural preferences
+  async getCulturalPreferences(): Promise<NorwegianCulturalPreferences> {
+    try {
+      const stored = await AsyncStorage.getItem(this.preferencesKey);
+      if (stored) {
+        const parsed: NorwegianCulturalPreferences = JSON.parse(stored);
+        this.cachedPreferences = parsed;
+        return parsed;
+      }
+    } catch (error) {
+      console.warn("Failed to get cultural preferences:", error);
+    }
+
+    // Default Norwegian preferences
+    const defaults = this.getDefaultPreferences();
+    this.cachedPreferences = defaults;
+    return defaults;
+  }
+
+  // Synchronous accessor using cache or defaults
+  getCulturalPreferencesSync(): NorwegianCulturalPreferences {
+    return this.cachedPreferences ?? this.getDefaultPreferences();
+  }
+
   // Update cultural preferences
   async updateCulturalPreferences(preferences: Partial<NorwegianCulturalPreferences>): Promise<void> {
     try {
       const current = await this.getCulturalPreferences();
       const updated = { ...current, ...preferences };
       await AsyncStorage.setItem(this.preferencesKey, JSON.stringify(updated));
+      this.cachedPreferences = updated;
     } catch (error) {
       console.error("Failed to update cultural preferences:", error);
     }
@@ -301,7 +316,7 @@ export class NorwegianCulturalAdaptationService {
 
   // Translate text to Norwegian
   translateToNorwegian(englishText: string, category?: "task" | "notification" | "time" | "family" | "school"): string {
-    const preferences = this.getCulturalPreferences();
+    const preferences = this.getCulturalPreferencesSync();
     
     // If Norwegian language is not preferred, return original
     if (!preferences || !preferences.preferNorwegianLanguage) {
@@ -343,7 +358,7 @@ export class NorwegianCulturalAdaptationService {
 
   // Format time in Norwegian style
   formatNorwegianTime(date: Date, preferences?: NorwegianCulturalPreferences): string {
-    const prefs = preferences || await this.getCulturalPreferences();
+    const prefs = preferences || this.getCulturalPreferencesSync();
     
     if (prefs.useNorwegianTimeFormat) {
       return date.toLocaleTimeString('nb-NO', { 

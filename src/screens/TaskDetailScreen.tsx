@@ -34,8 +34,7 @@ import {
   updateTask,
   addDependency,
   removeDependency,
-} from "../services/tasks";
-import { deleteTask } from "../services/tasks";
+ deleteTask } from "../services/tasks";
 import { listChildren, type Child } from "../services/children";
 import { listComments, addComment, type Comment } from "../services/comments";
 import {

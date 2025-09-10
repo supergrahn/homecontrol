@@ -49,6 +49,10 @@ export type Theme = {
     accentMint: string;
     accentSeafoam: string;
     accentCoral: string;
+    // Navigation-specific colors for premium experience
+    tabBarActive: string;
+    tabBarInactive: string;
+    tabBarActiveBackground: string;
   };
   spacing: (n: number) => number;
   radius: { sm: number; md: number; lg: number; pill?: number };
@@ -107,6 +111,10 @@ const light: Theme = {
     accentMint: TOKENS.accent.mint300,
     accentSeafoam: TOKENS.accent.seafoam400,
     accentCoral: TOKENS.accent.coral400,
+    // Enhanced navigation colors for light mode
+    tabBarActive: TOKENS.neutral.white,
+    tabBarInactive: TOKENS.neutral.ink700,
+    tabBarActiveBackground: TOKENS.semantic.primary,
   },
   spacing,
   radius: { sm: RADII.sm, md: RADII.md, lg: RADII.lg, pill: RADII.pill },
@@ -164,6 +172,10 @@ const dark: Theme = {
     accentMint: TOKENS.accent.mint300,
     accentSeafoam: TOKENS.accent.seafoam400,
     accentCoral: TOKENS.accent.coral400,
+    // Enhanced navigation colors for dark mode
+    tabBarActive: TOKENS.neutral.white,
+    tabBarInactive: "#9CA3AF",
+    tabBarActiveBackground: TOKENS.semantic.primary,
   },
   spacing,
   radius: { sm: RADII.sm, md: RADII.md, lg: RADII.lg, pill: RADII.pill },

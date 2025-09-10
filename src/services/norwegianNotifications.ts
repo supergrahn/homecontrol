@@ -175,11 +175,11 @@ export class NorwegianNotificationService {
   // Get Norwegian time-based category configuration
   getNorwegianCategoryConfig(taskType?: string): {
     categoryId: string;
-    actions: Array<{
+    actions: {
       identifier: string;
       buttonTitle: string;
       options?: { opensAppToForeground?: boolean };
-    }>;
+    }[];
   } {
     const isNorwegian = this.preferences?.preferNorwegianLanguage ?? true;
 
@@ -289,14 +289,14 @@ export class NorwegianNotificationService {
   // Get Norwegian notification summary for analytics
   getNotificationAnalytics(): {
     quietHoursRespected: number;
-    friluftsliv Considerations: number;
+    friluftslivConsiderations: number;
     culturalAdaptations: number;
   } {
     // This would track how often Norwegian cultural considerations affected notifications
     // Implementation would require persistent storage of metrics
     return {
       quietHoursRespected: 0,
-      friluftsliv Considerations: 0,
+      friluftslivConsiderations: 0,
       culturalAdaptations: 0
     };
   }
