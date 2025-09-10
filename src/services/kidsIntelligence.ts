@@ -455,7 +455,7 @@ export class KidsIntelligenceService {
     
     return {
       schoolType,
-      grade: child.grade,
+      grade: child.currentGrade,
       currentSeason,
       seasonalActivities,
       upcomingTraditions,
@@ -497,8 +497,8 @@ export class KidsIntelligenceService {
   }
   
   private determineSchoolType(child: Child): 'barnehage' | 'grunnskole' | 'videregaende' {
-    if (!child.grade || child.grade <= 0) return 'barnehage';
-    if (child.grade <= 10) return 'grunnskole';
+    if (!child.currentGrade || child.currentGrade <= 0) return 'barnehage';
+    if (child.currentGrade <= 10) return 'grunnskole';
     return 'videregaende';
   }
   

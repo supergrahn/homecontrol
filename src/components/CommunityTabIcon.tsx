@@ -147,7 +147,7 @@ export default function CommunityTabIcon({
       >
         {/* Community icon with refined sizing */}
         <Ionicons 
-          name={focused ? "people" : "people-outline"} 
+          name={focused ? "business" : "business-outline"} 
           size={iconSize * 1.2} 
           color={focused ? theme.colors.onPrimary : theme.colors.onSurface}
         />

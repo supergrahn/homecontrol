@@ -14,6 +14,8 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { auth } from "../firebase";
 import { fetchUserGroups } from "../services/groups";
 import { fetchUserEvents } from "../services/events";
+import FamilyDaySummary from "../components/FamilyDaySummary";
+import { familyDaySummaryService } from "../services/familyDaySummary";
 import dayjs from "dayjs";
 
 export default function CommunityScreen() {
@@ -47,6 +49,17 @@ export default function CommunityScreen() {
     enabled: !!user,
   });
 
+  // Fetch weather summary for header
+  const { data: weatherSummary } = useQuery({
+    queryKey: ["familyDaySummary", householdId, "weather"],
+    queryFn: async () => {
+      if (!householdId || !user) return null;
+      const summary = await familyDaySummaryService.generateFamilyDaySummary(householdId, user.uid);
+      return summary.weatherSummary;
+    },
+    enabled: !!householdId && !!user,
+  });
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -67,21 +80,12 @@ export default function CommunityScreen() {
     subtitle: {
       fontSize: 16,
       color: theme.colors.textSecondary,
-      marginBottom: 16,
+      marginBottom: 8,
     },
-    seasonalBanner: {
-      backgroundColor: "#E3F2FD", // Light blue for now
-      borderRadius: 12,
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 24,
-    },
-    seasonalText: {
-      flex: 1,
-      marginLeft: 12,
+    weather: {
       fontSize: 14,
-      color: "#1565C0",
+      color: theme.colors.textSecondary,
+      marginBottom: 16,
     },
     section: {
       marginBottom: 24,
@@ -238,15 +242,16 @@ export default function CommunityScreen() {
         {/* Norwegian Greeting Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>{getGreeting()}!</Text>
-          <Text style={styles.subtitle}>Velkommen til samfunnet ditt</Text>
+          <Text style={styles.subtitle}>{dayjs().format("dddd, DD. MMMM YYYY")}</Text>
+          <Text style={styles.weather}>
+            {weatherSummary 
+              ? `${weatherSummary.temperature}° • ${weatherSummary.conditions} • ${weatherSummary.outdoorRecommendation}`
+              : "15° • Delvis skyet • God dag for friluftsliv"
+            }
+          </Text>
           
-          {/* Seasonal Context Banner */}
-          <View style={styles.seasonalBanner}>
-            <Ionicons name="sunny" size={24} color="#1565C0" />
-            <Text style={styles.seasonalText}>
-              Perfekt vær for utendørsaktiviteter i dag! 🌞
-            </Text>
-          </View>
+          {/* Family Day Summary */}
+          <FamilyDaySummary />
         </View>
 
         {/* Quick Actions */}

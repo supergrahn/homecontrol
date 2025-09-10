@@ -34,6 +34,11 @@ export type Child = {
   emoji?: string;
   color?: string;
   
+  // Basic child information
+  age?: number; // Child's age
+  hasDeviceAccess?: boolean; // Whether child has device access
+  rewardPoints?: number; // Reward points for gamification
+  
   // Enhanced Norwegian school integration
   school?: NorwegianSchoolType | null;
   currentGrade?: number | null; // 1-10 for Norwegian system, or null for VGS

@@ -17,7 +17,7 @@ import SignInScreen from "../../screens/SignInScreen";
 import SettingsScreen from "../../screens/SettingsScreen";
 import ActivityScreen from "../../screens/ActivityScreen";
 import MembersScreen from "../../screens/MembersScreen";
-import AIKidsScreen from "../../screens/AIKidsScreen";
+import KidsScreen from "../../screens/KidsScreen";
 import SearchScreen from "../../screens/SearchScreen";
 import CommunityScreen from "../../screens/CommunityScreen";
 import GroupsScreen from "../../screens/GroupsScreen";
@@ -177,7 +177,7 @@ export function MainTabs() {
                 style={{ padding: 8, marginLeft: 4 }}
                 accessibilityRole="button" 
                 accessibilityLabel="Home"
-                onPress={() => navigation.navigate("Today" as never)}
+                onPress={() => navigation.navigate("Community" as never)}
                 hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
               >
                 <Ionicons name="home" size={22} color="#fff" />
@@ -263,15 +263,15 @@ export function MainTabs() {
                     : "people-outline"
                   : name === "Events"
                     ? focused
-                      ? "ticket"
-                      : "ticket-outline"
+                      ? "calendar"
+                      : "calendar-outline"
                     : name === "Groups"
                       ? focused
-                        ? "layers"
-                        : "layers-outline"
+                        ? "people-circle"
+                        : "people-circle-outline"
                       : "ellipse-outline";
             // World-class animated tab design with enhanced theme colors
-            const iconSize = size * 1.2; // Nice smaller size for regular tabs (80% of original 1.5x)
+            const iconSize = size * 0.8; // Reduced to 80% size for better balance
             const iconColor = focused ? theme.colors.tabBarActive : theme.colors.tabBarInactive;
             const containerWidth = 64;
             
@@ -282,7 +282,7 @@ export function MainTabs() {
             React.useEffect(() => {
               Animated.parallel([
                 Animated.spring(animatedScale, {
-                  toValue: focused ? 1.05 : 1,
+                  toValue: focused ? 1.02 : 1,
                   useNativeDriver: true,
                   tension: 300,
                   friction: 20,
@@ -307,17 +307,14 @@ export function MainTabs() {
                 <Animated.View style={{
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: focused ? 52 : 44,
-                  height: focused ? 52 : 44,
-                  borderRadius: focused ? 16 : 12,
-                  backgroundColor: focused ? theme.colors.tabBarActiveBackground : 'transparent',
-                  // Premium shadow for focused state
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  backgroundColor: 'transparent',
+                  // Theme-aware outline for focused state
                   ...(focused && {
-                    elevation: 8,
-                    shadowColor: theme.colors.primary,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.background === '#0b0b0b' ? '#FFFFFF' : theme.colors.primary,
                   }),
                   transform: [{ scale: animatedScale }],
                 }}>
@@ -367,7 +364,7 @@ export function MainTabs() {
         />
         <Tab.Screen
           name="Kids"
-          component={AIKidsScreen}
+          component={KidsScreen}
           options={{ title: "Kids" }}
           listeners={({ navigation }) => ({
             tabPress: () => {
