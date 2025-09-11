@@ -11,13 +11,14 @@ import * as fairness from "./stats";
 import * as prefs from "./userPrefs";
 import * as calendar from "./ics";
 import * as workload from "./workload";
-// import * as onboarding from "./onboarding/orchestration";
-// import * as householdMerging from "./households/merge";
+import * as onboarding from "./onboarding/orchestration";
+import * as householdMerging from "./households/merge";
 // import * as dataValidation from "./security/dataValidation"; // Temporarily disabled due to zod import issues
 // import * as childSetup from "./children/setup";
 // import * as rewardSystem from "./rewards/initialize";
 // import * as norwegianAI from "./ai/norwegianIntelligence";
-import * as appointments from "./appointments";
+// import * as appointments from "./appointments";
+import * as appointmentsMinimal from "./appointmentsMinimal";
 // import * as deviceLinking from "./deviceLinking";
 
 export const createInvite = invites.createInvite;
@@ -48,10 +49,10 @@ export const icsFeed = calendar.icsFeed;
 export const getCalendarShares = calendar.getCalendarShares;
 
 // Norwegian Onboarding System (Phase 4)
-// export const completeNorwegianOnboarding = onboarding.completeNorwegianOnboarding;
-// export const requestHouseholdMerge = householdMerging.requestHouseholdMerge;
-// export const approveHouseholdMerge = householdMerging.approveHouseholdMerge;
-// export const processAutomaticMerge = householdMerging.processAutomaticMerge;
+export const completeNorwegianOnboarding = onboarding.completeNorwegianOnboarding;
+export const requestHouseholdMerge = householdMerging.requestHouseholdMerge;
+export const approveHouseholdMerge = householdMerging.approveHouseholdMerge;
+export const processAutomaticMerge = householdMerging.processAutomaticMerge;
 
 // Norwegian GDPR+ Compliance
 // export const validateNorwegianCompliance = dataValidation.validateNorwegianCompliance;
@@ -73,9 +74,13 @@ export const getCalendarShares = calendar.getCalendarShares;
 // export const norwegianAIUtilities = norwegianAI.norwegianAIUtilities;
 
 // Norwegian Appointments System
-export const createAppointment = appointments.createAppointment;
-export const updateAppointment = appointments.updateAppointment;
-export const deleteAppointment = appointments.deleteAppointment;
+export const createAppointment = appointmentsMinimal.createAppointmentMinimal;
+// export const createAppointmentFull = appointments.createAppointment;
+// export const updateAppointment = appointments.updateAppointment;
+// export const deleteAppointment = appointments.deleteAppointment;
+// export const getCulturalAppointmentSuggestions = appointments.getCulturalAppointmentSuggestions;
+// export const onAppointmentUpdate = appointments.onAppointmentUpdate;
+// export const processScheduledAppointmentNotifications = appointments.processScheduledAppointmentNotifications;
 
 // Norwegian Device Linking System
 // export const generateLinkingQR = deviceLinking.generateLinkingQR;

@@ -27,6 +27,8 @@ import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { fetchLatestDigest } from "../services/digest";
 import dayjs from "dayjs";
 import { appEvents } from "../events";
+import { intelligentHomeCoordination, FamilyCoordinationState, FamilyInsight, CoordinationWidget } from "../services/intelligentHomeCoordination";
+import { culturalService } from "../services/norwegianCulture";
 // import { navRef } from "../firebase/providers/NavigationProvider";
 // import { createHousehold } from '../services/households';
 import Input from "../components/Input";
@@ -236,6 +238,49 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, [householdId]);
 
+  // Load intelligent home coordination data
+  React.useEffect(() => {
+    let active = true;
+    const loadCoordinationData = async () => {
+      try {
+        if (!householdId || !kids.length) {
+          if (active) setCoordinationState(null);
+          return;
+        }
+        
+        setLoadingCoordination(true);
+        const state = await intelligentHomeCoordination.getFamilyCoordinationState(householdId, kids);
+        if (active) setCoordinationState(state);
+      } catch (error) {
+        console.error('Failed to load coordination data:', error);
+        if (active) setCoordinationState(null);
+      } finally {
+        if (active) setLoadingCoordination(false);
+      }
+    };
+    
+    loadCoordinationData();
+    return () => {
+      active = false;
+    };
+  }, [householdId, kids]);
+
+  // Refresh coordination data periodically
+  React.useEffect(() => {
+    if (!householdId || !kids.length) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const state = await intelligentHomeCoordination.getFamilyCoordinationState(householdId, kids);
+        setCoordinationState(state);
+      } catch (error) {
+        console.warn('Failed to refresh coordination data:', error);
+      }
+    }, 30 * 60 * 1000); // Refresh every 30 minutes
+    
+    return () => clearInterval(interval);
+  }, [householdId]);
+
   const { displayData, kidCounts } = React.useMemo(() => {
     const raw = ((!!householdId ? list.data : []) || []).slice();
     // Tag filter first
@@ -291,11 +336,19 @@ export default function HomeScreen({ navigation }: any) {
         qc.invalidateQueries({ queryKey: ["today", householdId] }),
         qc.invalidateQueries({ queryKey: ["week", householdId] }),
         qc.invalidateQueries({ queryKey: ["activity", householdId] }),
+        // Refresh intelligent coordination data
+        householdId && kids.length > 0 ? intelligentHomeCoordination.refreshCoordination(householdId, kids) : Promise.resolve(),
       ]);
+      
+      // Refresh coordination state
+      if (householdId && kids.length > 0) {
+        const freshState = await intelligentHomeCoordination.getFamilyCoordinationState(householdId, kids);
+        setCoordinationState(freshState);
+      }
     } finally {
       setRefreshing(false);
     }
-  }, [enabled, qc, householdId]);
+  }, [enabled, qc, householdId, kids]);
 
   // School highlights: anomalies and timetable
   const [schoolHighlights, setSchoolHighlights] = React.useState<{
@@ -309,6 +362,11 @@ export default function HomeScreen({ navigation }: any) {
     null
   );
   const [loadingKidInfo, setLoadingKidInfo] = React.useState(false);
+  
+  // Intelligent Home Coordination State
+  const [coordinationState, setCoordinationState] = React.useState<FamilyCoordinationState | null>(null);
+  const [loadingCoordination, setLoadingCoordination] = React.useState(false);
+  const [expandedInsights, setExpandedInsights] = React.useState<Set<string>>(new Set());
 
   const currentKid = React.useMemo(() => {
     if (!kids.length) return null;
@@ -402,6 +460,171 @@ export default function HomeScreen({ navigation }: any) {
       cancelled = true;
     };
   }, [householdId, currentKid]);
+
+  // Helper function to toggle insight expansion
+  const toggleInsightExpansion = (insightId: string) => {
+    setExpandedInsights(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(insightId)) {
+        newSet.delete(insightId);
+      } else {
+        newSet.add(insightId);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to execute insight actions
+  const executeInsightAction = async (insight: FamilyInsight, actionIndex: number) => {
+    try {
+      await intelligentHomeCoordination.executeInsightAction(insight, actionIndex);
+      // Refresh data after action
+      if (householdId && kids.length > 0) {
+        const freshState = await intelligentHomeCoordination.getFamilyCoordinationState(householdId, kids);
+        setCoordinationState(freshState);
+      }
+    } catch (error) {
+      console.error('Failed to execute insight action:', error);
+    }
+  };
+
+  // Helper function to render coordination widgets
+  const renderCoordinationWidget = (widget: CoordinationWidget) => {
+    switch (widget.type) {
+      case 'today_overview':
+        return (
+          <Card key={widget.id} style={{ marginBottom: 12 }}>
+            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+              {widget.title}
+            </Text>
+            <Text style={{ color: theme.colors.text }}>
+              {widget.content.date}
+            </Text>
+            {widget.content.culturalNote && (
+              <Text style={{ color: theme.colors.muted, marginTop: 4, fontStyle: 'italic' }}>
+                {widget.content.culturalNote}
+              </Text>
+            )}
+          </Card>
+        );
+        
+      case 'cultural_moments':
+        return (
+          <Card key={widget.id} style={{ marginBottom: 12 }}>
+            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+              {widget.title}
+            </Text>
+            <Text style={{ fontWeight: "500", marginBottom: 2 }}>
+              {widget.content.dailyValue.value}
+            </Text>
+            <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>
+              {widget.content.dailyValue.description}
+            </Text>
+            {widget.content.seasonalActivities.length > 0 && (
+              <View>
+                <Text style={{ fontWeight: "500", marginBottom: 4 }}>Seasonal suggestions:</Text>
+                {widget.content.seasonalActivities.map((activity: string, index: number) => (
+                  <Text key={index} style={{ color: theme.colors.muted, fontSize: 14 }}>• {activity}</Text>
+                ))}
+              </View>
+            )}
+          </Card>
+        );
+        
+      case 'school_highlights':
+        return (
+          <Card key={widget.id} style={{ marginBottom: 12 }}>
+            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+              {widget.title}
+            </Text>
+            {widget.content.highlights.map((highlight: any, index: number) => (
+              <View key={index} style={{ marginBottom: 8 }}>
+                <Text style={{ fontWeight: "500" }}>{highlight.childName} - {highlight.schoolName}</Text>
+                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>Integration: {highlight.integrationStatus}</Text>
+                {highlight.hasAfterSchool && highlight.programs.length > 0 && (
+                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>Programs: {highlight.programs.join(', ')}</Text>
+                )}
+              </View>
+            ))}
+          </Card>
+        );
+        
+      default:
+        return (
+          <Card key={widget.id} style={{ marginBottom: 12 }}>
+            <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+              {widget.title}
+            </Text>
+            <Text style={{ color: theme.colors.muted }}>Widget content not implemented</Text>
+          </Card>
+        );
+    }
+  };
+
+  // Helper function to render family insights
+  const renderFamilyInsight = (insight: FamilyInsight) => {
+    const isExpanded = expandedInsights.has(insight.id);
+    const priorityColor = {
+      low: theme.colors.muted,
+      medium: theme.colors.warning,
+      high: theme.colors.error,
+      critical: theme.colors.error,
+    }[insight.priority];
+
+    return (
+      <Card key={insight.id} style={{ marginBottom: 8 }}>
+        <TouchableOpacity onPress={() => toggleInsightExpansion(insight.id)} activeOpacity={0.8}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "600", color: priorityColor, fontSize: 14 }}>
+                {insight.title}
+              </Text>
+              <Text style={{ color: theme.colors.text, fontSize: 13, marginTop: 2 }}>
+                {insight.description}
+              </Text>
+            </View>
+            <Ionicons 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={16} 
+              color={theme.colors.muted} 
+            />
+          </View>
+        </TouchableOpacity>
+        
+        {isExpanded && (
+          <View style={{ marginTop: 12 }}>
+            {insight.culturalContext && (
+              <Text style={{ color: theme.colors.muted, fontStyle: 'italic', fontSize: 12, marginBottom: 8 }}>
+                {insight.culturalContext}
+              </Text>
+            )}
+            
+            {insight.actionable && insight.actions && (
+              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                {insight.actions.map((action, actionIndex) => (
+                  <TouchableOpacity
+                    key={actionIndex}
+                    onPress={() => executeInsightAction(insight, actionIndex)}
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "500" }}>
+                      {action.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <ScreenContainer style={{ paddingTop: 8 }}>
@@ -517,6 +740,16 @@ export default function HomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* Intelligent Family Insights */}
+      {enabled && coordinationState && coordinationState.insights.length > 0 ? (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontWeight: "600", marginBottom: 8, color: theme.colors.text }}>
+            Family Insights
+          </Text>
+          {coordinationState.insights.slice(0, 3).map(renderFamilyInsight)}
+        </View>
+      ) : null}
+
       {/* Daily summary card (collapsible) */}
       {enabled ? (
         <Card style={{ marginBottom: 12 }}>
@@ -589,116 +822,38 @@ export default function HomeScreen({ navigation }: any) {
         </Card>
       ) : null}
 
-      {/* School highlights */}
-      {enabled ? (
+      {/* Intelligent Coordination Widgets */}
+      {enabled && coordinationState && !loadingCoordination ? (
+        <View style={{ marginBottom: 12 }}>
+          {coordinationState.widgets
+            .filter(widget => widget.type !== 'today_overview') // Already shown above via insights
+            .slice(0, 3) // Limit to top 3 widgets for clean UI
+            .map(renderCoordinationWidget)
+          }
+        </View>
+      ) : enabled && loadingCoordination ? (
+        <ListSkeleton count={2} />
+      ) : null}
+
+      {/* Enhanced Kid Overview with Cultural Context */}
+      {enabled && currentKid ? (
         <Card style={{ marginBottom: 12 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                fontWeight: "600",
-                marginBottom: 4,
-                color: theme.colors.text,
-              }}
-            >
-              {t("schoolHighlights") || "School highlights"}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <Text style={{ fontWeight: "600", color: theme.colors.text }}>
+              {currentKid.displayName} - {t("kidOverview") || "Overview"}
             </Text>
-            {!!currentKid && (
-              <Text style={{ color: theme.colors.muted }}>
-                {currentKid.displayName}
-                {currentKid.schoolGradeLabel
-                  ? ` • ${t("grade") || "Grade"} ${currentKid.schoolGradeLabel}`
-                  : ""}
+            {currentKid.schoolGradeLabel && (
+              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
+                {t("grade") || "Grade"} {currentKid.schoolGradeLabel}
               </Text>
             )}
           </View>
-          {loadingHighlights ? (
-            <SchoolScheduleSkeleton />
-          ) : schoolHighlights ? (
-            <View>
-              {Array.isArray(schoolHighlights.anomalies) &&
-                schoolHighlights.anomalies.length > 0 && (
-                  <View style={{ marginBottom: 8 }}>
-                    <Text style={{ fontWeight: "600" }}>
-                      {t("anomalies") || "Anomalies"}
-                    </Text>
-                    <Text style={{ color: theme.colors.warning }}>
-                      {schoolHighlights.anomalies.join(" • ")}
-                    </Text>
-                  </View>
-                )}
-              {Array.isArray(schoolHighlights.schedule) &&
-                schoolHighlights.schedule.length > 0 && (
-                  <View style={{ marginBottom: 8 }}>
-                    <Text style={{ fontWeight: "600" }}>
-                      {t("schedule") || "Schedule"}
-                    </Text>
-                    {schoolHighlights.schedule
-                      .slice(0, 4)
-                      .map((it: any, i: number) => (
-                        <Text key={i} style={{ color: theme.colors.text }}>
-                          {it.time ? `${it.time} – ` : ""}
-                          {it.subject || it.title || it.summary}
-                          {it.homework
-                            ? ` (${t("homework") || "Homework"}: ${it.homework})`
-                            : ""}
-                        </Text>
-                      ))}
-                  </View>
-                )}
-              {Array.isArray(schoolHighlights.documents) &&
-                schoolHighlights.documents.length > 0 && (
-                  <View style={{ marginBottom: 4 }}>
-                    <Text style={{ fontWeight: "600" }}>
-                      {t("documents") || "Documents"}
-                    </Text>
-                    {schoolHighlights.documents
-                      .slice(0, 3)
-                      .map((d: any, i: number) => (
-                        <Text key={i} style={{ color: theme.colors.primary }}>
-                          {d.title || d.url}
-                        </Text>
-                      ))}
-                  </View>
-                )}
-              {!schoolHighlights.anomalies?.length &&
-                !schoolHighlights.schedule?.length &&
-                !schoolHighlights.documents?.length && (
-                  <Text style={{ color: theme.colors.muted }}>
-                    {t("noSchoolHighlights") || "No school highlights yet."}
-                  </Text>
-                )}
-            </View>
-          ) : (
-            <Text style={{ color: theme.colors.muted }}>
-              {t("noSchoolHighlights") || "No school highlights yet."}
-            </Text>
-          )}
-        </Card>
-      ) : null}
-
-      {/* Today / This Week (from local storage or Firestore) */}
-      {enabled ? (
-        <Card style={{ marginBottom: 12 }}>
-          <Text
-            style={{
-              fontWeight: "600",
-              marginBottom: 4,
-              color: theme.colors.text,
-            }}
-          >
-            {t("kidOverview") || "Today / This Week"}
-          </Text>
+          
           {loadingKidInfo ? (
             <TextSkeleton lines={3} />
           ) : (
             <View>
-              {/* Today */}
+              {/* Today with cultural context */}
               <View style={{ marginBottom: 8 }}>
                 <Text style={{ fontWeight: "600" }}>{t("today")}</Text>
                 {kidDayInfo?.data ? (
@@ -709,10 +864,16 @@ export default function HomeScreen({ navigation }: any) {
                   </Text>
                 ) : (
                   <Text style={{ color: theme.colors.muted }}>
-                    {t("noData") || "No data"}
+                    {t("noData") || "No specific data - focus on family time and learning"}
                   </Text>
                 )}
+                
+                {/* Add cultural parenting tip */}
+                <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 4, fontStyle: 'italic' }}>
+                  💡 {culturalService.getParentingTip()}
+                </Text>
               </View>
+              
               {/* This Week */}
               <View>
                 <Text style={{ fontWeight: "600" }}>
@@ -726,48 +887,90 @@ export default function HomeScreen({ navigation }: any) {
                   </Text>
                 ) : (
                   <Text style={{ color: theme.colors.muted }}>
-                    {t("noData") || "No data"}
+                    {t("noData") || "Great week ahead for learning and growth"}
                   </Text>
                 )}
+                
+                {/* Add seasonal activity suggestion */}
+                <View style={{ marginTop: 6 }}>
+                  <Text style={{ fontWeight: "500", fontSize: 12, color: theme.colors.primary }}>
+                    Seasonal suggestion:
+                  </Text>
+                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
+                    {culturalService.getSeasonalActivities()[0] || "Enjoy family activities together"}
+                  </Text>
+                </View>
               </View>
             </View>
           )}
         </Card>
       ) : null}
 
-      {enabled && list.isLoading ? (
-        <ListSkeleton count={5} />
-      ) : (
-        <FlatList
-          // Filtered+sorted client-side for now; can move to server later
-          data={displayData}
-          keyExtractor={(item) => item.id}
-          refreshing={refreshing}
-          onRefresh={refreshAll}
-          renderItem={({ item }) => (
-            <TaskCard
-              task={item}
-              onPress={() => navigation.navigate("TaskDetail", { id: item.id })}
-              onChanged={() => {
-                qc.invalidateQueries({ queryKey: ["today", householdId] });
-                qc.invalidateQueries({ queryKey: ["week", householdId] });
-              }}
-              showQuickAccept={tab === "today"}
-            />
+      {/* Tasks Section with Enhanced Context */}
+      <View style={{ marginBottom: 12 }}>
+        <Text style={{ fontWeight: "600", marginBottom: 8, color: theme.colors.text }}>
+          {tab === "today" ? t("today") : t("thisWeek")}
+          {coordinationState && (
+            <Text style={{ fontWeight: "400", color: theme.colors.muted, fontSize: 14 }}>
+              {coordinationState.cultureOptimized ? " • Culturally optimized" : ""}
+            </Text>
           )}
-          ListEmptyComponent={
-            <EmptyState
-              title={t("noTasks") || "No tasks"}
-              subtitle={
-                tab === "today"
-                  ? (t("noTasksTodayTryAdd") as string) ||
-                    "All clear today. Tap + to add a task."
-                  : (t("noUpcoming") as string) || "No upcoming tasks."
-              }
-            />
-          }
-        />
-      )}
+        </Text>
+        
+        {enabled && list.isLoading ? (
+          <ListSkeleton count={5} />
+        ) : (
+          <FlatList
+            data={displayData}
+            keyExtractor={(item) => item.id}
+            refreshing={refreshing}
+            onRefresh={refreshAll}
+            renderItem={({ item }) => (
+              <TaskCard
+                task={item}
+                onPress={() => navigation.navigate("TaskDetail", { id: item.id })}
+                onChanged={() => {
+                  qc.invalidateQueries({ queryKey: ["today", householdId] });
+                  qc.invalidateQueries({ queryKey: ["week", householdId] });
+                  // Refresh coordination insights after task changes
+                  if (householdId && kids.length > 0) {
+                    intelligentHomeCoordination.refreshCoordination(householdId, kids);
+                  }
+                }}
+                showQuickAccept={tab === "today"}
+              />
+            )}
+            ListEmptyComponent={
+              <View>
+                <EmptyState
+                  title={t("noTasks") || "No tasks"}
+                  subtitle={
+                    tab === "today"
+                      ? (t("noTasksTodayTryAdd") as string) ||
+                        "All clear today. Tap + to add a task."
+                      : (t("noUpcoming") as string) || "No upcoming tasks."
+                  }
+                />
+                
+                {/* Show family value when no tasks */}
+                {coordinationState && (
+                  <Card style={{ marginTop: 12 }}>
+                    <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+                      Family Focus
+                    </Text>
+                    <Text style={{ color: theme.colors.text, marginBottom: 4 }}>
+                      {culturalService.getDailyFamilyValue().value}
+                    </Text>
+                    <Text style={{ color: theme.colors.muted, fontSize: 12, fontStyle: 'italic' }}>
+                      {culturalService.getDailyFamilyValue().description}
+                    </Text>
+                  </Card>
+                )}
+              </View>
+            }
+          />
+        )}
+      </View>
 
       {/* Filters */}
       {enabled && showFilters ? (
@@ -944,6 +1147,48 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
       ) : null}
+
+      {/* Cultural Context Footer */}
+      {enabled && coordinationState && coordinationState.predictions && (
+        <Card style={{ marginBottom: 12 }}>
+          <Text style={{ fontWeight: "600", marginBottom: 4, color: theme.colors.text }}>
+            Looking Ahead
+          </Text>
+          
+          {coordinationState.predictions.preparationNeeded.length > 0 && (
+            <View style={{ marginBottom: 8 }}>
+              <Text style={{ fontWeight: "500", fontSize: 14, color: theme.colors.warning }}>
+                Preparation needed:
+              </Text>
+              {coordinationState.predictions.preparationNeeded.slice(0, 2).map((prep, index) => (
+                <Text key={index} style={{ color: theme.colors.text, fontSize: 13, marginLeft: 8 }}>
+                  • {prep.task} ({prep.reason})
+                </Text>
+              ))}
+            </View>
+          )}
+          
+          {coordinationState.predictions.opportunities.length > 0 && (
+            <View>
+              <Text style={{ fontWeight: "500", fontSize: 14, color: theme.colors.success }}>
+                Opportunities:
+              </Text>
+              {coordinationState.predictions.opportunities.slice(0, 1).map((opp, index) => (
+                <Text key={index} style={{ color: theme.colors.text, fontSize: 13, marginLeft: 8 }}>
+                  • {opp.opportunity}
+                </Text>
+              ))}
+            </View>
+          )}
+          
+          {coordinationState.predictions.preparationNeeded.length === 0 && 
+           coordinationState.predictions.opportunities.length === 0 && (
+            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+              Everything looks smooth ahead! 🌟
+            </Text>
+          )}
+        </Card>
+      )}
 
       {/* Quick Actions dropdown (absolute, under + button) */}
       {enabled && quickVisible ? (

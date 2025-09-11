@@ -1,27 +1,33 @@
-// Norwegian Language & Cultural Adaptation Service  
-// Provides Norwegian-specific language support and cultural adaptations for POTY
+// Cultural Configuration Framework
+// Scalable architecture for international cultural adaptation with Norwegian excellence as the default
+// This service maintains 100% Norwegian functionality while enabling expansion to other cultures
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Child } from "./children";
 
-export type NorwegianLanguageLevel = "native" | "advanced" | "intermediate" | "beginner";
+export type LanguageLevel = "native" | "advanced" | "intermediate" | "beginner";
+export type SupportedCulture = "norwegian" | "swedish" | "danish" | "german" | "american";
 
-export type NorwegianCulturalPreferences = {
-  preferNorwegianLanguage: boolean;
-  useNorwegianTimeFormat: boolean; // 24-hour format
-  observeNorwegianHolidays: boolean;
-  includeFriluftsliv: boolean; // Outdoor life activities
-  useNorwegianGradingSystem: boolean; // 1-6 scale vs A-F
-  respectQuietHours: boolean; // Norwegian quiet hours (22:00-07:00)
-  includeNorwegianTraditions: boolean;
-  dialectSupport?: "bokmål" | "nynorsk" | "both";
+export type CulturalPreferences = {
+  culture: SupportedCulture;
+  preferNativeLanguage: boolean;
+  useLocalTimeFormat: boolean; // 24-hour format for Norway/Europe, 12-hour for US
+  observeLocalHolidays: boolean;
+  includeOutdoorActivities: boolean; // Friluftsliv for Norway, hiking for US, etc.
+  useLocalGradingSystem: boolean; // 1-6 scale for Norway, A-F for US
+  respectQuietHours: boolean; // Cultural quiet hours vary by country
+  includeLocalTraditions: boolean;
+  dialectSupport?: string; // "bokmål"|"nynorsk" for Norwegian, etc.
   regionSpecifics?: {
-    kommune: string;
-    fylke: string; // County
+    region: string; // kommune for Norway, state for US, etc.
+    subRegion: string; // fylke for Norway, county for US, etc.
     customTraditions: string[];
   };
 };
 
-export type NorwegianLanguageSupport = {
+// Backwards compatibility type alias
+export type NorwegianCulturalPreferences = CulturalPreferences;
+
+export type LanguageSupport = {
   taskTitles: Record<string, string>; // English -> Norwegian
   notifications: Record<string, string>;
   timeExpressions: Record<string, string>;
@@ -37,7 +43,7 @@ export type NorwegianLanguageSupport = {
   };
 };
 
-export type NorwegianCulturalContext = {
+export type CulturalContext = {
   seasonalActivities: Record<"vinter" | "vår" | "sommer" | "høst", string[]>;
   importantDates: { date: string; name: string; description: string }[];
   familyValues: string[];
@@ -46,8 +52,28 @@ export type NorwegianCulturalContext = {
   outdoorCulture: string[];
 };
 
-// Norwegian language translations and cultural mappings
-const NORWEGIAN_LANGUAGE_PACK: NorwegianLanguageSupport = {
+// Cultural configuration interfaces
+export interface CulturalConfiguration {
+  culture: SupportedCulture;
+  languagePack: LanguageSupport;
+  culturalContext: CulturalContext;
+  timeConfiguration: {
+    quietHours: { start: number; end: number };
+    workHours: { start: number; end: number };
+    schoolHours: { start: number; end: number };
+    timeFormat: '12h' | '24h';
+  };
+  seasonalConfiguration: {
+    seasons: Record<string, string[]>; // activities by season
+  };
+  schoolConfiguration: {
+    gradingSystem: 'norwegian' | 'american' | 'german';
+    afterSchoolPrograms: string[];
+  };
+}
+
+// Norwegian configuration (default/template)
+const NORWEGIAN_LANGUAGE_PACK: LanguageSupport = {
   taskTitles: {
     "Clean room": "Rydde rommet",
     "Do homework": "Gjøre lekser", 
@@ -186,7 +212,7 @@ const NORWEGIAN_LANGUAGE_PACK: NorwegianLanguageSupport = {
   }
 };
 
-const NORWEGIAN_CULTURAL_CONTEXT: NorwegianCulturalContext = {
+const NORWEGIAN_CULTURAL_CONTEXT: CulturalContext = {
   seasonalActivities: {
     vinter: [
       "Gå på ski", "Bygge snømann", "Ake", "Skøyte", "Vintertur i marka",
@@ -260,30 +286,74 @@ const NORWEGIAN_CULTURAL_CONTEXT: NorwegianCulturalContext = {
   ]
 };
 
-export class NorwegianCulturalAdaptationService {
-  private preferencesKey = "norwegian_cultural_preferences";
-  private languageLevelKey = "norwegian_language_level";
-  private cachedPreferences: NorwegianCulturalPreferences | null = null;
+// Complete Norwegian cultural configuration
+const NORWEGIAN_CONFIGURATION: CulturalConfiguration = {
+  culture: 'norwegian',
+  languagePack: NORWEGIAN_LANGUAGE_PACK,
+  culturalContext: NORWEGIAN_CULTURAL_CONTEXT,
+  timeConfiguration: {
+    quietHours: { start: 20, end: 7 },
+    workHours: { start: 8, end: 16 },
+    schoolHours: { start: 8, end: 14 },
+    timeFormat: '24h',
+  },
+  seasonalConfiguration: {
+    seasons: NORWEGIAN_CULTURAL_CONTEXT.seasonalActivities,
+  },
+  schoolConfiguration: {
+    gradingSystem: 'norwegian',
+    afterSchoolPrograms: ['SFO', 'AKS'],
+  },
+};
 
-  private getDefaultPreferences(): NorwegianCulturalPreferences {
+// Cultural configuration registry
+const CULTURAL_CONFIGURATIONS: Record<SupportedCulture, CulturalConfiguration> = {
+  norwegian: NORWEGIAN_CONFIGURATION,
+  // Placeholder configurations for future expansion
+  swedish: NORWEGIAN_CONFIGURATION, // Will be replaced with Swedish-specific config
+  danish: NORWEGIAN_CONFIGURATION, // Will be replaced with Danish-specific config
+  german: NORWEGIAN_CONFIGURATION, // Will be replaced with German-specific config
+  american: NORWEGIAN_CONFIGURATION, // Will be replaced with American-specific config
+};
+
+export class CulturalAdaptationService {
+  private preferencesKey = "cultural_preferences";
+  private languageLevelKey = "language_level";
+  private cachedPreferences: CulturalPreferences | null = null;
+  private currentConfiguration: CulturalConfiguration;
+
+  constructor(culture: SupportedCulture = 'norwegian') {
+    this.currentConfiguration = CULTURAL_CONFIGURATIONS[culture];
+  }
+
+  private getDefaultPreferences(): CulturalPreferences {
     return {
-      preferNorwegianLanguage: true,
-      useNorwegianTimeFormat: true,
-      observeNorwegianHolidays: true,
-      includeFriluftsliv: true,
-      useNorwegianGradingSystem: true,
+      culture: this.currentConfiguration.culture,
+      preferNativeLanguage: true,
+      useLocalTimeFormat: true,
+      observeLocalHolidays: true,
+      includeOutdoorActivities: true,
+      useLocalGradingSystem: true,
       respectQuietHours: true,
-      includeNorwegianTraditions: true,
-      dialectSupport: "bokmål"
+      includeLocalTraditions: true,
+      dialectSupport: this.currentConfiguration.culture === 'norwegian' ? "bokmål" : undefined
     };
   }
 
   // Get current cultural preferences
-  async getCulturalPreferences(): Promise<NorwegianCulturalPreferences> {
+  async getCulturalPreferences(): Promise<CulturalPreferences> {
     try {
       const stored = await AsyncStorage.getItem(this.preferencesKey);
       if (stored) {
-        const parsed: NorwegianCulturalPreferences = JSON.parse(stored);
+        const parsed: CulturalPreferences = JSON.parse(stored);
+        // Ensure culture is set and valid
+        if (!parsed.culture || !CULTURAL_CONFIGURATIONS[parsed.culture]) {
+          parsed.culture = 'norwegian'; // Default to Norwegian
+        }
+        // Update configuration if culture changed
+        if (parsed.culture !== this.currentConfiguration.culture) {
+          this.currentConfiguration = CULTURAL_CONFIGURATIONS[parsed.culture];
+        }
         this.cachedPreferences = parsed;
         return parsed;
       }
@@ -291,22 +361,38 @@ export class NorwegianCulturalAdaptationService {
       console.warn("Failed to get cultural preferences:", error);
     }
 
-    // Default Norwegian preferences
+    // Default preferences for current culture
     const defaults = this.getDefaultPreferences();
     this.cachedPreferences = defaults;
     return defaults;
   }
 
   // Synchronous accessor using cache or defaults
-  getCulturalPreferencesSync(): NorwegianCulturalPreferences {
+  getCulturalPreferencesSync(): CulturalPreferences {
     return this.cachedPreferences ?? this.getDefaultPreferences();
   }
 
+  // Get current cultural configuration
+  getCurrentConfiguration(): CulturalConfiguration {
+    return this.currentConfiguration;
+  }
+
+  // Switch culture (for future multi-market support)
+  async switchCulture(culture: SupportedCulture): Promise<void> {
+    this.currentConfiguration = CULTURAL_CONFIGURATIONS[culture];
+    const currentPrefs = this.getCulturalPreferencesSync();
+    await this.updateCulturalPreferences({ ...currentPrefs, culture });
+  }
+
   // Update cultural preferences
-  async updateCulturalPreferences(preferences: Partial<NorwegianCulturalPreferences>): Promise<void> {
+  async updateCulturalPreferences(preferences: Partial<CulturalPreferences>): Promise<void> {
     try {
       const current = await this.getCulturalPreferences();
       const updated = { ...current, ...preferences };
+      // Update configuration if culture changed
+      if (updated.culture && updated.culture !== this.currentConfiguration.culture) {
+        this.currentConfiguration = CULTURAL_CONFIGURATIONS[updated.culture];
+      }
       await AsyncStorage.setItem(this.preferencesKey, JSON.stringify(updated));
       this.cachedPreferences = updated;
     } catch (error) {
@@ -314,41 +400,42 @@ export class NorwegianCulturalAdaptationService {
     }
   }
 
-  // Translate text to Norwegian
-  translateToNorwegian(englishText: string, category?: "task" | "notification" | "time" | "family" | "school"): string {
+  // Translate text using current cultural configuration
+  translateText(englishText: string, category?: "task" | "notification" | "time" | "family" | "school"): string {
     const preferences = this.getCulturalPreferencesSync();
     
-    // If Norwegian language is not preferred, return original
-    if (!preferences || !preferences.preferNorwegianLanguage) {
+    // If native language is not preferred, return original
+    if (!preferences || !preferences.preferNativeLanguage) {
       return englishText;
     }
 
     let translationSource: Record<string, string>;
+    const languagePack = this.currentConfiguration.languagePack;
     
     switch (category) {
       case "task":
-        translationSource = NORWEGIAN_LANGUAGE_PACK.taskTitles;
+        translationSource = languagePack.taskTitles;
         break;
       case "notification":
-        translationSource = NORWEGIAN_LANGUAGE_PACK.notifications;
+        translationSource = languagePack.notifications;
         break;
       case "time":
-        translationSource = NORWEGIAN_LANGUAGE_PACK.timeExpressions;
+        translationSource = languagePack.timeExpressions;
         break;
       case "family":
-        translationSource = NORWEGIAN_LANGUAGE_PACK.familyTerms;
+        translationSource = languagePack.familyTerms;
         break;
       case "school":
-        translationSource = NORWEGIAN_LANGUAGE_PACK.schoolTerms;
+        translationSource = languagePack.schoolTerms;
         break;
       default:
         // Try all categories
         const allTranslations = {
-          ...NORWEGIAN_LANGUAGE_PACK.taskTitles,
-          ...NORWEGIAN_LANGUAGE_PACK.notifications,
-          ...NORWEGIAN_LANGUAGE_PACK.timeExpressions,
-          ...NORWEGIAN_LANGUAGE_PACK.familyTerms,
-          ...NORWEGIAN_LANGUAGE_PACK.schoolTerms
+          ...languagePack.taskTitles,
+          ...languagePack.notifications,
+          ...languagePack.timeExpressions,
+          ...languagePack.familyTerms,
+          ...languagePack.schoolTerms
         };
         translationSource = allTranslations;
     }
@@ -356,23 +443,34 @@ export class NorwegianCulturalAdaptationService {
     return translationSource[englishText] || englishText;
   }
 
-  // Format time in Norwegian style
-  formatNorwegianTime(date: Date, preferences?: NorwegianCulturalPreferences): string {
+  // Format time in cultural style
+  formatLocalTime(date: Date, preferences?: CulturalPreferences): string {
     const prefs = preferences || this.getCulturalPreferencesSync();
+    const config = this.currentConfiguration;
     
-    if (prefs.useNorwegianTimeFormat) {
-      return date.toLocaleTimeString('nb-NO', { 
+    if (prefs.useLocalTimeFormat) {
+      const locale = this.getCultureLocale(config.culture);
+      const use24Hour = config.timeConfiguration.timeFormat === '24h';
+      return date.toLocaleTimeString(locale, { 
         hour: '2-digit', 
         minute: '2-digit',
-        hour12: false 
+        hour12: !use24Hour 
       });
     }
     
     return date.toLocaleTimeString('en-US');
   }
 
-  // Format date in Norwegian style
-  formatNorwegianDate(date: Date, includeWeekday: boolean = true): string {
+  // Backwards compatibility
+  formatNorwegianTime(date: Date, preferences?: CulturalPreferences): string {
+    return this.formatLocalTime(date, preferences);
+  }
+
+  // Format date in cultural style
+  formatLocalDate(date: Date, includeWeekday: boolean = true): string {
+    const config = this.currentConfiguration;
+    const locale = this.getCultureLocale(config.culture);
+    
     const options: Intl.DateTimeFormatOptions = {
       day: 'numeric',
       month: 'long',
@@ -383,39 +481,56 @@ export class NorwegianCulturalAdaptationService {
       options.weekday = 'long';
     }
     
-    return date.toLocaleDateString('nb-NO', options);
+    return date.toLocaleDateString(locale, options);
+  }
+
+  // Backwards compatibility
+  formatNorwegianDate(date: Date, includeWeekday: boolean = true): string {
+    return this.formatLocalDate(date, includeWeekday);
   }
 
   // Get culturally appropriate greeting
-  getNorwegianGreeting(timeOfDay: "morning" | "afternoon" | "evening" | "motivational"): string {
-    const greetings = NORWEGIAN_LANGUAGE_PACK.greetings[timeOfDay];
+  getLocalGreeting(timeOfDay: "morning" | "afternoon" | "evening" | "motivational"): string {
+    const greetings = this.currentConfiguration.languagePack.greetings[timeOfDay];
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
-  // Get seasonal activities suggestions
-  getSeasonalActivities(season?: "vinter" | "vår" | "sommer" | "høst"): string[] {
-    const currentSeason = season || this.getCurrentNorwegianSeason();
-    return NORWEGIAN_CULTURAL_CONTEXT.seasonalActivities[currentSeason];
+  // Backwards compatibility
+  getNorwegianGreeting(timeOfDay: "morning" | "afternoon" | "evening" | "motivational"): string {
+    return this.getLocalGreeting(timeOfDay);
   }
 
-  // Check if current time respects Norwegian quiet hours
+  // Get seasonal activities suggestions
+  getSeasonalActivities(season?: string): string[] {
+    const config = this.currentConfiguration;
+    const currentSeason = season || this.getCurrentSeason();
+    const activities = config.seasonalConfiguration.seasons[currentSeason];
+    return activities || [];
+  }
+
+  // Check if current time respects cultural quiet hours
   isWithinQuietHours(): boolean {
     const now = new Date();
     const hour = now.getHours();
+    const config = this.currentConfiguration;
     
-    // Norwegian quiet hours: 20:00 - 07:00 (8PM - 7AM)
-    return hour >= 20 || hour < 7;
+    return hour >= config.timeConfiguration.quietHours.start || hour < config.timeConfiguration.quietHours.end;
   }
 
-  // Check if current time is during typical Norwegian friluftsliv hours
-  isWithinFriluftsliv(): boolean {
+  // Check if current time is during typical outdoor activity hours (cultural equivalent of friluftsliv)
+  isWithinOutdoorActivityHours(): boolean {
     const now = new Date();
     const hour = now.getHours();
     const day = now.getDay();
     const isWeekend = day === 0 || day === 6;
     
-    // Weekend daytime (10:00-16:00) is typical Norwegian outdoor family time
+    // Weekend daytime (10:00-16:00) is typical outdoor family time across Nordic cultures
     return isWeekend && hour >= 10 && hour <= 16;
+  }
+
+  // Backwards compatibility
+  isWithinFriluftsliv(): boolean {
+    return this.isWithinOutdoorActivityHours();
   }
 
   // Get appropriate notification delay for cultural context
@@ -432,8 +547,8 @@ export class NorwegianCulturalAdaptationService {
       return Math.max(0, nextMorning.getTime() - now.getTime());
     }
     
-    if (this.isWithinFriluftsliv()) {
-      // Short delay during friluftsliv time (30 minutes)
+    if (this.isWithinOutdoorActivityHours()) {
+      // Short delay during outdoor activity time (30 minutes)
       return 30 * 60 * 1000;
     }
     
@@ -446,83 +561,118 @@ export class NorwegianCulturalAdaptationService {
       return "silent";
     }
     
-    if (this.isWithinFriluftsliv()) {
-      return "friluftsliv";
+    if (this.isWithinOutdoorActivityHours()) {
+      return "outdoor_activity";
     }
     
     return "default";
   }
 
-  // Adapt task scheduling for Norwegian culture
-  adaptTaskForNorwegianCulture(taskTitle: string, child: Child): {
+  // Adapt task scheduling for current culture
+  adaptTaskForCulture(taskTitle: string, child: Child): {
     title: string;
     suggestions: string[];
     culturalNotes: string[];
   } {
-    const norwegianTitle = this.translateToNorwegian(taskTitle, "task");
+    const localTitle = this.translateText(taskTitle, "task");
     const suggestions: string[] = [];
     const culturalNotes: string[] = [];
+    const config = this.currentConfiguration;
 
-    // Add Norwegian-specific suggestions based on task type
+    // Add culture-specific suggestions based on task type
     if (taskTitle.toLowerCase().includes("outdoor") || taskTitle.toLowerCase().includes("outside")) {
-      suggestions.push("Husk på allemannsretten når dere er ute");
-      suggestions.push("Ta med ryggsekk og drikke");
-      culturalNotes.push("Friluftsliv er viktig i norsk kultur");
+      if (config.culture === 'norwegian') {
+        suggestions.push("Husk på allemannsretten når dere er ute");
+        suggestions.push("Ta med ryggsekk og drikke");
+        culturalNotes.push("Friluftsliv er viktig i norsk kultur");
+      } else {
+        suggestions.push("Remember to bring water and snacks");
+        suggestions.push("Check the weather before heading out");
+        culturalNotes.push("Outdoor activities are important for family bonding");
+      }
     }
 
     if (taskTitle.toLowerCase().includes("homework") || taskTitle.toLowerCase().includes("lekser")) {
-      suggestions.push("Sett av rolig tid til lekselesing");
-      suggestions.push("Ha alt utstyr klart på forhånd");
-      culturalNotes.push("Norske lærere setter pris på selvstendige elever");
+      if (config.culture === 'norwegian') {
+        suggestions.push("Sett av rolig tid til lekselesing");
+        suggestions.push("Ha alt utstyr klart på forhånd");
+        culturalNotes.push("Norske lærere setter pris på selvstendige elever");
+      } else {
+        suggestions.push("Set aside quiet time for homework");
+        suggestions.push("Have all supplies ready beforehand");
+        culturalNotes.push("Teachers appreciate independent students");
+      }
     }
 
     if (taskTitle.toLowerCase().includes("meal") || taskTitle.toLowerCase().includes("middag")) {
-      suggestions.push("Kanskje prøve en tradisjonell norsk rett?");
-      suggestions.push("Spise sammen som familie");
-      culturalNotes.push("Familemåltider er viktige i Norge");
+      if (config.culture === 'norwegian') {
+        suggestions.push("Kanskje prøve en tradisjonell norsk rett?");
+        suggestions.push("Spise sammen som familie");
+        culturalNotes.push("Familemåltider er viktige i Norge");
+      } else {
+        suggestions.push("Try a traditional local dish");
+        suggestions.push("Eat together as a family");
+        culturalNotes.push("Family meals are important for bonding");
+      }
     }
 
     return {
-      title: norwegianTitle,
+      title: localTitle,
       suggestions,
       culturalNotes
     };
   }
 
-  // Get Norwegian parenting wisdom
-  getNorwegianParentingTip(): string {
-    const tips = [
-      "La barna leke ute i all slags vær - det styrker immunforsvaret",
-      "Barn trenger struktur, men også frihet til å utforske",
-      "Lær barna om naturen og respekt for miljøet",
-      "Tillit er grunnlaget for gode foreldrebarn-relasjoner",
-      "Det er lov å kjede seg - det fremmer kreativitet",
-      "Familietid er like viktig som produktivitet",
-      "Barn lærer mest gjennom lek og positive opplevelser",
-      "Å feile er en naturlig del av læringen",
-      "Lær barna å sette pris på enkle gleder",
-      "Demokrati starter hjemme - involver barna i beslutninger"
-    ];
-    
-    return tips[Math.floor(Math.random() * tips.length)];
+  // Backwards compatibility
+  adaptTaskForNorwegianCulture(taskTitle: string, child: Child): {
+    title: string;
+    suggestions: string[];
+    culturalNotes: string[];
+  } {
+    return this.adaptTaskForCulture(taskTitle, child);
   }
 
-  // Get Norwegian family values for the day
-  getDailyNorwegianValue(): { value: string; description: string } {
-    const values = NORWEGIAN_CULTURAL_CONTEXT.familyValues;
-    const approaches = NORWEGIAN_CULTURAL_CONTEXT.parentingApproach;
+  // Get cultural parenting wisdom
+  getParentingTip(): string {
+    const config = this.currentConfiguration;
+    const approaches = config.culturalContext.parentingApproach;
+    return approaches[Math.floor(Math.random() * approaches.length)];
+  }
+
+  // Backwards compatibility
+  getNorwegianParentingTip(): string {
+    return this.getParentingTip();
+  }
+
+  // Get cultural family values for the day
+  getDailyFamilyValue(): { value: string; description: string } {
+    const config = this.currentConfiguration;
+    const values = config.culturalContext.familyValues;
+    const approaches = config.culturalContext.parentingApproach;
     
     const value = values[Math.floor(Math.random() * values.length)];
     const approach = approaches[Math.floor(Math.random() * approaches.length)];
     
-    return {
-      value,
-      description: `I dag kan dere fokusere på: ${approach}`
-    };
+    if (config.culture === 'norwegian') {
+      return {
+        value,
+        description: `I dag kan dere fokusere på: ${approach}`
+      };
+    } else {
+      return {
+        value,
+        description: `Today you can focus on: ${approach}`
+      };
+    }
   }
 
-  // Assess Norwegian language proficiency
-  async assessLanguageLevel(child: Child): Promise<NorwegianLanguageLevel> {
+  // Backwards compatibility
+  getDailyNorwegianValue(): { value: string; description: string } {
+    return this.getDailyFamilyValue();
+  }
+
+  // Assess local language proficiency
+  async assessLanguageLevel(child: Child): Promise<LanguageLevel> {
     // This would analyze the child's school grade and language usage
     // For now, make educated guess based on grade
     if (!child.currentGrade) return "beginner";
@@ -533,91 +683,187 @@ export class NorwegianCulturalAdaptationService {
     return "native";
   }
 
-  // Generate Norwegian cultural context for notifications
+  // Generate cultural context for notifications
   generateCulturalNotificationContext(type: "task" | "school" | "family" | "seasonal"): string {
-    const contexts = {
-      task: [
-        "Husk på familieverdiene våre",
-        "Ta det i ditt eget tempo", 
-        "Spør om hjelp hvis du trenger det",
-        "Godt jobbet så langt!"
-      ],
-      school: [
-        "Lykke til på skolen i dag!",
-        "Husk matpakka og alt utstyr",
-        "Ha en fin dag med vennene dine",
-        "Lær noe nytt og spennende!"
-      ],
-      family: [
-        "Familietid er koselig tid",
-        "Dere er et flott lag sammen",
-        "Kos dere og ha det gøy",
-        "Ta vare på hverandre"
-      ],
-      seasonal: this.getSeasonalMessage()
-    };
-
-    const options = contexts[type];
-    return Array.isArray(options) ? 
-      options[Math.floor(Math.random() * options.length)] :
-      options;
+    const config = this.currentConfiguration;
+    
+    if (config.culture === 'norwegian') {
+      const contexts = {
+        task: [
+          "Husk på familieverdiene våre",
+          "Ta det i ditt eget tempo", 
+          "Spør om hjelp hvis du trenger det",
+          "Godt jobbet så langt!"
+        ],
+        school: [
+          "Lykke til på skolen i dag!",
+          "Husk matpakka og alt utstyr",
+          "Ha en fin dag med vennene dine",
+          "Lær noe nytt og spennende!"
+        ],
+        family: [
+          "Familietid er koselig tid",
+          "Dere er et flott lag sammen",
+          "Kos dere og ha det gøy",
+          "Ta vare på hverandre"
+        ],
+        seasonal: this.getSeasonalMessage()
+      };
+      
+      const options = contexts[type];
+      return Array.isArray(options) ? 
+        options[Math.floor(Math.random() * options.length)] :
+        options;
+    } else {
+      // Generic English context for other cultures (to be replaced with specific cultural contexts)
+      const contexts = {
+        task: [
+          "Remember our family values",
+          "Take your time", 
+          "Ask for help if you need it",
+          "Great job so far!"
+        ],
+        school: [
+          "Have a great day at school!",
+          "Don't forget your lunch and supplies",
+          "Enjoy time with your friends",
+          "Learn something new and exciting!"
+        ],
+        family: [
+          "Family time is special time",
+          "You're a great team together",
+          "Enjoy yourselves and have fun",
+          "Take care of each other"
+        ],
+        seasonal: this.getSeasonalMessage()
+      };
+      
+      const options = contexts[type];
+      return Array.isArray(options) ? 
+        options[Math.floor(Math.random() * options.length)] :
+        options;
+    }
   }
 
   // Helper functions
-  private getCurrentNorwegianSeason(): "vinter" | "vår" | "sommer" | "høst" {
+  private getCurrentSeason(): string {
     const month = new Date().getMonth() + 1;
+    const config = this.currentConfiguration;
     
-    if (month >= 12 || month <= 2) return "vinter";
-    if (month >= 3 && month <= 5) return "vår";
-    if (month >= 6 && month <= 8) return "sommer";
-    return "høst";
+    if (config.culture === 'norwegian') {
+      if (month >= 12 || month <= 2) return "vinter";
+      if (month >= 3 && month <= 5) return "vår";
+      if (month >= 6 && month <= 8) return "sommer";
+      return "høst";
+    } else {
+      // Generic season names for other cultures
+      if (month >= 12 || month <= 2) return "winter";
+      if (month >= 3 && month <= 5) return "spring";
+      if (month >= 6 && month <= 8) return "summer";
+      return "autumn";
+    }
+  }
+
+  // Backwards compatibility
+  private getCurrentNorwegianSeason(): "vinter" | "vår" | "sommer" | "høst" {
+    return this.getCurrentSeason() as "vinter" | "vår" | "sommer" | "høst";
   }
 
   private getSeasonalMessage(): string {
-    const season = this.getCurrentNorwegianSeason();
-    const messages = {
-      vinter: "Nyt vintermørket og kos deg inne",
-      vår: "Våren kommer - tid for nye begynnelser",
-      sommer: "Sommerferien er tid for frihet og opplevelser", 
-      høst: "Høsten er tid for forberedelser og mys"
-    };
+    const season = this.getCurrentSeason();
+    const config = this.currentConfiguration;
     
-    return messages[season];
+    if (config.culture === 'norwegian') {
+      const messages: Record<string, string> = {
+        vinter: "Nyt vintermørket og kos deg inne",
+        vår: "Våren kommer - tid for nye begynnelser",
+        sommer: "Sommerferien er tid for frihet og opplevelser", 
+        høst: "Høsten er tid for forberedelser og mys"
+      };
+      return messages[season] || "Nyt tiden sammen";
+    } else {
+      const messages: Record<string, string> = {
+        winter: "Enjoy the cozy indoor time",
+        spring: "Spring is coming - time for new beginnings",
+        summer: "Summer is time for freedom and experiences", 
+        autumn: "Autumn is time for preparation and coziness"
+      };
+      return messages[season] || "Enjoy the time together";
+    }
+  }
+
+  // Get culture-specific locale for formatting
+  private getCultureLocale(culture: SupportedCulture): string {
+    const locales: Record<SupportedCulture, string> = {
+      norwegian: 'nb-NO',
+      swedish: 'sv-SE',
+      danish: 'da-DK',
+      german: 'de-DE',
+      american: 'en-US',
+    };
+    return locales[culture] || 'en-US';
   }
 }
 
-// Export singleton instance
-export const norwegianCulture = new NorwegianCulturalAdaptationService();
+// Export singleton instance with Norwegian as default culture
+export const culturalService = new CulturalAdaptationService('norwegian');
 
-// Utility functions for Norwegian culture
-export function getNorwegianWeekday(date: Date, short: boolean = false): string {
+// Backwards compatibility export
+export const norwegianCulture = culturalService;
+
+// Utility functions - Cultural adaptation layer with Norwegian as default
+export function getCulturalWeekday(date: Date, short: boolean = false, culture: SupportedCulture = 'norwegian'): string {
+  const config = CULTURAL_CONFIGURATIONS[culture];
   const weekdays = short ? 
-    NORWEGIAN_LANGUAGE_PACK.weekdayShort :
-    ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"];
+    config.languagePack.weekdayShort :
+    ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"]; // Norwegian default
   
-  return weekdays[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Adjust for Norwegian week start
+  return weekdays[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Adjust for week start
+}
+
+export function getCulturalMonth(date: Date, culture: SupportedCulture = 'norwegian'): string {
+  const config = CULTURAL_CONFIGURATIONS[culture];
+  return config.languagePack.monthNames[date.getMonth()];
+}
+
+export function isCulturalWorkingHours(date: Date, culture: SupportedCulture = 'norwegian'): boolean {
+  const hour = date.getHours();
+  const day = date.getDay();
+  const config = CULTURAL_CONFIGURATIONS[culture];
+  
+  return day >= 1 && day <= 5 && 
+         hour >= config.timeConfiguration.workHours.start && 
+         hour <= config.timeConfiguration.workHours.end;
+}
+
+export function formatCulturalPhoneNumber(phone: string, culture: SupportedCulture = 'norwegian'): string {
+  if (culture === 'norwegian') {
+    // Norwegian phone format: +47 XXX XX XXX
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('47') && cleaned.length === 10) {
+      return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 7)} ${cleaned.slice(7)}`;
+    }
+    if (cleaned.length === 8) {
+      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 5)} ${cleaned.slice(5)}`;
+    }
+  }
+  // Add other cultural phone formats here in the future
+  return phone; // Return original if can't format
+}
+
+// Backwards compatibility functions
+export function getNorwegianWeekday(date: Date, short: boolean = false): string {
+  return getCulturalWeekday(date, short, 'norwegian');
 }
 
 export function getNorwegianMonth(date: Date): string {
-  return NORWEGIAN_LANGUAGE_PACK.monthNames[date.getMonth()];
+  return getCulturalMonth(date, 'norwegian');
 }
 
 export function isNorwegianWorkingHours(date: Date): boolean {
-  const hour = date.getHours();
-  const day = date.getDay();
-  
-  // Norwegian working hours: Monday-Friday, 08:00-16:00
-  return day >= 1 && day <= 5 && hour >= 8 && hour <= 16;
+  return isCulturalWorkingHours(date, 'norwegian');
 }
 
 export function formatNorwegianPhoneNumber(phone: string): string {
-  // Norwegian phone format: +47 XXX XX XXX
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.startsWith('47') && cleaned.length === 10) {
-    return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 7)} ${cleaned.slice(7)}`;
-  }
-  if (cleaned.length === 8) {
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 5)} ${cleaned.slice(5)}`;
-  }
-  return phone; // Return original if can't format
+  return formatCulturalPhoneNumber(phone, 'norwegian');
 }

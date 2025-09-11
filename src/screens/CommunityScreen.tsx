@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   ScrollView,
@@ -8,36 +8,33 @@ import {
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../design/theme";
 import { useHousehold } from "../firebase/providers/HouseholdProvider";
 import { auth } from "../firebase";
-import { fetchUserGroups } from "../services/groups";
 import { fetchUserEvents } from "../services/events";
 import FamilyDaySummary from "../components/FamilyDaySummary";
 import { familyDaySummaryService } from "../services/familyDaySummary";
+import AppointmentCreationModal from "../components/appointments/AppointmentCreationModal";
 import dayjs from "dayjs";
 
 export default function CommunityScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { householdId } = useHousehold();
   const user = auth.currentUser;
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
 
   // Norwegian greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "God morgen";
-    if (hour < 18) return "God dag";
-    return "God kveld";
+    if (hour < 12) return t("community.goodMorning");
+    if (hour < 18) return t("community.goodDay");
+    return t("community.goodEvening");
   };
 
-  // Fetch user's groups
-  const { data: groups = [], isLoading: groupsLoading } = useQuery({
-    queryKey: ["groups", user?.uid],
-    queryFn: () => user ? fetchUserGroups(user.uid) : [],
-    enabled: !!user,
-  });
 
   // Fetch upcoming events (next 7 days)
   const { data: events = [], isLoading: eventsLoading } = useQuery({
@@ -230,7 +227,7 @@ export default function CommunityScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>Please sign in to view community features</Text>
+          <Text style={styles.emptyStateText}>{t("community.signInRequired")}</Text>
         </View>
       </View>
     );
@@ -249,8 +246,10 @@ export default function CommunityScreen() {
               : "15° • Delvis skyet • God dag for friluftsliv"
             }
           </Text>
-          
-          {/* Family Day Summary */}
+        </View>
+        
+        {/* Family Day Summary - Full Width */}
+        <View style={{ marginHorizontal: -16, marginBottom: 24 }}>
           <FamilyDaySummary />
         </View>
 
@@ -261,7 +260,7 @@ export default function CommunityScreen() {
             onPress={() => navigation.navigate("CreateGroup" as any)}
           >
             <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-            <Text style={styles.quickActionText}>Opprett{'\n'}Gruppe</Text>
+            <Text style={styles.quickActionText}>{t("community.createGroup")}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -269,77 +268,31 @@ export default function CommunityScreen() {
             onPress={() => navigation.navigate("CreateEvent" as any)}
           >
             <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
-            <Text style={styles.quickActionText}>Nytt{'\n'}Arrangement</Text>
+            <Text style={styles.quickActionText}>{t("community.newEvent")}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickAction}
-            onPress={() => navigation.navigate("Groups" as any)}
+            onPress={() => setShowAppointmentModal(true)}
           >
-            <Ionicons name="search-outline" size={24} color={theme.colors.primary} />
-            <Text style={styles.quickActionText}>Finn{'\n'}Grupper</Text>
+            <Ionicons name="time-outline" size={24} color={theme.colors.primary} />
+            <Text style={styles.quickActionText}>{t("community.createAppointment")}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Active Groups Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mine Grupper</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Groups" as any)}>
-              <Text style={styles.sectionAction}>Se alle</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.groupsList}>
-            {groupsLoading ? (
-              <Text style={styles.emptyStateText}>Laster grupper...</Text>
-            ) : groups.slice(0, 3).map((group) => (
-              <TouchableOpacity
-                key={group.id}
-                style={styles.groupCard}
-                onPress={() => navigation.navigate("GroupDetail" as any, { id: group.id })}
-              >
-                <View style={styles.groupIcon}>
-                  <Text style={{ fontSize: 20 }}>
-                    {group.type === "school_class" ? "🏫" : 
-                     group.type === "neighborhood" ? "🏘️" : 
-                     group.type === "hobby_group" ? "⚽" : "👥"}
-                  </Text>
-                </View>
-                <View style={styles.groupInfo}>
-                  <Text style={styles.groupName}>{group.name}</Text>
-                  <Text style={styles.groupMeta}>
-                    {group.memberCount} medlemmer • {group.type === "school_class" ? "Skoleklasse" : group.type}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
-            
-            {!groupsLoading && groups.length === 0 && (
-              <View style={styles.emptyState}>
-                <Ionicons name="people-outline" size={48} color={theme.colors.textSecondary} />
-                <Text style={styles.emptyStateText}>
-                  Du er ikke med i noen grupper ennå.{'\n'}
-                  Opprett eller finn grupper i nærheten!
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
 
         {/* Upcoming Events Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Kommende Arrangementer</Text>
+            <Text style={styles.sectionTitle}>{t("community.events")}</Text>
             <TouchableOpacity onPress={() => navigation.navigate("Events" as any)}>
-              <Text style={styles.sectionAction}>Se alle</Text>
+              <Text style={styles.sectionAction}>{t("community.seeAll")}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.eventsList}>
             {eventsLoading ? (
-              <Text style={styles.emptyStateText}>Laster arrangementer...</Text>
+              <Text style={styles.emptyStateText}>{t("community.loadingEvents")}</Text>
             ) : events.slice(0, 3).map((event) => (
               <TouchableOpacity
                 key={event.id}
@@ -350,9 +303,9 @@ export default function CommunityScreen() {
                   <Text style={styles.eventTitle}>{event.title}</Text>
                   <View style={styles.eventType}>
                     <Text style={styles.eventTypeText}>
-                      {event.type === "bursdagsfest" ? "Bursdag" :
-                       event.type === "skolearrangement" ? "Skole" :
-                       event.type === "17_mai" ? "17. mai" : event.type}
+                      {event.type === "bursdagsfest" ? t("community.birthday") :
+                       event.type === "skolearrangement" ? t("community.school") :
+                       event.type === "17_mai" ? t("community.17thMay") : event.type}
                     </Text>
                   </View>
                 </View>
@@ -373,32 +326,26 @@ export default function CommunityScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="calendar-outline" size={48} color={theme.colors.textSecondary} />
                 <Text style={styles.emptyStateText}>
-                  Ingen kommende arrangementer.{'\n'}
-                  Opprett et nytt arrangement!
+                  {t("community.noEvents")}{'\n'}
+                  {t("community.createNewEvent")}
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* School Integration Section - placeholder */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Skole & SFO</Text>
-          </View>
-          
-          <TouchableOpacity style={styles.groupCard}>
-            <View style={[styles.groupIcon, { backgroundColor: "#FFE8E8" }]}>
-              <Ionicons name="school" size={24} color="#C62828" />
-            </View>
-            <View style={styles.groupInfo}>
-              <Text style={styles.groupName}>Koble til barnets skole</Text>
-              <Text style={styles.groupMeta}>Få automatisk tilgang til klassens grupper</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* Appointment Creation Modal */}
+      <AppointmentCreationModal
+        visible={showAppointmentModal}
+        onClose={() => setShowAppointmentModal(false)}
+        householdId={householdId || ""}
+        onSave={(appointment) => {
+          setShowAppointmentModal(false);
+          // Could show a success toast here
+        }}
+      />
     </View>
   );
 }

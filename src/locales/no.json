@@ -466,5 +466,189 @@
   "familyTimeSuggestions": "Familietidsforslag",
   "familyOrganizer": "Din familieorganisator med norsk skoleintegrasjon",
   "norwegianSchoolSupport": "Norsk skolestøtte",
-  "fullNorwegianIntegration": "Full integrasjon med norske skolesystemer • Oppdateringer i sanntid • Kulturell kontekst"
+  "fullNorwegianIntegration": "Full integrasjon med norske skolesystemer • Oppdateringer i sanntid • Kulturell kontekst",
+  
+  "appointments": {
+    "newAppointment": "Ny avtale",
+    "todaysAppointments": "Dagens avtaler", 
+    "upcomingAppointments": "Kommende avtaler",
+    "noAppointmentsToday": "Ingen avtaler i dag",
+    "addAppointment": "Legg til avtale",
+    "appointmentCreated": "Avtale opprettet",
+    "created": "Avtale opprettet!",
+    "error": "Feil",
+    "createError": "Kunne ikke opprette avtale. Prøv igjen.",
+    "updateError": "Kunne ikke oppdatere avtale. Prøv igjen.",
+    "titleRequired": "Tittel er påkrevd",
+    "selectType": "Velg avtale type",
+    "details": "Avtale detaljer",
+    "title": "Tittel",
+    "description": "Beskrivelse",
+    "dateTime": "Dato og tid",
+    "allDay": "Hele dagen",
+    "location": "Sted",
+    "locationPlaceholder": "Hvor skal avtalen være?",
+    "review": "Gjennomgang",
+    "create": "Opprett avtale",
+    "createNew": "Ny\navtale",
+    "today": "I dag",
+    "tomorrow": "I morgen",
+    "now": "Nå",
+    "completed": "Fullført",
+    "childAppointment": "Barn avtale",
+    "new": "Ny avtale",
+    "edit": "Rediger avtale",
+    
+    "types": {
+      "school": "Skole",
+      "health": "Helse", 
+      "family": "Familie",
+      "activities": "Aktiviteter",
+      "cultural": "Kulturell",
+      "personal": "Personlig"
+    },
+    
+    "notifications": {
+      "setup": "Varslingsinnstillinger",
+      "description": "Få påminnelse før avtalen starter",
+      "reminder": "Påminnelse",
+      "before": "før",
+      "summary": "Varsler",
+      "sent": "varsler sendt",
+      "daysBefore": "dager før",
+      "hoursBefore": "timer før", 
+      "settings": "Varslingsinnstillinger",
+      "preview": "Forhåndsvis"
+    },
+    
+    "cultural": {
+      "warnings": "Norsk kultur tips",
+      "considerations": "Kulturelle hensyn",
+      "tips": "Norske anbefalinger",
+      "dinnerTimeWarning": "Dette overlapper med vanlig middag tid i Norge (17:00-19:00)",
+      "earlyMorningWarning": "Tidlig morgen - husk norske mørke vintre", 
+      "schoolHoursWarning": "Dette er i skoletid - sjekk at skolen er informert",
+      "suggestions": "Norske anbefalinger"
+    }
+  },
+
+  "deviceLinking": {
+    "linkDevice": "Koble enhet",
+    "deviceLinking": "Enhetstilkobling",
+    "connectedDevice": "Tilkoblet enhet",
+    "lastSeen": "Sist sett",
+    "sendMessage": "Send melding",
+    "manage": "Administrer",
+    "linkDeviceDescription": "Koble til enhet for å sende meldinger, oppgaver og belønninger",
+    "deviceLinked": "Enhet tilkoblet",
+    "deviceRevoked": "Enhetstilkobling fjernet",
+    "linkingFailed": "Tilkobling mislyktes",
+    "qrCode": "QR-kode",
+    "verificationCode": "Bekreftelseskode",
+    "securityStep": "Sikkerhetstrinn",
+    "scanQR": "Skann QR-koden",
+    "enterCode": "Skriv inn kode",
+    "linkingComplete": "Tilkobling fullført",
+    "trustLevel": "Tillitsnivå",
+    "permissions": "Tillatelser",
+    "emergencyAccess": "Nødtilgang",
+    "quietHours": "Stille timer",
+    "culturalSettings": "Kulturelle innstillinger",
+    
+    "explanations": {
+      "security": "Vi bruker norsk tilnærming til familietillit og transparens",
+      "process": "Prosessen tar under 2 minutter og er fullstendig sikker",
+      "privacy": "All kommunikasjon er kryptert og respekterer norske familieverdier",
+      "parentControl": "Du har full kontroll over tillatelser og kan endre dem når som helst"
+    },
+
+    "permissions": {
+      "sendMessages": "Send meldinger",
+      "receiveMessages": "Motta meldinger", 
+      "addTasks": "Legg til oppgaver",
+      "markComplete": "Marker som fullført",
+      "viewRewards": "Se belønninger",
+      "viewSchedule": "Se timeplan",
+      "emergencyContact": "Nødkontakt",
+      "locationSharing": "Dele posisjon",
+      "culturalReminders": "Kulturelle påminnelser"
+    },
+
+    "trustLevels": {
+      "full": "Full tillit",
+      "supervised": "Overvåket",
+      "limited": "Begrenset"
+    },
+
+    "deviceTypes": {
+      "smartphone": "Smarttelefon",
+      "smartwatch": "Smartklokke",
+      "tablet": "Nettbrett",
+      "laptop": "Bærbar PC"
+    },
+
+    "messages": {
+      "newMessage": "Ny melding fra foreldre",
+      "taskAssigned": "Ny oppgave",
+      "rewardReceived": "Belønning mottatt!",
+      "appointmentReminder": "Avtale påminnelse",
+      "emergencyMessage": "⚠️ Viktig melding",
+      "culturalReminder": "🇳🇴 Kulturell påminnelse",
+      "deviceRevoked": "Enhetstilkobling fjernet",
+      "permissionsUpdated": "Tillatelser oppdatert"
+    }
+  },
+
+  "hyttemodus": {
+    "cabinMode": "Hyttemodus",
+    "enabled": "Aktivert",
+    "description": "Justerer tidsplaner for hyttesemester og utendørs aktiviteter",
+    "outdoorFocus": "Utendørs fokus",
+    "weatherAware": "Væravhengig", 
+    "flexibleTiming": "Fleksible tider",
+    "seasonalAdjustments": "Sesongtilpasninger",
+    "familyTime": "Familietid",
+    "natureActivities": "Naturaktiviteter",
+    "traditionalValues": "Tradisjonelle verdier"
+  },
+
+  "common": {
+    "back": "Tilbake",
+    "next": "Neste", 
+    "save": "Lagre",
+    "cancel": "Avbryt",
+    "done": "Ferdig",
+    "edit": "Rediger",
+    "delete": "Slett",
+    "days": "dager",
+    "hours": "timer",
+    "minutes": "minutter",
+    "seconds": "sekunder",
+    "morning": "morgen",
+    "afternoon": "ettermiddag", 
+    "evening": "kveld",
+    "night": "natt",
+    "yes": "Ja",
+    "no": "Nei",
+    "maybe": "Kanskje"
+  },
+
+  "community": {
+    "goodMorning": "God morgen",
+    "goodDay": "God dag",
+    "goodEvening": "God kveld",
+    "createGroup": "Opprett\nGruppe",
+    "newEvent": "Nytt\nArrangement",
+    "findGroups": "Finn\nGrupper",
+    "createAppointment": "Ny\navtale",
+    "events": "Arrangementer",
+    "seeAll": "Se alle",
+    "loadingEvents": "Laster arrangementer...",
+    "noEvents": "Ingen kommende arrangementer.",
+    "createNewEvent": "Opprett et nytt arrangement!",
+    "birthday": "Bursdag",
+    "school": "Skole",
+    "17thMay": "17. mai",
+    "signInRequired": "Vennligst logg inn for å se fellesskapsfunksjoner"
+  }
 }

@@ -60,27 +60,14 @@ This backlog prioritizes POTY's Norwegian market launch and school integration f
 ## 🎯 POTY MUST HAVE (Essential for Norwegian Market Launch)
 
 ### Core Functionality Completion
-- [x] **Enhanced Onboarding Flow** ✅ **COMPLETE - PRODUCTION READY** 
-  - 📋 **Implementation Plan**: `docs/ONBOARDING_ENHANCEMENT_PLAN.md`
-  - ✅ **Phase 1 Complete** (Authentication & Profile Enhancement) - 2025-01-14
-  - ✅ **Phase 2 Complete** (Smart Household Setup & Merging) - 2025-01-14
-  - ✅ **Phase 3 Complete** (Enhanced Child Management & Device Setup) - 2025-01-14
-  - ✅ **Phase 4 Complete** (Firebase Functions & Backend Logic) - 2025-09-09
-  - ✅ Complete 4-step Norwegian family-focused onboarding system
-  - ✅ All frontend components implemented with Norwegian cultural context
-  - ✅ All backend functions implemented: onboarding orchestration, household merging, GDPR+ compliance, child accounts, reward system
-  - ✅ Norwegian school integration with municipal platform detection
-  - ✅ Age-appropriate reward system with Norwegian cultural achievements (friluftsliv, dugnad, etc.)
-  - **Progress**: 100% complete - **READY FOR NORWEGIAN MARKET LAUNCH**
-  - **Status**: Production Ready | **Impact**: LAUNCH CRITICAL ✅
+- [ ] **Enhanced Onboarding Flow**
+  - Guided tutorial for first-time users
+  - **Effort**: Medium | **Impact**: Critical
   
-- [x] **Push Notification Rich Actions** ✅ **COMPLETE - PRODUCTION READY**
-  - ✅ Complete action button implementations with Norwegian cultural context
-  - ✅ Mark complete, snooze (Norwegian time options), reassign, accept task from notifications
-  - ✅ Quiet hours respect (20:00-07:00), friluftsliv awareness, offline queuing
-  - ✅ Full Norwegian language support and family hierarchy integration
-  - ✅ Cross-platform iOS/Android rich notification support
-  - **Status**: Production Ready | **Impact**: LAUNCH CRITICAL ✅
+- [ ] **Push Notification Rich Actions**
+  - Complete action button implementations
+  - Mark complete, snooze, reassign from notification
+  - **Effort**: Medium | **Impact**: Critical
 
 - [ ] **Offline-First Data Sync**
   - Complete conflict resolution for concurrent edits
@@ -146,7 +133,7 @@ This backlog prioritizes POTY's Norwegian market launch and school integration f
 ### Norwegian Market Leadership Features
 - [ ] **Norwegian Family AI Assistant**
   - ML-based suggestions trained on Norwegian family patterns
-  - School schedule-aware household task optimization
+  - School schedule-aware household task optimization 
   - Norwegian seasonal task recommendations (winter prep, etc.)
   - **Effort**: High | **Impact**: HIGH COMPETITIVE ADVANTAGE
 

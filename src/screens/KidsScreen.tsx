@@ -19,6 +19,10 @@ import ChildDetailDrawer from "../components/ChildDetailDrawer";
 import { appEvents } from "../events";
 import Tabs from "../components/Tabs";
 import { kidsIntelligenceService } from "../services/kidsIntelligence";
+import { subscribeToTodaysAppointments, getTodaysAppointments, getUpcomingAppointments } from "../services/appointments";
+import { Appointment } from "../models/Appointment";
+import AppointmentCreationModal from "../components/appointments/AppointmentCreationModal";
+import AppointmentCard from "../components/appointments/AppointmentCard";
 
 // Get current Norwegian season
 const getCurrentNorwegianSeason = () => {
@@ -147,7 +151,42 @@ export default function KidsScreen() {
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [familyIntelligence, setFamilyIntelligence] = React.useState<any>(null);
   const [loadingIntelligence, setLoadingIntelligence] = React.useState(false);
+  const [todaysAppointments, setTodaysAppointments] = React.useState<Record<string, Appointment[]>>({});
+  const [showAppointmentModal, setShowAppointmentModal] = React.useState(false);
+  const [selectedChildForAppointment, setSelectedChildForAppointment] = React.useState<Child | null>(null);
+  const [editingAppointment, setEditingAppointment] = React.useState<Appointment | null>(null);
   const currentSeason = getCurrentNorwegianSeason();
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    // Find the child associated with this appointment
+    const child = children.find(c => c.id === appointment.childId);
+    setSelectedChildForAppointment(child || null);
+    setShowAppointmentModal(true);
+  };
+
+  const loadTodaysAppointments = React.useCallback(async () => {
+    if (!householdId) return;
+    
+    try {
+      // Load appointments for each child and family-wide appointments
+      const appointmentsMap: Record<string, Appointment[]> = {};
+      
+      // Load family-wide appointments (no specific childId)
+      const familyAppointments = await getTodaysAppointments(householdId);
+      appointmentsMap['family'] = familyAppointments;
+      
+      // Load appointments for each child
+      for (const child of kids) {
+        const childAppointments = await getTodaysAppointments(householdId, child.id);
+        appointmentsMap[child.id] = childAppointments;
+      }
+      
+      setTodaysAppointments(appointmentsMap);
+    } catch (error) {
+      console.error('Failed to load appointments:', error);
+    }
+  }, [householdId, kids]);
 
   const load = React.useCallback(async () => {
     if (!householdId) return setKids([]);
@@ -183,6 +222,12 @@ export default function KidsScreen() {
   React.useEffect(() => {
     load();
   }, [load]);
+
+  React.useEffect(() => {
+    if (kids.length > 0) {
+      loadTodaysAppointments();
+    }
+  }, [kids, loadTodaysAppointments]);
 
   // Generate tab names
   const tabNames = React.useMemo(() => {
@@ -377,6 +422,64 @@ export default function KidsScreen() {
               </View>
             )}
           </View>
+        </View>
+
+        {/* Today's Appointments */}
+        <View
+          style={{
+            backgroundColor: theme.colors.card,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+              <Text style={{ marginLeft: 8, ...theme.typography.h2, color: theme.colors.text }}>
+                {(t("todaysAppointments") as string) || "Dagens avtaler"}
+              </Text>
+            </View>
+          </View>
+          
+          {todaysAppointments[child.id] && todaysAppointments[child.id].length > 0 ? (
+            <View style={{ marginBottom: 12 }}>
+              {todaysAppointments[child.id].map((appointment) => (
+                <AppointmentCard 
+                  key={appointment.id} 
+                  appointment={appointment} 
+                  compact={true}
+                  onPress={() => {/* TODO: Navigate to appointment details */}}
+                  onEdit={() => handleEditAppointment(appointment)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={{ color: theme.colors.muted, fontSize: 14, marginBottom: 12, fontStyle: 'italic' }}>
+              {(t("noAppointmentsToday") as string) || "Ingen avtaler i dag"}
+            </Text>
+          )}
+          
+          <TouchableOpacity
+            style={{
+              backgroundColor: theme.colors.primary,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              alignSelf: "flex-start",
+            }}
+            onPress={() => {
+              setSelectedChildForAppointment(child);
+              setShowAppointmentModal(true);
+            }}
+          >
+            <Ionicons name="add" size={16} color={theme.colors.onPrimary} />
+            <Text style={{ color: theme.colors.onPrimary, marginLeft: 4, fontWeight: "600", fontSize: 14 }}>
+              {(t("addAppointment") as string) || "Legg til avtale"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Early Years Development Hub */}
@@ -626,6 +729,64 @@ export default function KidsScreen() {
               </View>
             )}
           </View>
+        </View>
+
+        {/* Today's Appointments */}
+        <View
+          style={{
+            backgroundColor: theme.colors.card,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+              <Text style={{ marginLeft: 8, ...theme.typography.h2, color: theme.colors.text }}>
+                {(t("todaysAppointments") as string) || "Dagens avtaler"}
+              </Text>
+            </View>
+          </View>
+          
+          {todaysAppointments[child.id] && todaysAppointments[child.id].length > 0 ? (
+            <View style={{ marginBottom: 12 }}>
+              {todaysAppointments[child.id].map((appointment) => (
+                <AppointmentCard 
+                  key={appointment.id} 
+                  appointment={appointment} 
+                  compact={true}
+                  onPress={() => {/* TODO: Navigate to appointment details */}}
+                  onEdit={() => handleEditAppointment(appointment)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={{ color: theme.colors.muted, fontSize: 14, marginBottom: 12, fontStyle: 'italic' }}>
+              {(t("noAppointmentsToday") as string) || "Ingen avtaler i dag"}
+            </Text>
+          )}
+          
+          <TouchableOpacity
+            style={{
+              backgroundColor: theme.colors.primary,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              alignSelf: "flex-start",
+            }}
+            onPress={() => {
+              setSelectedChildForAppointment(child);
+              setShowAppointmentModal(true);
+            }}
+          >
+            <Ionicons name="add" size={16} color={theme.colors.onPrimary} />
+            <Text style={{ color: theme.colors.onPrimary, marginLeft: 4, fontWeight: "600", fontSize: 14 }}>
+              {(t("addAppointment") as string) || "Legg til avtale"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Norwegian School Context */}
@@ -967,6 +1128,28 @@ export default function KidsScreen() {
         onClose={() => {
           setShowViewDrawer(false);
           setViewChild(null);
+        }}
+      />
+
+      {/* Appointment creation modal */}
+      <AppointmentCreationModal
+        visible={showAppointmentModal}
+        onClose={() => {
+          setShowAppointmentModal(false);
+          setSelectedChildForAppointment(null);
+          setEditingAppointment(null);
+        }}
+        child={selectedChildForAppointment}
+        householdId={householdId || ""}
+        editingAppointment={editingAppointment}
+        onSave={(appointment) => {
+          // Refresh appointments after saving
+          loadTodaysAppointments();
+          // Show success message
+          appEvents.emit("toast:show", {
+            message: (t("appointments.created") as string) || "Avtale opprettet!",
+            type: "success"
+          });
         }}
       />
     </ScreenContainer>

@@ -133,6 +133,28 @@ service cloud.firestore {
         allow read:   if signedIn() && isMember(hid);
         allow update, delete: if false;
       }
+
+      // -------- appointments ------------------
+      match /appointments/{appointmentId} {
+        allow read: if signedIn() && isMember(hid);
+        
+        allow create: if signedIn() && isMember(hid)
+          && request.resource.data.householdId == hid
+          && request.resource.data.createdBy == uid()
+          && request.resource.data.title is string
+          && request.resource.data.startTime is timestamp;
+        
+        allow update: if signedIn() && isMember(hid)
+          && request.resource.data.householdId == resource.data.householdId
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "title", "description", "startTime", "endTime", "allDay", 
+            "location", "status", "participants", "notifications", 
+            "norwegianContext", "updatedAt"
+          ]);
+        
+        allow delete: if signedIn() && isMember(hid);
+      }
     }
   }
 }
